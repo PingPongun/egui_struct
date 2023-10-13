@@ -1,0 +1,21 @@
+[package]
+name = "egui_struct_demo"
+version = "0.1.0"
+authors = ["Matthew Berger <matthewjordanberger@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+egui_struct = { path = "../" }
+egui = "0.23.0"
+eframe = { version = "0.23.0", default-features = false, features = [
+    "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+] }
+# hashbrown = { version = "0.14.1", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+rust-i18n = { git = "https://github.com/PingPongun/rust-i18n.git", branch = "develop" }
+
+# native:
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-subscriber = "0.3"

@@ -1,0 +1,48 @@
+_version: 1
+Color.Custom: Custom
+Color.Green: Green
+Color.Named: Named
+Color.Named2: Named2
+Color.Named2.name: name
+Color.NamedCustom.blue: blue
+Color.NamedCustom.green: green
+Color.NamedCustom.metadata: metadata
+Color.NamedCustom.red: red
+Color.Red: Red
+Color.Renamed Custom: Renamed Custom
+Color.Renamed Custom.hint.This is named custom: This is named custom
+Data.App language: App language
+Data.Bool: Bool
+Data.F 32: F 32
+Data.F 64: F 64
+Data.Hashmap: Hashmap
+Data.I 128: I 128
+Data.I 16: I 16
+Data.I 32: I 32
+Data.I 64: I 64
+Data.I 8: I 8
+Data.Isize: Isize
+Data.Isize imut: Isize imut
+Data.List: List
+Data.Nested struct: Nested struct
+Data.Optional: Optional
+Data.Optional string: Optional string
+Data.Primary color: Primary color
+Data.Secondary color: Secondary color
+Data.String: String
+Data.U 128: U 128
+Data.U 16: U 16
+Data.U 32: U 32
+Data.U 8: U 8
+Data.Unnamed struct: Unnamed struct
+Data.Usize: Usize
+Data.isize_imut.hint.This is isize but immutable: This is isize but immutable
+Data.optional.hint.This is Option<_>: This is Option<_>
+Data.optional_string.hint.This is also Option, but as inner value is simple it is presented inline: This is also Option, but as inner value is simple it is presented inline
+Language.English: English
+Language.Polish: Polish
+Metadata.message: message
+Simple.Variant: Variant
+SubData.number: number
+SubData.value: value
+

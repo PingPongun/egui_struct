@@ -1,0 +1,18 @@
+[package]
+name = "egui_struct_macros"
+authors = ["PingPongun"]
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["parsing", "extra-traits"] }
+convert_case = "0.6.0"
+darling = "0.20.3"
+
+[features]
+i18n = []
