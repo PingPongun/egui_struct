@@ -906,7 +906,6 @@ dependencies = [
  "egui",
  "egui_struct_macros",
  "indexmap",
- "serde",
 ]
 
 [[package]]

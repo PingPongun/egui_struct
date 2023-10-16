@@ -23,6 +23,7 @@ Data.I 64: I 64
 Data.I 8: I 8
 Data.Isize: Isize
 Data.Isize imut: Isize imut
+Data.Limited isize: Limited isize
 Data.List: List
 Data.Nested struct: Nested struct
 Data.Optional: Optional
@@ -37,6 +38,7 @@ Data.U 8: U 8
 Data.Unnamed struct: Unnamed struct
 Data.Usize: Usize
 Data.isize_imut.hint.This is isize but immutable: This is isize but immutable
+Data.limited_isize.hint.This is also isize but limited to range <5,11>: This is also isize but limited to range <5,11>
 Data.optional.hint.This is Option<_>: This is Option<_>
 Data.optional_string.hint.This is also Option, but as inner value is simple it is presented inline: This is also Option, but as inner value is simple it is presented inline
 Language.English: English

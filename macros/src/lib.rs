@@ -6,7 +6,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::{DeriveInput, Index};
 use syn::{Ident, Type};
 
-#[derive(Debug, FromField)]
+#[derive(Debug, Clone, FromField)]
 #[darling(attributes(eguis))]
 struct EField {
     ident: Option<Ident>,
@@ -27,6 +27,12 @@ struct EField {
     i18n: Option<String>,
     /// Use function callback (when value has been changed; signature: fn(&field_type) )
     on_change: Option<String>,
+    /// pass format/config object to customise how field is displayed
+    imconfig: Option<String>,
+    /// pass format/config object to customise how field is displayed (when mutable)
+    config: Option<String>,
+    // ///add reset(to default) button (use default vaule from this string)
+    // resetable: Option<String>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis))]
@@ -63,6 +69,9 @@ struct EStruct {
     ///generate only EguiStructImut (and not EguiStruct)
     #[darling(default)]
     imut: bool,
+    // ///add reset(to default) button to all fields
+    // #[darling(default)]
+    // resetable: bool,
 }
 
 fn handle_enum(
@@ -128,7 +137,7 @@ fn handle_enum(
                     fields_default.push(quote! { #field_type::default(), });
                     fields_names.push(format_ident!("_field_{}", idx));
                 }
-                let (fields_code, mut fields_code_mut, fty, fidx) = handle_fields(
+                let (fields_code, mut fields_code_mut, single_field, fidx) = handle_fields(
                     &variant.fields.fields,
                     prefix.clone() + &vident.to_string() + ".",
                     case,
@@ -137,12 +146,18 @@ fn handle_enum(
                 );
                 if fields_code.len() == 1 {
                     let fident = format_ident!("_field_{}", fidx);
+                    let single_field = single_field.unwrap();
+                    let fty = single_field.ty;
+                    let imconfig = get_config(single_field.imconfig);
+                    let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
-                    show_primitive_arm.push(quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive(ui),});
+                    let primitive_imut = quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive(ui,#imconfig),};
+                    let primitive_mut = quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive_mut(ui,#config),};
+                    show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
-                        show_primitive_mut_arm.push(quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive(ui),});
+                        show_primitive_mut_arm.push(primitive_imut);
                     } else {
-                        show_primitive_mut_arm.push(quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive_mut(ui),});
+                        show_primitive_mut_arm.push(primitive_mut);
                     }
                 } else {
                     has_childs_arm.push(quote! { Self:: #vident(..) => true,});
@@ -224,6 +239,7 @@ fn handle_enum(
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #ty #ty_generics #where_clause {
             const SIMPLE: bool = #simple;//is c-like enum
+            type ConfigTypeImut = ();
             fn has_childs(&self) -> bool {
                 match self{
                     #(#has_childs_arm)* //variant1=>false,
@@ -240,7 +256,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive(&self, ui: &mut ::egui::Ui) -> ::egui::Response {
+            fn show_primitive(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut) -> ::egui::Response {
                 fn to_text(s:& #ty)-> String{
                     match s{
                         #(#to_name_arm)*
@@ -264,6 +280,7 @@ fn handle_enum(
 
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #ty #ty_generics #where_clause {
+            type ConfigType = ();
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
                 match self{
                     #(#show_childs_mut_arm)*
@@ -271,7 +288,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType) -> ::egui::Response {
                 fn to_text(s:& #ty)-> String{
                     match s{
                         #(#to_name_arm)*
@@ -310,11 +327,11 @@ fn handle_fields(
     case: &Option<Converter>,
     prefix_code: TokenStream,
     prefix_ident: &str,
-) -> (Vec<TokenStream>, Vec<TokenStream>, Option<Type>, Index) {
+) -> (Vec<TokenStream>, Vec<TokenStream>, Option<EField>, Index) {
     let mut fields_code = Vec::new();
     let mut fields_code_mut = Vec::new();
     let mut index = syn::Index::from(0);
-    let mut ty = None;
+    let mut single_field = None;
     for (idx, field) in fields.iter().enumerate() {
         if field.skip {
             continue;
@@ -345,7 +362,7 @@ fn handle_fields(
                 lab = quote! { #label };
             }
         } else {
-            ty = Some(field.ty.clone());
+            single_field = Some(field.clone());
             index = syn::Index::from(idx);
             name_tt = index.to_token_stream();
             field_name = idx.to_string();
@@ -363,9 +380,10 @@ fn handle_fields(
         if !prefix_ident.is_empty() {
             whole_ident = format_ident!("{}{}", prefix_ident, field_name).into_token_stream();
         };
-        fields_code.push(
-            quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level); },
-        );
+
+        let imconfig = get_config(field.imconfig.clone());
+        let config = get_config(field.config.clone());
+
         let mut on_change = quote! {};
         if let Some(custom_func) = &field.on_change {
             let ident = syn::Path::from_string(custom_func)
@@ -376,13 +394,17 @@ fn handle_fields(
                 }
             };
         }
+
+        let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #imconfig); };
+        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config); #on_change};
+        fields_code.push(field_code_imut.clone());
         if field.imut {
-            fields_code_mut.push( quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level); #on_change } );
+            fields_code_mut.push(field_code_imut)
         } else {
-            fields_code_mut.push( quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level); #on_change} );
+            fields_code_mut.push(field_code_mut)
         }
     }
-    (fields_code, fields_code_mut, ty, index)
+    (fields_code, fields_code_mut, single_field, index)
 }
 
 fn handle_struct(
@@ -391,22 +413,25 @@ fn handle_struct(
     case: &Option<Converter>,
     input: &EStruct,
 ) -> TokenStream {
-    let (fields_code, fields_code_mut, ty, index) =
+    let (fields_code, fields_code_mut, single_field, index) =
         handle_fields(&fields.fields, prefix, case, quote! { self.}, "");
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let name = input.ident.clone();
     let simple = fields.style == ast::Style::Tuple && fields_code.len() == 1;
-    let simple = if let Some(ty) = ty {
+    let simple = if let Some(sf) = &single_field {
+        let ty = &sf.ty;
         quote! {#ty :: SIMPLE && #simple}
     } else {
         quote! { #simple}
     };
+
     macro_rules! show_primitive {
-        ($name:ident) => {
+        ($name:ident, $config:ident) => {
+            let config = get_config(single_field.as_ref().and_then(|x| x.$config.clone()));
             let $name = if fields.style == ast::Style::Tuple {
                 quote! {
                     if Self::SIMPLE {
-                        self. #index .$name(ui)
+                        self. #index .$name(ui,#config)
                     } else {
                         ui.label("")
                     }
@@ -416,12 +441,13 @@ fn handle_struct(
             };
         };
     }
-    show_primitive!(show_primitive);
-    show_primitive!(show_primitive_mut);
+    show_primitive!(show_primitive, imconfig);
+    show_primitive!(show_primitive_mut, config);
 
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #name #ty_generics #where_clause {
             const SIMPLE: bool = #simple;
+            type ConfigTypeImut = ();
             fn has_childs(&self) -> bool {
                !Self::SIMPLE
             }
@@ -432,18 +458,19 @@ fn handle_struct(
                 #(#fields_code)*
                 response
             }
-            fn show_primitive(&self, ui: &mut ::egui::Ui) -> ::egui::Response {
+            fn show_primitive(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut) -> ::egui::Response {
                 #show_primitive
             }
         }
     };
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
+            type ConfigType = ();
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType) -> ::egui::Response {
                 #show_primitive_mut
             }
         }
@@ -475,7 +502,6 @@ pub fn display_gui(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ast::Data::Struct(fields) => handle_struct(fields, prefix, &case, &input),
     };
 
-    // let toks = display_gui_inner(&ast).unwrap_or_else(|err| err.to_compile_error());
     debug_print_generated(&ast, &toks);
     toks.into()
 }
@@ -483,7 +509,7 @@ pub fn display_gui(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ////////////////////////////////////////
 
 fn debug_print_generated(ast: &DeriveInput, toks: &TokenStream) {
-    let debug = std::env::var("STRUM_DEBUG");
+    let debug = std::env::var("EGUI_STRUCT_DEBUG");
     if let Ok(s) = debug {
         if s == "1" {
             println!("{}", toks);
@@ -494,7 +520,12 @@ fn debug_print_generated(ast: &DeriveInput, toks: &TokenStream) {
         }
     }
 }
-
+fn get_config(config: Option<String>) -> TokenStream {
+    config
+        .unwrap_or("Default::default()".to_string())
+        .parse()
+        .unwrap()
+}
 fn parse_case_name(case_name: &str) -> Converter {
     let conv = Converter::new();
     match case_name {

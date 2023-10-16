@@ -2,6 +2,7 @@ use egui::RichText;
 use egui_struct::*;
 use rust_i18n::set_locale;
 use std::collections::HashMap;
+use ConfigNum::*;
 
 #[derive(EguiStruct, Debug, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
 enum Language {
@@ -28,7 +29,7 @@ pub enum Color {
     Named2 {
         name: String,
     },
-    Custom(u8, u8, u8),
+    Custom(u8, u8, #[eguis(config = "DragValue(1,111)")] u8),
 
     #[eguis(skip, rename = "Skipped Custom")]
     SkippedCustom(u8, u8, u8),
@@ -67,8 +68,11 @@ pub struct Data {
     isize: isize,
     #[eguis(imut, hint = "This is isize but immutable")]
     isize_imut: isize,
-    // #[eguis(hint = "This is isize but limited to range <5,11>")]
-    // also_isize: isize,
+    #[eguis(
+        hint = "This is also isize but limited to range <5,11>",
+        config = "Slider(5,11)"
+    )]
+    limited_isize: isize,
     bool: bool,
     u8: u8,
     u16: u16,
@@ -106,6 +110,7 @@ impl Default for Data {
             i128: i128::MAX,
             isize: -14,
             isize_imut: -333,
+            limited_isize: 6,
             bool: true,
             u8: 94,
             u16: 14029,
