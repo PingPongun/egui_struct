@@ -179,7 +179,7 @@ fn handle_enum(
                         *self = Self:: #vident(#(#fields_default)*);
                         tresp.mark_changed()
                     }
-                    response |=tresp;
+                    inner_response |=tresp;
                 });
             }
             ast::Style::Struct => {
@@ -217,7 +217,7 @@ fn handle_enum(
                         *self = Self:: #vident{#(#fields_default)*};
                         tresp.mark_changed()
                     }
-                    response |=tresp;
+                    inner_response |=tresp;
                 });
             }
             ast::Style::Unit => {
@@ -230,7 +230,7 @@ fn handle_enum(
                         *self = Self:: #vident;
                         tresp.mark_changed()
                     }
-                    response |=tresp;
+                    inner_response |=tresp;
                 });
             }
         }
@@ -295,12 +295,12 @@ fn handle_enum(
                         _=>"".to_string()}
                 }
                 ui.horizontal(|ui|{
-                    let mut response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
-                    ::egui::ComboBox::from_id_source(ui.next_auto_id()).wrap(false)
+                    let mut inner_response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
+                    let mut response=::egui::ComboBox::from_id_source(ui.next_auto_id()).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
                         #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
-                    });
+                    }).response;
                     match self{
                         #(#to_hint_arm)*
                         _=>(),
@@ -309,7 +309,7 @@ fn handle_enum(
                         #(#show_primitive_mut_arm)*
                         _=>(),
                     }
-                    response
+                    response | inner_response
                 }).inner
             }
         }
