@@ -39,8 +39,46 @@ Add this to your `Cargo.toml`:
 egui_struct = { git = "https://github.com/PingPongun/egui_struct.git", branch = "master" }
 ```
 
+Crate consists of 3 traits (EguiStructImut -> EguiStructRst -> EguiStruct) and one derive macro (EguiStruct).
+- EguiStructRst is implemented for all Clone+PartialEq types and necessary to implement EguiStruct (unless type in not Clone or not PariatialEq, you can ignore it).
+- EguiStructImut:
+  - for end user ofers one function show_top(..), which displays struct inside scroll area.
+  - when implementing (most of bellow has some default impl):
+    - show_primitive(..) - ui elements shown in the same line as label
+    - show_childs(..) - ui elements related to nested data, that is show inside collapsible rows
+    - has_childs(..) && has_primitive(..) - indicates if data has at the moment childs/primitive section
+    - const SIMPLE - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
+    - type ConfigTypeImut - type that will pass some data to cutomise how data is shown, in most cases this will be ()
+    - show_collapsing(..) - do not overide this method, use it when implementing show_childs(..) to display single nested element
+- EguiStruct is mutable equivalent of EguiStructImut.
+
+Macro EguiStruct can be used on structs&enums to derive both EguiStructImut & EguiStruct.
+Macro supports attribute "eguis" on either enum/struct, field or variant level:
+
+- enum/struct level:
+  - rename_all = "str"- renames all fields/variants to selected case (recognized values: "Upper", "Lower", "Title", "Toggle", "Camel", "Pascal", "UpperCamel", "Snake", "UpperSnake", "ScreamingSnake", "Kebab", "Cobol", "UpperKebab", "Train", "Flat", "UpperFlat", "Alternating", "Sentence")
+  - prefix = "str"- add this prefix when generating rust-i18n keys
+  - imut - generate only EguiStructImut
+  - resetable = "val" OR resetable(with_expr = Expr) - all fields/variants will be resetable according to provieded value (val: "not_resetable", "field_default", "struct_default", "follow_arg"(use value passed on runtime through reset2 arg))
+
+- variant level:
+  - rename ="str"- Name of the field to be displayed on UI labels or variantName in i18n key
+  - skip - Don't generate code for the given variant
+  - hint ="str" - add on hover hint
+  - imut - variant will be shown as immutable
+  - i18n ="i18n_key"- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
+  - resetable- overides enum/struct level resetable
+
+- field level
+  - rename, skip, hint, imut, i18n- see variant level
+  - resetable- overides enum/struct & variant level resetable
+  - on_change- Use function callback (when value has been changed; signature: fn(&field_type) )
+  - imconfig- pass format/config object to customise how field is displayed
+  - config- same as imconfig but for mutable display
+
 ### Example
 
 See ./demo
 
-![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/d095771a-abbe-49bb-92c2-36c20c48a0b8)
+![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/5c7281f7-4fba-4fc5-8a4d-de36000155f6)
+
