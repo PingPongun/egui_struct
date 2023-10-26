@@ -1,9 +1,14 @@
 use egui::{Button, Grid, Response, ScrollArea, Ui, Widget, WidgetText};
-
 pub use egui_struct_macros::*;
+
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $primitive_name:ident, $childs_name:ident, $typ:ty, $config:ident) => {
-        fn $top_name(self: $typ, ui: &mut Ui, label: impl Into<WidgetText> + Clone) -> Response {
+        fn $top_name(
+            self: $typ,
+            ui: &mut Ui,
+            label: impl Into<WidgetText> + Clone,
+            reset2: Option<&Self>,
+        ) -> Response {
             ScrollArea::vertical()
                 .auto_shrink([false; 2])
                 .show(ui, |ui| {
@@ -11,7 +16,7 @@ macro_rules! generate_show {
                         .striped(true)
                         .num_columns(Self::COLUMN_COUNT)
                         .show(ui, |ui| {
-                            self.$collapsing_name(ui, label, "", -1, Default::default())
+                            self.$collapsing_name(ui, label, "", -1, Default::default(), reset2)
                         })
                         .inner
                 })
@@ -25,6 +30,7 @@ macro_rules! generate_show {
             hint: impl Into<WidgetText> + Clone,
             indent_level: isize,
             config: Self::$config,
+            _reset2: Option<&Self>,
         ) -> Response {
             let mut uncollapsed = true;
             let has_childs = self.has_childs();
@@ -50,11 +56,25 @@ macro_rules! generate_show {
                 }
                 lab
             });
-            let mut ret = self.$primitive_name(ui, config);
+
+            let mut ret = ui
+                .horizontal(|ui| {
+                    let ret = self.$primitive_name(ui, config);
+                    macro_rules! reset {
+                        (show_collapsing) => {
+                            ret
+                        };
+                        (show_collapsing_mut) => {
+                            self.egui_struct_reset_button(ui, ret, _reset2)
+                        };
+                    }
+                    reset! {$collapsing_name}
+                })
+                .inner;
             ui.end_row();
 
             if has_childs && uncollapsed {
-                ret = self.$childs_name(ui, indent_level + 1, ret);
+                ret = self.$childs_name(ui, indent_level + 1, ret, _reset2);
             }
             ret
         }
@@ -66,14 +86,46 @@ macro_rules! generate_show {
             _ui: &mut Ui,
             _indent_level: isize,
             _response: Response,
+            _reset2: Option<&Self>,
         ) -> Response {
             unreachable!()
         }
     };
 }
-pub trait EguiStruct: EguiStructImut {
+pub trait EguiStructRst {
+    fn egui_struct_reset_button(
+        &mut self,
+        _ui: &mut Ui,
+        response: Response,
+        _reset2: Option<&Self>,
+    ) -> Response {
+        response
+    }
+}
+impl<T: Clone + PartialEq> EguiStructRst for T {
+    fn egui_struct_reset_button(
+        &mut self,
+        ui: &mut Ui,
+        response: Response,
+        reset2: Option<&Self>,
+    ) -> Response {
+        if let Some(reset2) = reset2 {
+            if *reset2 != *self {
+                let mut r = ui.button("⟲");
+                if r.clicked() {
+                    *self = reset2.clone();
+                    r.mark_changed();
+                }
+                return r | response;
+            }
+        }
+        response
+    }
+}
+
+pub trait EguiStruct: EguiStructImut + EguiStructRst {
     type ConfigType: Default;
-    generate_show! {show_top_mut, show_collapsing_mut, show_primitive_mut, show_childs_mut, &mut Self, ConfigType}
+    generate_show! { show_top_mut, show_collapsing_mut, show_primitive_mut, show_childs_mut, &mut Self, ConfigType}
 }
 pub trait EguiStructImut {
     type ConfigTypeImut: Default;
@@ -85,7 +137,7 @@ pub trait EguiStructImut {
     fn has_primitive(&self) -> bool {
         !self.has_childs()
     }
-    generate_show! {show_top, show_collapsing, show_primitive, show_childs, &Self, ConfigTypeImut}
+    generate_show! { show_top, show_collapsing, show_primitive, show_childs, &Self, ConfigTypeImut }
 }
 #[derive(Default)]
 pub enum ConfigNum<T> {
@@ -178,18 +230,25 @@ impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
         })
         .inner
     }
-    fn show_childs(&self, ui: &mut Ui, indent_level: isize, mut response: Response) -> Response {
+    fn show_childs(
+        &self,
+        ui: &mut Ui,
+        indent_level: isize,
+        mut response: Response,
+        _reset2: Option<&Self>,
+    ) -> Response {
         if let Some(inner) = self {
             if inner.has_primitive() {
-                response |= inner.show_collapsing(ui, "[0]", "", indent_level, Default::default());
+                response |=
+                    inner.show_collapsing(ui, "[0]", "", indent_level, Default::default(), None);
             } else {
-                response |= inner.show_childs(ui, indent_level, response.clone())
+                response |= inner.show_childs(ui, indent_level, response.clone(), None)
             }
         }
         response
     }
 }
-impl<T: EguiStruct + Default> EguiStruct for Option<T> {
+impl<T: EguiStruct + Default + Clone + PartialEq> EguiStruct for Option<T> {
     type ConfigType = ();
     fn show_primitive_mut(&mut self, ui: &mut Ui, _config: Self::ConfigType) -> Response {
         ui.horizontal(|ui| {
@@ -213,13 +272,25 @@ impl<T: EguiStruct + Default> EguiStruct for Option<T> {
         ui: &mut Ui,
         indent_level: isize,
         mut response: Response,
+        reset2: Option<&Self>,
     ) -> Response {
         if let Some(inner) = self {
             if inner.has_primitive() {
-                response |=
-                    inner.show_collapsing_mut(ui, "[0]", "", indent_level, Default::default());
+                response |= inner.show_collapsing_mut(
+                    ui,
+                    "[0]",
+                    "",
+                    indent_level,
+                    Default::default(),
+                    reset2.unwrap_or(&None).as_ref(),
+                );
             } else {
-                response |= inner.show_childs_mut(ui, indent_level, response.clone())
+                response |= inner.show_childs_mut(
+                    ui,
+                    indent_level,
+                    response.clone(),
+                    reset2.unwrap_or(&None).as_ref(),
+                )
             }
         }
         response
@@ -233,15 +304,16 @@ macro_rules! impl_vec {
             ui: &mut Ui,
             indent_level: isize,
             mut response: Response,
+            _reset2: Option<&Self>,
         ) -> Response {
             self.$iter().enumerate().for_each(|(idx, x)| {
-                response |= x.$collapsing_name(ui, idx.to_string(), "", indent_level, Default::default())
+                response |= x.$collapsing_name(ui, idx.to_string(), "", indent_level, Default::default(), None)
             });
             response
         }
     };
     (IMUT, $typ:ty) => {
-        impl<T: EguiStructImut> EguiStructImut for $typ{
+        impl<T: EguiStructImut+Clone+PartialEq> EguiStructImut for $typ{
             const SIMPLE: bool = false;
             type ConfigTypeImut = ();
             fn has_childs(&self) -> bool {
@@ -256,12 +328,32 @@ macro_rules! impl_vec {
     ($($typ:ty)*) => {
         $(
             impl_vec!{IMUT, $typ}
-            impl<T: EguiStruct> EguiStruct for $typ {
+            impl<T: EguiStruct+Clone+PartialEq> EguiStruct for $typ {
                 type ConfigType = ();
                 impl_vec! {&mut Self, iter_mut, show_collapsing_mut, show_childs_mut}
             }
         )*
     };
+}
+impl<T: Clone + PartialEq> EguiStructRst for [T] {
+    fn egui_struct_reset_button(
+        &mut self,
+        ui: &mut Ui,
+        response: Response,
+        reset2: Option<&Self>,
+    ) -> Response {
+        if let Some(reset2) = reset2 {
+            if *reset2 != *self {
+                let mut r = ui.button("⟲");
+                if r.clicked() {
+                    self.clone_from_slice(reset2);
+                    r.mark_changed();
+                }
+                return r | response;
+            }
+        }
+        response
+    }
 }
 impl_vec! {[T] Vec<T>}
 impl_vec! {IMUT, std::collections::HashSet<T> }
@@ -276,10 +368,17 @@ macro_rules! impl_map {
             ui: &mut Ui,
             indent_level: isize,
             mut response: Response,
+            _reset2: Option<&Self>,
         ) -> Response {
             self.$iter().for_each(|(q, v)| {
-                response |=
-                    v.$collapsing_name(ui, q.to_string(), "", indent_level, Default::default())
+                response |= v.$collapsing_name(
+                    ui,
+                    q.to_string(),
+                    "",
+                    indent_level,
+                    Default::default(),
+                    None,
+                )
             });
             response
         }
@@ -296,7 +395,9 @@ macro_rules! impl_map {
             }
             impl_map! {&Self, iter, show_collapsing, show_childs}
         }
-        impl<Q: ToString, V: EguiStruct> EguiStruct for $typ {
+        impl<Q: ToString + Clone + Eq + std::hash::Hash, V: EguiStruct + Clone + PartialEq>
+            EguiStruct for $typ
+        {
             type ConfigType = ();
             impl_map! {&mut Self, iter_mut, show_collapsing_mut, show_childs_mut}
         }

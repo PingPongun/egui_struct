@@ -3,8 +3,34 @@ use darling::{ast, FromDeriveInput, FromVariant};
 use darling::{FromField, FromMeta};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{DeriveInput, Index};
+use syn::{DeriveInput, Expr, Index};
 use syn::{Ident, Type};
+
+#[derive(Debug, Default, Clone, FromMeta, PartialEq)]
+enum Resetable {
+    #[default]
+    ///Field will be resetable to $r if called with reset2 == Some($r)
+    FollowArg,
+    ///Marked field will not be resetable
+    NotResetable,
+    ///Whole struct needs to implement Default
+    StructDefault,
+    ///all fields that will be resetable need to implement Default
+    FieldDefault,
+    ///reset button will reset to contained custom value (value of field)
+    WithExpr(Expr),
+    ///INTERNAL USE ONLY! reset button will reset to value stored by oncelock named by contained ident
+    WithStructExpr(Ident),
+}
+impl Resetable {
+    fn mask(&self, mask: &Option<Self>) -> Self {
+        if let Some(mask) = mask {
+            mask.clone()
+        } else {
+            self.clone()
+        }
+    }
+}
 
 #[derive(Debug, Clone, FromField)]
 #[darling(attributes(eguis))]
@@ -31,8 +57,8 @@ struct EField {
     imconfig: Option<String>,
     /// pass format/config object to customise how field is displayed (when mutable)
     config: Option<String>,
-    // ///add reset(to default) button (use default vaule from this string)
-    // resetable: Option<String>,
+    ///add reset(to default) button (what is called default depends on selected Resetable::*; overrides resetable setting for parrent struct)
+    resetable: Option<Resetable>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis))]
@@ -53,6 +79,8 @@ struct EVariant {
     imut: bool,
     /// Override i18n key (key will not contain prefix)
     i18n: Option<String>,
+    ///add reset(to default) button to all inner fields (overrides resetable enum-level setting)
+    resetable: Option<Resetable>,
 }
 
 #[derive(Debug, FromDeriveInput)]
@@ -69,9 +97,9 @@ struct EStruct {
     ///generate only EguiStructImut (and not EguiStruct)
     #[darling(default)]
     imut: bool,
-    // ///add reset(to default) button to all fields
-    // #[darling(default)]
-    // resetable: bool,
+    ///add reset(to default) button to all fields (same as marking all fields with same attribute)
+    #[darling(default)]
+    resetable: Resetable,
 }
 
 fn handle_enum(
@@ -83,6 +111,7 @@ fn handle_enum(
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let ty = input.ident.clone();
     let mut simple: bool = true;
+    let mut reset_to_struct_default = false;
     let mut has_childs_arm = Vec::new();
     let mut show_childs_arm = Vec::new();
     let mut show_childs_mut_arm = Vec::new();
@@ -91,6 +120,17 @@ fn handle_enum(
     let mut to_hint_arm = Vec::new();
     let mut show_primitive_arm = Vec::new();
     let mut show_primitive_mut_arm = Vec::new();
+
+    let mut resetable = input.resetable.clone();
+    let mut reset_to_struct_expr = Vec::new();
+    if let Resetable::WithExpr(expr) = &input.resetable {
+        resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
+        reset_to_struct_expr.push(quote! {
+            static STRUCT_DEFAULT_EXPR: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+            _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
+        })
+    };
+
     for variant in variants {
         if variant.skip {
             continue;
@@ -127,6 +167,17 @@ fn handle_enum(
             quote! { #vname_str .to_string() }
         };
 
+        let mut vresetable = resetable.mask(&variant.resetable);
+        if let Resetable::WithExpr(expr) = &vresetable.clone() {
+            let static_name = format_ident!("VARIANT_{}_DEFAULT_EXPR", vident);
+            vresetable = Resetable::WithStructExpr(static_name.clone());
+            reset_to_struct_expr.push(quote! {
+                #[allow(nonstandard_style)]
+                static #static_name: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+                _=#static_name.get_or_init(#expr);
+            })
+        };
+
         match variant.fields.style {
             ast::Style::Tuple => {
                 simple = false;
@@ -137,13 +188,23 @@ fn handle_enum(
                     fields_default.push(quote! { #field_type::default(), });
                     fields_names.push(format_ident!("_field_{}", idx));
                 }
-                let (fields_code, mut fields_code_mut, single_field, fidx) = handle_fields(
+                let vident_w_inner = quote! { Self :: #vident(#(#fields_names),*)};
+                let (
+                    _reset_to_struct_default,
+                    fields_code,
+                    mut fields_code_mut,
+                    single_field,
+                    fidx,
+                ) = handle_fields(
                     &variant.fields.fields,
                     prefix.clone() + &vident.to_string() + ".",
                     case,
                     quote! {},
                     "_field_",
+                    vresetable,
+                    Some(vident_w_inner.clone()),
                 );
+                reset_to_struct_default |= _reset_to_struct_default;
                 if fields_code.len() == 1 {
                     let fident = format_ident!("_field_{}", fidx);
                     let single_field = single_field.unwrap();
@@ -151,8 +212,8 @@ fn handle_enum(
                     let imconfig = get_config(single_field.imconfig);
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
-                    let primitive_imut = quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive(ui,#imconfig),};
-                    let primitive_mut = quote! { Self :: #vident(#(#fields_names),*) => response |= #fident.show_primitive_mut(ui,#config),};
+                    let primitive_imut = quote! {#vident_w_inner => response |= #fident.show_primitive(ui,#imconfig),};
+                    let primitive_mut = quote! { #vident_w_inner => response |= #fident.show_primitive_mut(ui,#config),};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -165,13 +226,11 @@ fn handle_enum(
                 to_name_arm.push(quote! { #ty :: #vident(..) => #vlabel,});
                 to_hint_arm.push(quote! { Self :: #vident(..) => #hint_top,});
 
-                show_childs_arm
-                    .push(quote! { Self:: #vident(#(#fields_names),*)=>{#(#fields_code)*},});
+                show_childs_arm.push(quote! {#vident_w_inner=>{#(#fields_code)*},});
                 if variant.imut {
                     fields_code_mut = fields_code
                 }
-                show_childs_mut_arm
-                    .push(quote! { Self:: #vident(#(#fields_names),*)=>{#(#fields_code_mut)*},});
+                show_childs_mut_arm.push(quote! { #vident_w_inner=>{#(#fields_code_mut)*},});
                 show_combobox.push(quote! {
                     let mut tresp=ui.selectable_label(matches!(self,  Self:: #vident(..)), #vlabel)#hint;
                     if tresp.clicked()
@@ -192,24 +251,27 @@ fn handle_enum(
                     fields_default.push(quote! { #field_name: #field_type::default(), });
                     fields_names.push(field_name);
                 }
-                let (fields_code, mut fields_code_mut, _, _) = handle_fields(
-                    &variant.fields.fields,
-                    prefix.clone() + &vident.to_string() + ".",
-                    case,
-                    quote! {},
-                    "",
-                );
+                let vident_w_inner = quote! { Self :: #vident{#(#fields_names),*}};
+                let (_reset_to_struct_default, fields_code, mut fields_code_mut, _, _) =
+                    handle_fields(
+                        &variant.fields.fields,
+                        prefix.clone() + &vident.to_string() + ".",
+                        case,
+                        quote! {},
+                        "",
+                        vresetable,
+                        Some(vident_w_inner.clone()),
+                    );
+                reset_to_struct_default |= _reset_to_struct_default;
 
                 has_childs_arm.push(quote! { Self:: #vident{..} => true,});
                 to_name_arm.push(quote! { #ty :: #vident{..} => #vlabel,});
                 to_hint_arm.push(quote! { Self :: #vident{..} => #hint_top,});
-                show_childs_arm
-                    .push(quote! { Self :: #vident{#(#fields_names),*} => {#(#fields_code)*},});
+                show_childs_arm.push(quote! { #vident_w_inner => {#(#fields_code)*},});
                 if variant.imut {
                     fields_code_mut = fields_code
                 }
-                show_childs_mut_arm
-                    .push(quote! { Self :: #vident{#(#fields_names),*} => {#(#fields_code_mut)*},});
+                show_childs_mut_arm.push(quote! { #vident_w_inner => {#(#fields_code_mut)*},});
                 show_combobox.push(quote! {
                     let mut tresp=ui.selectable_label(matches!(self,  Self:: #vident{..}), #vlabel)#hint;
                     if tresp.clicked()
@@ -235,6 +297,14 @@ fn handle_enum(
             }
         }
     }
+    let reset_to_struct_default = if reset_to_struct_default {
+        quote! {
+            static STRUCT_DEFAULT: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+            _=STRUCT_DEFAULT.get_or_init(#ty::default);
+        }
+    } else {
+        quote! {}
+    };
 
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #ty #ty_generics #where_clause {
@@ -249,7 +319,7 @@ fn handle_enum(
             fn has_primitive(&self) -> bool {
                 true
             }
-            fn show_childs(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
+            fn show_childs(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>) -> ::egui::Response {
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
@@ -281,7 +351,10 @@ fn handle_enum(
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #ty #ty_generics #where_clause {
             type ConfigType = ();
-            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
+                #![allow(unused)]
+                #reset_to_struct_default
+                #(#reset_to_struct_expr)*
                 match self{
                     #(#show_childs_mut_arm)*
                     _=>(),
@@ -289,6 +362,7 @@ fn handle_enum(
                 response
             }
             fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType) -> ::egui::Response {
+                #![allow(unused)]
                 fn to_text(s:& #ty)-> String{
                     match s{
                         #(#to_name_arm)*
@@ -327,11 +401,20 @@ fn handle_fields(
     case: &Option<Converter>,
     prefix_code: TokenStream,
     prefix_ident: &str,
-) -> (Vec<TokenStream>, Vec<TokenStream>, Option<EField>, Index) {
+    resetable: Resetable,
+    variant: Option<TokenStream>,
+) -> (
+    bool,
+    Vec<TokenStream>,
+    Vec<TokenStream>,
+    Option<EField>,
+    Index,
+) {
     let mut fields_code = Vec::new();
     let mut fields_code_mut = Vec::new();
     let mut index = syn::Index::from(0);
     let mut single_field = None;
+    let mut reset_to_struct_default = false;
     for (idx, field) in fields.iter().enumerate() {
         if field.skip {
             continue;
@@ -339,6 +422,7 @@ fn handle_fields(
         let lab;
         let field_name;
         let name_tt;
+
         if let Some(field_ident) = &field.ident {
             field_name = field_ident.to_string();
             name_tt = field_ident.to_token_stream();
@@ -395,8 +479,34 @@ fn handle_fields(
             };
         }
 
-        let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #imconfig); };
-        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config); #on_change};
+        let mut bresetable = resetable.mask(&field.resetable);
+        if bresetable == Resetable::StructDefault {
+            reset_to_struct_default = true;
+            bresetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT"))
+        };
+        let resetable = match &bresetable {
+            Resetable::FollowArg => {
+                if let Some(variant) = &variant {
+                    quote! { reset2.and_then(|f| if let #variant=f{ Some(#whole_ident) }else{ None } ) }
+                } else {
+                    quote! { reset2.map(|f|&f.#name_tt) }
+                }
+            }
+            Resetable::NotResetable => quote! { None},
+            Resetable::StructDefault => unreachable!(),
+            Resetable::FieldDefault => quote! { Some(&Default::default())},
+            Resetable::WithExpr(expr) => quote! { Some(&#expr)},
+            Resetable::WithStructExpr(expr) => {
+                if let Some(variant) = &variant {
+                    quote! {if let #variant=&#expr.get().unwrap(){ Some(#whole_ident) }else{ None }  }
+                } else {
+                    quote! { Some(&#expr.get().unwrap().#name_tt) }
+                }
+            }
+        };
+
+        let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #imconfig, None); };
+        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config, #resetable); #on_change};
         fields_code.push(field_code_imut.clone());
         if field.imut {
             fields_code_mut.push(field_code_imut)
@@ -404,7 +514,13 @@ fn handle_fields(
             fields_code_mut.push(field_code_mut)
         }
     }
-    (fields_code, fields_code_mut, single_field, index)
+    (
+        reset_to_struct_default,
+        fields_code,
+        fields_code_mut,
+        single_field,
+        index,
+    )
 }
 
 fn handle_struct(
@@ -413,10 +529,39 @@ fn handle_struct(
     case: &Option<Converter>,
     input: &EStruct,
 ) -> TokenStream {
-    let (fields_code, fields_code_mut, single_field, index) =
-        handle_fields(&fields.fields, prefix, case, quote! { self.}, "");
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let name = input.ident.clone();
+    let mut resetable = input.resetable.clone();
+    let reset_to_struct_expr = if let Resetable::WithExpr(expr) = &input.resetable {
+        resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
+        quote! {
+            static STRUCT_DEFAULT_EXPR: std::sync::OnceLock<#name> = std::sync::OnceLock::new();
+            _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
+        }
+    } else {
+        quote! {}
+    };
+
+    let (reset_to_struct_default, fields_code, fields_code_mut, single_field, index) =
+        handle_fields(
+            &fields.fields,
+            prefix,
+            case,
+            quote! { self.},
+            "",
+            resetable,
+            None,
+        );
+
+    let reset_to_struct_default = if reset_to_struct_default {
+        quote! {
+            static STRUCT_DEFAULT: std::sync::OnceLock<#name> = std::sync::OnceLock::new();
+            _=STRUCT_DEFAULT.get_or_init(#name::default);
+        }
+    } else {
+        quote! {}
+    };
+
     let simple = fields.style == ast::Style::Tuple && fields_code.len() == 1;
     let simple = if let Some(sf) = &single_field {
         let ty = &sf.ty;
@@ -454,7 +599,7 @@ fn handle_struct(
             fn has_primitive(&self) -> bool {
                 !self.has_childs()
             }
-            fn show_childs(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
+            fn show_childs(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>) -> ::egui::Response {
                 #(#fields_code)*
                 response
             }
@@ -466,7 +611,9 @@ fn handle_struct(
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
             type ConfigType = ();
-            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
+                #reset_to_struct_default
+                #reset_to_struct_expr
                 #(#fields_code_mut)*
                 response
             }

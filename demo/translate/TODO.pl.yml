@@ -1,5 +1,6 @@
 _version: 1
 Data.Limited isize: Limited isize
+Data.Not resetable string: Not resetable string
 Data.Optional string: Optional string
 Data.Primary color: Primary color
 Data.Secondary color: Secondary color

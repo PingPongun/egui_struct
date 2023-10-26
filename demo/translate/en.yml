@@ -26,6 +26,7 @@ Data.Isize imut: Isize imut
 Data.Limited isize: Limited isize
 Data.List: List
 Data.Nested struct: Nested struct
+Data.Not resetable string: Not resetable string
 Data.Optional: Optional
 Data.Optional string: Optional string
 Data.Primary color: Primary color

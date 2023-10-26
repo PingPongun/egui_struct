@@ -1,7 +1,7 @@
 [package]
 name = "egui_struct_demo"
-version = "0.1.0"
-authors = ["Matthew Berger <matthewjordanberger@gmail.com>"]
+version = "0.2.0"
+authors = ["PingPongun"]
 edition = "2021"
 
 [dependencies]

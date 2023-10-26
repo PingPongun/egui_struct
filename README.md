@@ -1,9 +1,14 @@
 # EguiStruct
+
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui. 
 
 Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui) and [egui_inspect](https://github.com/Meisterlama/egui_inspect), but there are some important differences:
+
+## EguiStruct vs similar crates
+
 ### EguiStruct vs either(enum2egui or egui_inspect)
+
 - Everything is put inside scroll&grid layout (with collapsable rows)
   - Gui is less chaotic,
   - all values are aligned,
@@ -11,10 +16,16 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 - supports on hover hints
 - supports renaming&converting case for fields/variants
 - supports callback on-change for fields
+- (optionaly) adds button to reset value to some specified value
+
 ### EguiStruct vs enum2egui
+
 - supports some configuration (i.e. currently numerics can be displayed as unbounded DragValue, DragValue.clamp(min,max) or Slider)
 - numerously nested structs are compact in width
+- currently for maps & vec is only possible to edit values, not insert/remove/move elements
+
 ### EguiStruct vs egui_inspect
+
 - depends on egui v0.23 (egui_inspect on v0.20)
 - currently only supports configuration of numerics
 - supports also enums
@@ -29,6 +40,7 @@ egui_struct = { git = "https://github.com/PingPongun/egui_struct.git", branch = 
 ```
 
 ### Example
+
 See ./demo
 
 ![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/d095771a-abbe-49bb-92c2-36c20c48a0b8)

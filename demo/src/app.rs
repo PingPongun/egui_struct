@@ -19,6 +19,7 @@ impl Language {
         }
     }
 }
+
 #[derive(EguiStruct, Debug, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum Color {
     #[default]
@@ -29,6 +30,7 @@ pub enum Color {
     Named2 {
         name: String,
     },
+    #[eguis(resetable(with_expr = ||Color::Custom(255,13,17) ))]
     Custom(u8, u8, #[eguis(config = "DragValue(1,111)")] u8),
 
     #[eguis(skip, rename = "Skipped Custom")]
@@ -51,15 +53,19 @@ pub enum Color {
     },
 }
 
-#[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize)]
-#[eguis(rename_all = "Sentence")]
+#[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
+#[eguis(rename_all = "Sentence", resetable = "struct_default")]
 pub struct Data {
     #[eguis(skip)]
     skipped_data: u32,
     #[eguis(on_change = "Language::set_locale")]
     app_language: Language,
     hashmap: std::collections::HashMap<String, String>,
+    #[eguis(resetable(with_expr = "Resetable with expr".to_string()))]
     string: String,
+    #[eguis(resetable = "not_resetable")]
+    not_resetable_string: String,
+    #[eguis(resetable = "field_default")]
     i8: i8,
     i16: i16,
     i32: i32,
@@ -103,6 +109,7 @@ impl Default for Data {
             },
             skipped_data: 0,
             string: "Hello!".to_string(),
+            not_resetable_string: "Hello!".to_string(),
             i8: 42,
             i16: 1555,
             i32: -242522,
@@ -143,7 +150,12 @@ impl Default for Data {
 }
 
 #[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-pub struct TupleStruct(u8, u32, String, SubData);
+pub struct TupleStruct(
+    #[eguis(resetable = "struct_default")] u8,
+    u32,
+    String,
+    SubData,
+);
 
 impl Default for TupleStruct {
     fn default() -> Self {
@@ -157,6 +169,7 @@ pub struct Metadata {
 }
 
 #[derive(EguiStruct, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
+#[eguis(resetable = "struct_default")]
 pub struct SubData {
     value: String,
     number: u32,
@@ -191,7 +204,7 @@ impl eframe::App for DemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self { data } = self;
         egui::CentralPanel::default().show(ctx, |ui| {
-            data.show_top_mut(ui, RichText::new("Data").heading());
+            data.show_top_mut(ui, RichText::new("Data").heading(), None);
         });
     }
 }

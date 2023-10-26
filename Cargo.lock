@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "egui_struct"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "egui",
  "egui_struct_macros",
@@ -910,7 +910,7 @@ dependencies = [
 
 [[package]]
 name = "egui_struct_demo"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "eframe",
  "egui",
@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "egui_struct_macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "convert_case",
  "darling",
