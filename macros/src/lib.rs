@@ -94,9 +94,18 @@ struct EStruct {
     rename_all: Option<String>,
     ///prefix to be added to i18n keys
     prefix: Option<String>,
-    ///generate only EguiStructImut (and not EguiStruct)
+    ///do not generate EguiStruct impl
     #[darling(default)]
-    imut: bool,
+    no_mut: bool,
+    ///do not generate EguiStructImut impl
+    #[darling(default)]
+    no_imut: bool,
+    ///do not generate EguiStructClone
+    #[darling(default)]
+    no_eclone: bool,
+    ///do not generate EguiStructEq
+    #[darling(default)]
+    no_eeq: bool,
     ///add reset(to default) button to all fields (same as marking all fields with same attribute)
     #[darling(default)]
     resetable: Resetable,
@@ -120,6 +129,8 @@ fn handle_enum(
     let mut to_hint_arm = Vec::new();
     let mut show_primitive_arm = Vec::new();
     let mut show_primitive_mut_arm = Vec::new();
+    let mut eclone_arm = Vec::new();
+    let mut eeq_arm = Vec::new();
 
     let mut resetable = input.resetable.clone();
     let mut reset_to_struct_expr = Vec::new();
@@ -183,16 +194,23 @@ fn handle_enum(
                 simple = false;
                 let mut fields_default = Vec::new();
                 let mut fields_names = Vec::new();
+                let mut fields_names2 = Vec::new();
+                let mut fields_names_nskipped2 = Vec::new();
                 for (idx, field) in variant.fields.fields.iter().enumerate() {
                     let field_type = &field.ty;
                     fields_default.push(quote! { #field_type::default(), });
                     fields_names.push(format_ident!("_field_{}", idx));
+                    fields_names2.push(format_ident!("_field_{}_2", idx));
+                    if !field.skip {
+                        fields_names_nskipped2.push(format_ident!("_field_{}_2", idx));
+                    }
                 }
                 let vident_w_inner = quote! { Self :: #vident(#(#fields_names),*)};
                 let (
                     _reset_to_struct_default,
                     fields_code,
                     mut fields_code_mut,
+                    fields_names_nskipped,
                     single_field,
                     fidx,
                 ) = handle_fields(
@@ -240,28 +258,61 @@ fn handle_enum(
                     }
                     inner_response |=tresp;
                 });
+
+                eeq_arm.push(quote! {
+                    #vident_w_inner => {
+                        if let Self::#vident(#(#fields_names2),*)=rhs{
+                            #( ret &= #fields_names_nskipped.eguis_eq( #fields_names_nskipped2); )*
+                        } else {ret= false;}
+                    },
+                });
+                eclone_arm.push(quote! {
+                    #vident_w_inner=>{
+                        if let Self::#vident(#(#fields_names2),*)=self{
+                            #( #fields_names_nskipped2.eguis_clone(#fields_names_nskipped); )*
+                        } else {
+                            *self = Self:: #vident(#(#fields_default)*);
+                            if let Self::#vident(#(#fields_names2),*)=self{
+                                #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                            } else {unreachable!()}
+                        }
+                    },
+                });
             }
             ast::Style::Struct => {
                 simple = false;
                 let mut fields_default = Vec::new();
                 let mut fields_names = Vec::new();
+                let mut fields_names2 = Vec::new();
+                let mut fields_names_nskipped2 = Vec::new();
                 for field in &variant.fields.fields {
                     let field_name = field.ident.as_ref().unwrap();
                     let field_type = &field.ty;
                     fields_default.push(quote! { #field_name: #field_type::default(), });
                     fields_names.push(field_name);
+                    let fname2 = format_ident!("{}_2", field_name);
+                    fields_names2.push(quote! { #field_name: #fname2 });
+                    if !field.skip {
+                        fields_names_nskipped2.push(format_ident!("{}_2", field_name));
+                    }
                 }
                 let vident_w_inner = quote! { Self :: #vident{#(#fields_names),*}};
-                let (_reset_to_struct_default, fields_code, mut fields_code_mut, _, _) =
-                    handle_fields(
-                        &variant.fields.fields,
-                        prefix.clone() + &vident.to_string() + ".",
-                        case,
-                        quote! {},
-                        "",
-                        vresetable,
-                        Some(vident_w_inner.clone()),
-                    );
+                let (
+                    _reset_to_struct_default,
+                    fields_code,
+                    mut fields_code_mut,
+                    fields_names_nskipped,
+                    _,
+                    _,
+                ) = handle_fields(
+                    &variant.fields.fields,
+                    prefix.clone() + &vident.to_string() + ".",
+                    case,
+                    quote! {},
+                    "",
+                    vresetable,
+                    Some(vident_w_inner.clone()),
+                );
                 reset_to_struct_default |= _reset_to_struct_default;
 
                 has_childs_arm.push(quote! { Self:: #vident{..} => true,});
@@ -281,6 +332,26 @@ fn handle_enum(
                     }
                     inner_response |=tresp;
                 });
+
+                eeq_arm.push(quote! {
+                    #vident_w_inner =>{
+                        if let Self::#vident{#(#fields_names2),*}=rhs{
+                            #( ret &= #fields_names_nskipped.eguis_eq( #fields_names_nskipped2); )*
+                        } else {ret= false;}
+                    },
+                });
+                eclone_arm.push(quote! {
+                    #vident_w_inner=>{
+                        if let Self::#vident{#(#fields_names2),*}=self{
+                            #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                        } else {
+                            *self = Self:: #vident{#(#fields_default)*};
+                            if let Self::#vident{#(#fields_names2),*}=self{
+                                #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                            } else {unreachable!()}
+                        }
+                    },
+                });
             }
             ast::Style::Unit => {
                 to_name_arm.push(quote! { #ty :: #vident => #vlabel,});
@@ -293,6 +364,11 @@ fn handle_enum(
                         tresp.mark_changed()
                     }
                     inner_response |=tresp;
+                });
+                eclone_arm.push(quote! {
+                    Self::#vident=>{
+                        *self=Self::#vident;
+                    },
                 });
             }
         }
@@ -388,11 +464,43 @@ fn handle_enum(
             }
         }
     };
-    if input.imut {
-        egui_struct_imut
-    } else {
-        quote! {#egui_struct_imut #egui_struct_mut}
+
+    let eclone = quote! {
+        impl #impl_generics EguiStructClone for #ty #ty_generics #where_clause {
+            fn eguis_clone(&mut self, source: &Self) {
+                match source{
+                    #(#eclone_arm)*
+                    _=>(),
+                }
+            }
+        }
+    };
+    let eeq = quote! {
+        impl #impl_generics EguiStructEq for #ty #ty_generics #where_clause {
+            fn eguis_eq(&self, rhs: &Self) -> bool {
+                let mut ret=true;
+                match self{
+                    #(#eeq_arm)*
+                    _=>(),
+                }
+                ret
+            }
+        }
+    };
+    let mut ret = quote! {};
+    if !input.no_imut {
+        ret = quote! {#ret #egui_struct_imut};
     }
+    if !input.no_mut {
+        ret = quote! {#ret #egui_struct_mut};
+    }
+    if !input.no_eclone {
+        ret = quote! {#ret #eclone};
+    }
+    if !input.no_eeq {
+        ret = quote! {#ret #eeq};
+    }
+    ret
 }
 
 fn handle_fields(
@@ -407,11 +515,13 @@ fn handle_fields(
     bool,
     Vec<TokenStream>,
     Vec<TokenStream>,
+    Vec<TokenStream>,
     Option<EField>,
     Index,
 ) {
     let mut fields_code = Vec::new();
     let mut fields_code_mut = Vec::new();
+    let mut fields_names_nskipped = Vec::new();
     let mut index = syn::Index::from(0);
     let mut single_field = None;
     let mut reset_to_struct_default = false;
@@ -504,6 +614,7 @@ fn handle_fields(
                 }
             }
         };
+        fields_names_nskipped.push(quote! { #whole_ident});
 
         let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #imconfig, None); };
         let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config, #resetable); #on_change};
@@ -518,6 +629,7 @@ fn handle_fields(
         reset_to_struct_default,
         fields_code,
         fields_code_mut,
+        fields_names_nskipped,
         single_field,
         index,
     )
@@ -542,16 +654,22 @@ fn handle_struct(
         quote! {}
     };
 
-    let (reset_to_struct_default, fields_code, fields_code_mut, single_field, index) =
-        handle_fields(
-            &fields.fields,
-            prefix,
-            case,
-            quote! { self.},
-            "",
-            resetable,
-            None,
-        );
+    let (
+        reset_to_struct_default,
+        fields_code,
+        fields_code_mut,
+        fields_names_nskipped,
+        single_field,
+        index,
+    ) = handle_fields(
+        &fields.fields,
+        prefix,
+        case,
+        quote! { self.},
+        "",
+        resetable,
+        None,
+    );
 
     let reset_to_struct_default = if reset_to_struct_default {
         quote! {
@@ -622,11 +740,37 @@ fn handle_struct(
             }
         }
     };
-    if input.imut {
-        egui_struct_imut
-    } else {
-        quote! {#egui_struct_imut #egui_struct_mut}
+
+    let eclone = quote! {
+        impl #impl_generics EguiStructClone for #name #ty_generics #where_clause {
+            fn eguis_clone(&mut self, source: &Self) {
+                #(self.#fields_names_nskipped.eguis_clone(&source.#fields_names_nskipped);)*
+            }
+        }
+    };
+    let eeq = quote! {
+        impl #impl_generics EguiStructEq for #name #ty_generics #where_clause {
+            fn eguis_eq(&self, rhs: &Self) -> bool {
+                let mut ret =true;
+                #( ret &= self.#fields_names_nskipped.eguis_eq(&rhs.#fields_names_nskipped); )*
+                ret
+            }
+        }
+    };
+    let mut ret = quote! {};
+    if !input.no_imut {
+        ret = quote! {#ret #egui_struct_imut};
     }
+    if !input.no_mut {
+        ret = quote! {#ret #egui_struct_mut};
+    }
+    if !input.no_eclone {
+        ret = quote! {#ret #eclone};
+    }
+    if !input.no_eeq {
+        ret = quote! {#ret #eeq};
+    }
+    ret
 }
 #[proc_macro_derive(EguiStruct, attributes(eguis))]
 pub fn display_gui(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

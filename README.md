@@ -1,9 +1,9 @@
 # EguiStruct
 
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
-This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui. 
+This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
 
-Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui) and [egui_inspect](https://github.com/Meisterlama/egui_inspect), but there are some important differences:
+Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and  [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
 
 ## EguiStruct vs similar crates
 
@@ -29,9 +29,19 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 - depends on egui v0.23 (egui_inspect on v0.20)
 - currently only supports configuration of numerics
 - supports also enums
-- does not support overriding trait function through attribute 
+- does not support overriding trait function through attribute
+
+### EguiStruct vs egui-controls
+
+- egui-controls supports only types that can be passed to Slider or TextEdit, and does not support neither nested types nor enums
+- egui-controls does not use traits (it implements single function)
+- egui-controls, unless field is marked, generates immutable view
+- egui-controls parses doc comments to display field description (next to value), EguiStruct offers similar feature through hint attribute (but visible only on hover)
+- EguiStruct supports i18n/ renaming&converting case/ callback on-change/ reset button
 
 ## Usage
+
+### Basic description
 
 Add this to your `Cargo.toml`:
 
@@ -39,8 +49,25 @@ Add this to your `Cargo.toml`:
 egui_struct = { git = "https://github.com/PingPongun/egui_struct.git", branch = "master" }
 ```
 
-Crate consists of 3 traits (EguiStructImut -> EguiStructRst -> EguiStruct) and one derive macro (EguiStruct).
-- EguiStructRst is implemented for all Clone+PartialEq types and necessary to implement EguiStruct (unless type in not Clone or not PariatialEq, you can ignore it).
+Add derive macro `EguiStruct` to struct you want to show (and all nested types):
+
+```Rust
+#[derive(EguiStruct)]
+pub struct TupleStruct(u8, u32, String, SubData);
+```
+
+then to show data, you only need to call show_top_mut(..) on top level struct:
+
+```Rust
+egui::CentralPanel::default().show(ctx, |ui| {
+  data.show_top_mut(ui, RichText::new("Data").heading(), None);
+});
+```
+
+### Detailed description
+
+Crate consists of 4 traits (EguiStructImut -> EguiStructEq+EguiStructClone -> EguiStruct) and one derive macro (EguiStruct).
+
 - EguiStructImut:
   - for end user ofers one function show_top(..), which displays struct inside scroll area.
   - when implementing (most of bellow has some default impl):
@@ -50,15 +77,19 @@ Crate consists of 3 traits (EguiStructImut -> EguiStructRst -> EguiStruct) and o
     - const SIMPLE - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
     - type ConfigTypeImut - type that will pass some data to cutomise how data is shown, in most cases this will be ()
     - show_collapsing(..) - do not overide this method, use it when implementing show_childs(..) to display single nested element
+- EguiStructEq/EguiStructClone are similar to std PartialEq/Clone traits, but they respect eguis(skip). They are necessary to implement EguiStruct.
 - EguiStruct is mutable equivalent of EguiStructImut.
 
-Macro EguiStruct can be used on structs&enums to derive both EguiStructImut & EguiStruct.
+Macro EguiStruct can be used on structs&enums to derive all traits ( EguiStructImut & EguiStruct & EguiStructEq & EguiStructClone).
 Macro supports attribute "eguis" on either enum/struct, field or variant level:
 
 - enum/struct level:
   - rename_all = "str"- renames all fields/variants to selected case (recognized values: "Upper", "Lower", "Title", "Toggle", "Camel", "Pascal", "UpperCamel", "Snake", "UpperSnake", "ScreamingSnake", "Kebab", "Cobol", "UpperKebab", "Train", "Flat", "UpperFlat", "Alternating", "Sentence")
   - prefix = "str"- add this prefix when generating rust-i18n keys
-  - imut - generate only EguiStructImut
+  - no_imut - do not generate EguiStructImut implementation
+  - no_mut - do not generate EguiStruct implementation
+  - no_eclone - do not generate EguiStructClone implementation
+  - no_eeq - do not generate EguiStructEq implementation
   - resetable = "val" OR resetable(with_expr = Expr) - all fields/variants will be resetable according to provieded value (val: "not_resetable", "field_default", "struct_default", "follow_arg"(use value passed on runtime through reset2 arg))
 
 - variant level:
@@ -81,4 +112,3 @@ Macro supports attribute "eguis" on either enum/struct, field or variant level:
 See ./demo
 
 ![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/5c7281f7-4fba-4fc5-8a4d-de36000155f6)
-

@@ -59,13 +59,24 @@ macro_rules! generate_show {
 
             let mut ret = ui
                 .horizontal(|ui| {
-                    let ret = self.$primitive_name(ui, config);
+                    #[allow(unused_mut)]
+                    let mut ret = self.$primitive_name(ui, config);
                     macro_rules! reset {
                         (show_collapsing) => {
                             ret
                         };
                         (show_collapsing_mut) => {
-                            self.egui_struct_reset_button(ui, ret, _reset2)
+                            if let Some(reset2) = _reset2 {
+                                if !reset2.eguis_eq(self) {
+                                    let mut r = ui.button("⟲");
+                                    if r.clicked() {
+                                        self.eguis_clone(reset2);
+                                        r.mark_changed();
+                                    }
+                                    ret |= r;
+                                }
+                            }
+                            ret
                         };
                     }
                     reset! {$collapsing_name}
@@ -92,38 +103,41 @@ macro_rules! generate_show {
         }
     };
 }
-pub trait EguiStructRst {
-    fn egui_struct_reset_button(
-        &mut self,
-        _ui: &mut Ui,
-        response: Response,
-        _reset2: Option<&Self>,
-    ) -> Response {
-        response
+pub trait EguiStructClone {
+    fn eguis_clone(&mut self, source: &Self);
+}
+pub trait EguiStructEq {
+    fn eguis_eq(&self, _rhs: &Self) -> bool {
+        //default implementation can be used if reset button is not required
+        true
     }
 }
-impl<T: Clone + PartialEq> EguiStructRst for T {
-    fn egui_struct_reset_button(
-        &mut self,
-        ui: &mut Ui,
-        response: Response,
-        reset2: Option<&Self>,
-    ) -> Response {
-        if let Some(reset2) = reset2 {
-            if *reset2 != *self {
-                let mut r = ui.button("⟲");
-                if r.clicked() {
-                    *self = reset2.clone();
-                    r.mark_changed();
-                }
-                return r | response;
+macro_rules! impl_eclone {
+    ([$($generics:tt)*], $type:ty) => {
+        impl<$($generics)*> EguiStructClone for $type {
+            fn eguis_clone(&mut self, source: &Self) {
+                self.clone_from(source);
             }
         }
-        response
-    }
+    };
+}
+macro_rules! impl_eeq {
+    ([$($generics:tt)*], $type:ty) => {
+        impl<$($generics)*> EguiStructEq for $type {
+            fn eguis_eq(&self, rhs: &Self) -> bool {
+                self == rhs
+            }
+        }
+    };
+}
+macro_rules! eimpl {
+    ([$($generics:tt)*], $type:ty) => {
+        impl_eeq!{[$($generics)*], $type}
+        impl_eclone!{[$($generics)*], $type}
+    };
 }
 
-pub trait EguiStruct: EguiStructImut + EguiStructRst {
+pub trait EguiStruct: EguiStructImut + EguiStructClone + EguiStructEq {
     type ConfigType: Default;
     generate_show! { show_top_mut, show_collapsing_mut, show_primitive_mut, show_childs_mut, &mut Self, ConfigType}
 }
@@ -168,6 +182,7 @@ macro_rules! impl_num_primitives {
                     ui.label(self.to_string())
                 }
             }
+            eimpl!{[],$typ}
         )*
     };
 }
@@ -186,6 +201,7 @@ impl EguiStructImut for bool {
         ui.add_enabled(false, egui::Checkbox::without_text(&mut self.clone()))
     }
 }
+eimpl! {[],bool}
 /////////////////////////////////////////////////////////
 
 impl EguiStruct for String {
@@ -200,6 +216,7 @@ impl EguiStructImut for String {
         ui.label(self)
     }
 }
+eimpl! {[],String}
 
 impl EguiStructImut for str {
     type ConfigTypeImut = ();
@@ -248,7 +265,7 @@ impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
         response
     }
 }
-impl<T: EguiStruct + Default + Clone + PartialEq> EguiStruct for Option<T> {
+impl<T: EguiStruct + Default> EguiStruct for Option<T> {
     type ConfigType = ();
     fn show_primitive_mut(&mut self, ui: &mut Ui, _config: Self::ConfigType) -> Response {
         ui.horizontal(|ui| {
@@ -296,6 +313,34 @@ impl<T: EguiStruct + Default + Clone + PartialEq> EguiStruct for Option<T> {
         response
     }
 }
+impl<T: EguiStructClone + Default> EguiStructClone for Option<T> {
+    fn eguis_clone(&mut self, source: &Self) {
+        if let Some(source) = source {
+            if let Some(s) = self {
+                s.eguis_clone(source);
+            } else {
+                let mut v: T = Default::default();
+                v.eguis_clone(source);
+                *self = Some(v);
+            }
+        } else {
+            *self = None;
+        }
+    }
+}
+impl<T: EguiStructEq> EguiStructEq for Option<T> {
+    fn eguis_eq(&self, rhs: &Self) -> bool {
+        if let Some(s) = self {
+            if let Some(r) = rhs {
+                s.eguis_eq(r)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+}
 ///////////////////////////////////////////////////
 macro_rules! impl_vec {
     ($typ:ty,$iter:ident, $collapsing_name:ident, $childs_name:ident) => {
@@ -313,7 +358,7 @@ macro_rules! impl_vec {
         }
     };
     (IMUT, $typ:ty) => {
-        impl<T: EguiStructImut+Clone+PartialEq> EguiStructImut for $typ{
+        impl<T: EguiStructImut> EguiStructImut for $typ{
             const SIMPLE: bool = false;
             type ConfigTypeImut = ();
             fn has_childs(&self) -> bool {
@@ -328,33 +373,27 @@ macro_rules! impl_vec {
     ($($typ:ty)*) => {
         $(
             impl_vec!{IMUT, $typ}
-            impl<T: EguiStruct+Clone+PartialEq> EguiStruct for $typ {
+            impl<T: EguiStruct> EguiStruct for $typ {
                 type ConfigType = ();
                 impl_vec! {&mut Self, iter_mut, show_collapsing_mut, show_childs_mut}
+            }
+            impl<T: EguiStructClone> EguiStructClone for $typ {
+                fn eguis_clone(&mut self, source: &Self) {
+                    //TODO update this if vector length can change
+                    self.iter_mut().zip(source.iter()).for_each(|(s,r)|s.eguis_clone(r))
+                }
+            }
+            impl<T: EguiStructEq> EguiStructEq for $typ  {
+                fn eguis_eq(&self, rhs: &Self) -> bool {
+                    let mut ret = self.len()==rhs.len();
+                    self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
+                    ret
+                }
             }
         )*
     };
 }
-impl<T: Clone + PartialEq> EguiStructRst for [T] {
-    fn egui_struct_reset_button(
-        &mut self,
-        ui: &mut Ui,
-        response: Response,
-        reset2: Option<&Self>,
-    ) -> Response {
-        if let Some(reset2) = reset2 {
-            if *reset2 != *self {
-                let mut r = ui.button("⟲");
-                if r.clicked() {
-                    self.clone_from_slice(reset2);
-                    r.mark_changed();
-                }
-                return r | response;
-            }
-        }
-        response
-    }
-}
+
 impl_vec! {[T] Vec<T>}
 impl_vec! {IMUT, std::collections::HashSet<T> }
 #[cfg(feature = "indexmap")]
@@ -395,11 +434,36 @@ macro_rules! impl_map {
             }
             impl_map! {&Self, iter, show_collapsing, show_childs}
         }
-        impl<Q: ToString + Clone + Eq + std::hash::Hash, V: EguiStruct + Clone + PartialEq>
-            EguiStruct for $typ
+        impl<
+                Q: ToString + Eq + std::hash::Hash,
+                V: EguiStruct + EguiStructClone + EguiStructEq,
+            > EguiStruct for $typ
         {
             type ConfigType = ();
             impl_map! {&mut Self, iter_mut, show_collapsing_mut, show_childs_mut}
+        }
+        impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructClone> EguiStructClone for $typ {
+            fn eguis_clone(&mut self, source: &Self) {
+                //this is very simplified implementation, that asummes that lenghts & keys are the same
+                self.iter_mut().for_each(|(q, v)| {
+                    if let Some(r) = source.get(q) {
+                        v.eguis_clone(r)
+                    }
+                })
+            }
+        }
+        impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructEq> EguiStructEq for $typ {
+            fn eguis_eq(&self, rhs: &Self) -> bool {
+                let mut ret = self.len() == rhs.len();
+                self.iter().for_each(|(q, v)| {
+                    if let Some(r) = rhs.get(q) {
+                        ret &= v.eguis_eq(r)
+                    } else {
+                        ret = false
+                    }
+                });
+                ret
+            }
         }
     };
 }
@@ -427,6 +491,7 @@ macro_rules! impl_large_numerics {
                 ret
             }
         }
+        eimpl!{[],$t}
     )*)
 }
 impl_large_numerics!(i128 u128);
