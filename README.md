@@ -1,7 +1,7 @@
 # EguiStruct
 
-![crates.io](https://img.shields.io/crates/v/egui_struct.svg)
-![crates.io](https://img.shields.io/crates/l/egui_struct.svg)
+[![crates.io](https://img.shields.io/crates/v/egui_struct.svg)](https://crates.io/crates/egui_struct)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE)
 
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
