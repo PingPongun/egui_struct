@@ -3,11 +3,16 @@ name = "egui_struct"
 authors = ["PingPongun <pp.pp4@vp.pl>"]
 version = "0.2.0"
 edition = "2021"
+license = "MIT"
+exclude = ["demo/*", ".vscode/*"]
+description = "EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums."
+repository = "https://github.com/PingPongun/egui_struct"
+keywords = ["egui"]
 
 [lib]
 
 [dependencies]
-egui_struct_macros = { path = "./macros/" }
+egui_struct_macros = { path = "./macros/", version = "0.2" }
 egui = { version = "0.23" }
 
 indexmap = { version = "2.0", optional = true }
