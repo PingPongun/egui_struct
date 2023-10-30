@@ -112,6 +112,7 @@ pub trait EguiStructEq {
         true
     }
 }
+#[macro_export]
 macro_rules! impl_eclone {
     ([$($generics:tt)*], $type:ty) => {
         impl<$($generics)*> EguiStructClone for $type {
@@ -121,6 +122,7 @@ macro_rules! impl_eclone {
         }
     };
 }
+#[macro_export]
 macro_rules! impl_eeq {
     ([$($generics:tt)*], $type:ty) => {
         impl<$($generics)*> EguiStructEq for $type {
@@ -130,11 +132,13 @@ macro_rules! impl_eeq {
         }
     };
 }
-macro_rules! eimpl {
+#[macro_export]
+macro_rules! impl_eeqclone {
     ([$($generics:tt)*], $type:ty) => {
         impl_eeq!{[$($generics)*], $type}
         impl_eclone!{[$($generics)*], $type}
     };
+    ($type:ty) => {impl_eeqclone!{[],$type}}
 }
 
 pub trait EguiStruct: EguiStructImut + EguiStructClone + EguiStructEq {
@@ -182,7 +186,7 @@ macro_rules! impl_num_primitives {
                     ui.label(self.to_string())
                 }
             }
-            eimpl!{[],$typ}
+            impl_eeqclone!{$typ}
         )*
     };
 }
@@ -201,7 +205,7 @@ impl EguiStructImut for bool {
         ui.add_enabled(false, egui::Checkbox::without_text(&mut self.clone()))
     }
 }
-eimpl! {[],bool}
+impl_eeqclone! {bool}
 /////////////////////////////////////////////////////////
 
 impl EguiStruct for String {
@@ -216,7 +220,7 @@ impl EguiStructImut for String {
         ui.label(self)
     }
 }
-eimpl! {[],String}
+impl_eeqclone! {String}
 
 impl EguiStructImut for str {
     type ConfigTypeImut = ();
@@ -491,7 +495,7 @@ macro_rules! impl_large_numerics {
                 ret
             }
         }
-        eimpl!{[],$t}
+        impl_eeqclone!{$t}
     )*)
 }
 impl_large_numerics!(i128 u128);
