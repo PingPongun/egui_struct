@@ -445,12 +445,16 @@ fn handle_enum(
                         _=>"".to_string()}
                 }
                 ui.horizontal(|ui|{
+                    let defspacing=ui.spacing().item_spacing.clone();
+                    ui.spacing_mut().item_spacing=egui::vec2(0.0, 0.0);
                     let mut inner_response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
                     let mut response=::egui::ComboBox::from_id_source(ui.next_auto_id()).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
+                        ui.spacing_mut().item_spacing=defspacing;
                         #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
                     }).response;
+                    ui.spacing_mut().item_spacing=defspacing;
                     match self{
                         #(#to_hint_arm)*
                         _=>(),
