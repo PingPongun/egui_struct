@@ -40,8 +40,10 @@ macro_rules! generate_show {
                         ui.separator();
                     }
                     if has_childs {
-                        let id =
-                            ui.make_persistent_id(self as *const Self as *const usize as usize);
+                        let id = ui.make_persistent_id((
+                            self as *const Self as *const usize as usize,
+                            indent_level,
+                        ));
                         uncollapsed = ui.data_mut(|d| d.get_temp_mut_or(id, true).clone());
                         let icon = if uncollapsed { "⏷" } else { "⏵" };
                         if Button::new(icon).frame(false).small().ui(ui).clicked() {
