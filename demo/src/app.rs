@@ -152,7 +152,7 @@ impl Default for Data {
 #[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct TupleStruct(
     #[eguis(resetable = "struct_default")] u8,
-    u32,
+    #[eguis(on_change_struct = "self.2=format!(\"Wololo!: {}\", self.1)")] u32,
     String,
     SubData,
 );

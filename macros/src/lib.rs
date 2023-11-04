@@ -51,8 +51,10 @@ struct EField {
     imut: bool,
     /// Override i18n key (key will not contain prefix)
     i18n: Option<String>,
-    /// Use function callback (when value has been changed; signature: fn(&field_type) )
+    /// Use function callback (when value has been changed; signature: fn(&mut field_type) )
     on_change: Option<String>,
+    /// When field value has been changed, call this expr
+    on_change_struct: Option<String>,
     /// pass format/config object to customise how field is displayed
     imconfig: Option<String>,
     /// pass format/config object to customise how field is displayed (when mutable)
@@ -588,7 +590,18 @@ fn handle_fields(
                 .expect(format!("Could not find function: {}", custom_func).as_str());
             on_change = quote! {
                 if response.changed(){
-                    #ident(& #prefix_code #whole_ident);
+                    #ident(&mut #prefix_code #whole_ident);
+                }
+            };
+        }
+        let mut on_change_struct = quote! {};
+        if let Some(custom_expr) = &field.on_change_struct {
+            let expr: TokenStream = custom_expr
+                .parse()
+                .expect(format!("Could parse expr from: {}", custom_expr).as_str());
+            on_change_struct = quote! {
+                if response.changed(){
+                    #expr
                 }
             };
         }
@@ -621,7 +634,7 @@ fn handle_fields(
         fields_names_nskipped.push(quote! { #whole_ident});
 
         let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #imconfig, None); };
-        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config, #resetable); #on_change};
+        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing_mut( ui, #lab, #hint, indent_level, #config, #resetable); #on_change #on_change_struct};
         fields_code.push(field_code_imut.clone());
         if field.imut {
             fields_code_mut.push(field_code_imut)

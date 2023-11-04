@@ -106,7 +106,8 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
 - field level
   - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
   - `resetable`- overides enum/struct & variant level resetable
-  - `on_change`- Use function callback (when value has been changed; signature: `fn(&field_type)` )
+  - `on_change = "Path::to::func"`- Use function callback (when value has been changed; signature: `fn(&mut field_type)` )
+  - `on_change_struct = "expr"`- When field value has been changed, call this expr (expr can access whole struct through &mut self)
   - `imconfig`- pass format/config object to customise how field is displayed
   - `config`- same as imconfig but for mutable display
 
