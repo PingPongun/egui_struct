@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 use egui::RichText;
 use egui_struct::*;
 use rust_i18n::set_locale;
 use std::collections::HashMap;
 use ConfigNum::*;
 
-#[derive(EguiStruct, Debug, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(EguiStruct, Default)]
 enum Language {
     #[default]
     English,
@@ -19,17 +20,19 @@ impl Language {
         }
     }
 }
-
-#[derive(EguiStruct, Debug, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(EguiStruct, Default)]
 pub enum Color {
     #[default]
     Red,
+
     Green,
 
     Named(String),
+
     Named2 {
         name: String,
     },
+
     #[eguis(resetable(with_expr = ||Color::Custom(255,13,17) ))]
     Custom(u8, u8, #[eguis(config = "DragValue(1,111)")] u8),
 
@@ -53,32 +56,42 @@ pub enum Color {
     },
 }
 
-#[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(EguiStruct)]
 #[eguis(rename_all = "Sentence", resetable = "struct_default")]
 pub struct Data {
     #[eguis(skip)]
     skipped_data: u32,
+
     #[eguis(on_change = "Language::set_locale")]
     app_language: Language,
+
     hashmap: std::collections::HashMap<String, String>,
+
     #[eguis(resetable(with_expr = "Resetable with expr".to_string()))]
     string: String,
+
     #[eguis(resetable = "not_resetable")]
     not_resetable_string: String,
+
     #[eguis(resetable = "field_default")]
     i8: i8,
+
     i16: i16,
+
     i32: i32,
     i64: i64,
     i128: i128,
     isize: isize,
+
     #[eguis(imut, hint = "This is isize but immutable")]
     isize_imut: isize,
+
     #[eguis(
         hint = "This is also isize but limited to range <5,11>",
         config = "Slider(5,11)"
     )]
     limited_isize: isize,
+
     bool: bool,
     u8: u8,
     u16: u16,
@@ -87,14 +100,18 @@ pub struct Data {
     f64: f64,
     u128: u128,
     usize: usize,
+    usize_boxed: Box<usize>,
     nested_struct: SubData,
     unnamed_struct: TupleStruct,
     primary_color: Color,
     secondary_color: Color,
+
     #[eguis(hint = "This is Option<_>")]
     optional: Option<SubData>,
+
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
+
     list: Vec<Color>,
 }
 
@@ -126,6 +143,7 @@ impl Default for Data {
             f64: std::f64::consts::PI,
             u128: u128::MAX,
             usize: usize::MAX,
+            usize_boxed: Box::new(usize::MAX),
             nested_struct: SubData::default(),
             unnamed_struct: TupleStruct::default(),
             primary_color: Color::default(),
@@ -149,7 +167,7 @@ impl Default for Data {
     }
 }
 
-#[derive(EguiStruct, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(EguiStruct)]
 pub struct TupleStruct(
     #[eguis(resetable = "struct_default")] u8,
     #[eguis(on_change_struct = "self.2=format!(\"Wololo!: {}\", self.1)")] u32,
@@ -163,38 +181,18 @@ impl Default for TupleStruct {
     }
 }
 
-#[derive(EguiStruct, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq, Debug)]
+#[derive(EguiStruct, Default)]
 pub struct Metadata {
     message: String,
 }
 
-#[derive(EguiStruct, Clone, Default, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(EguiStruct, Default)]
 #[eguis(resetable = "struct_default")]
 pub struct SubData {
     value: String,
     number: u32,
 }
 
-#[derive(
-    Default,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Eq,
-    PartialEq,
-    Hash,
-    Clone,
-    Copy,
-    PartialOrd,
-    EguiStruct,
-)]
-pub enum Simple {
-    #[default]
-    Variant,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)]
 #[derive(Default)]
 pub struct DemoApp {
     data: Data,

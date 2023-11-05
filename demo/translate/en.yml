@@ -38,6 +38,7 @@ Data.U 32: U 32
 Data.U 8: U 8
 Data.Unnamed struct: Unnamed struct
 Data.Usize: Usize
+Data.Usize boxed: Usize boxed
 Data.isize_imut.hint.This is isize but immutable: This is isize but immutable
 Data.limited_isize.hint.This is also isize but limited to range <5,11>: This is also isize but limited to range <5,11>
 Data.optional.hint.This is Option<_>: This is Option<_>
@@ -45,7 +46,6 @@ Data.optional_string.hint.This is also Option, but as inner value is simple it i
 Language.English: English
 Language.Polish: Polish
 Metadata.message: message
-Simple.Variant: Variant
 SubData.number: number
 SubData.value: value
 
