@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - macro EguiStruct derives EguiStruct&EguiStructClone&EguiStructEq, macro EguiStructImut derives EguiStructImut
   - EguiStruct attributes (no_imut, no_mut, no_eeq, no_eclone) -> EguiStruct (no_mut, no_eeq, no_eclone), EguiStructImut()
   - all trait items are now "duplicated"
+- **Breaking**: more consistent naming:
+  - EguiStruct functions/mutable view have now no suffix (`show_top_mut(..)` -> `show_top(..)`)
+  - EguiStructImut functions/imutable view have now "_imut" suffix (`show_top(..)` -> `show_top_imut(..)`)
 - attribute `on_change` now has signature fn(&mut field_type)
 - i18n keys may be different (eg. `Color.Renamed Custom.hint.This is named custom : This is named custom` is now `Color.NamedCustom.__hint : This is named custom`; use modifed rust-18n extractor v2.4+)
 

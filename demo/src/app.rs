@@ -203,7 +203,7 @@ impl eframe::App for DemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self { data } = self;
         egui::CentralPanel::default().show(ctx, |ui| {
-            data.show_top_mut(ui, RichText::new("Data").heading(), None);
+            data.show_top(ui, RichText::new("Data").heading(), None);
         });
     }
 }

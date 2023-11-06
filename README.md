@@ -59,11 +59,11 @@ Add derive macro `EguiStruct` to struct you want to show (and all nested types):
 pub struct TupleStruct(u8, u32, String, SubData);
 ```
 
-then to show data, you only need to call `show_top_mut(..)` on top level struct:
+then to show data, you only need to call `show_top(..)` on top level struct:
 
 ```Rust
 egui::CentralPanel::default().show(ctx, |ui| {
-  data.show_top_mut(ui, RichText::new("Data").heading(), None);
+  data.show_top(ui, RichText::new("Data").heading(), None);
 });
 ```
 
@@ -72,14 +72,14 @@ egui::CentralPanel::default().show(ctx, |ui| {
 Crate consists of 4 traits (`EguiStructImut` -> `EguiStructEq`+`EguiStructClone` -> `EguiStruct`) and one derive macro (`EguiStruct`).
 
 - `EguiStructImut`:
-  - for end user ofers one function `show_top(..)`, which displays struct inside scroll area.
+  - for end user ofers one function `show_top_imut(..)`, which displays struct inside scroll area.
   - when implementing (most of bellow has some default impl):
-    - `show_primitive(..)` - ui elements shown in the same line as label
-    - `show_childs(..)` - ui elements related to nested data, that is show inside collapsible rows
-    - `has_childs(..)` && `has_primitive(..)` - indicates if data has at the moment childs/primitive section
-    - `const SIMPLE` - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
+    - `show_primitive_imut(..)` - ui elements shown in the same line as label
+    - `show_childs_imut(..)` - ui elements related to nested data, that is show inside collapsible rows
+    - `has_childs_imut(..)` && `has_primitive_imut(..)` - indicates if data has at the moment childs/primitive section
+    - `const SIMPLE_IMUT` - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
     - `type ConfigTypeImut` - type that will pass some data to cutomise how data is shown, in most cases this will be ()
-    - `show_collapsing(..)` - do not overide this method, use it when implementing `show_childs(..)` to display single nested element
+    - `show_collapsing_imut(..)` - do not overide this method, use it when implementing `show_childs_imut(..)` to display single nested element
 - `EguiStructEq`/`EguiStructClone` are similar to std `PartialEq`/`Clone` traits, but they respect `eguis(skip)`. They are necessary to implement `EguiStruct` (if type is Clone/PartialEq can be implemented through `impl_eclone!{ty}`/`impl_eeq!{ty}`/`impl_eeqclone!{ty}`).
 - `EguiStruct` is mutable equivalent of `EguiStructImut`.
 
