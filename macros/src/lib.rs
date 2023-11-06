@@ -33,7 +33,7 @@ impl Resetable {
 }
 
 #[derive(Debug, Clone, FromField)]
-#[darling(attributes(eguis))]
+#[darling(attributes(eguis, eguisM, eguisI))]
 struct EField {
     ident: Option<Ident>,
     ty: Type,
@@ -63,7 +63,7 @@ struct EField {
     resetable: Option<Resetable>,
 }
 #[derive(Debug, FromVariant)]
-#[darling(attributes(eguis))]
+#[darling(attributes(eguis, eguisM, eguisI))]
 struct EVariant {
     ident: Ident,
     fields: ast::Fields<EField>,
@@ -86,7 +86,7 @@ struct EVariant {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(eguis))]
+#[darling(attributes(eguis, eguisM, eguisI))]
 struct EStruct {
     ident: Ident,
     generics: syn::Generics,
@@ -124,6 +124,7 @@ fn handle_enum(
     let mut simple: bool = true;
     let mut reset_to_struct_default = false;
     let mut has_childs_arm = Vec::new();
+    let mut has_childs_mut_arm = Vec::new();
     let mut show_childs_arm = Vec::new();
     let mut show_childs_mut_arm = Vec::new();
     let mut show_combobox = Vec::new();
@@ -232,6 +233,7 @@ fn handle_enum(
                     let imconfig = get_config(single_field.imconfig);
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
+                    has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_MUT,});
                     let primitive_imut = quote! {#vident_w_inner => response |= #fident.show_primitive(ui,#imconfig),};
                     let primitive_mut = quote! { #vident_w_inner => response |= #fident.show_primitive_mut(ui,#config),};
                     show_primitive_arm.push(primitive_imut.clone());
@@ -241,7 +243,9 @@ fn handle_enum(
                         show_primitive_mut_arm.push(primitive_mut);
                     }
                 } else {
-                    has_childs_arm.push(quote! { Self:: #vident(..) => true,});
+                    let childs_arm = quote! { Self:: #vident(..) => true,};
+                    has_childs_arm.push(childs_arm.clone());
+                    has_childs_mut_arm.push(childs_arm.clone());
                 }
                 to_name_arm.push(quote! { #ty :: #vident(..) => #vlabel,});
                 to_hint_arm.push(quote! { Self :: #vident(..) => #hint_top,});
@@ -317,7 +321,9 @@ fn handle_enum(
                 );
                 reset_to_struct_default |= _reset_to_struct_default;
 
-                has_childs_arm.push(quote! { Self:: #vident{..} => true,});
+                let childs_arm = quote! { Self:: #vident{..} => true,};
+                has_childs_arm.push(childs_arm.clone());
+                has_childs_mut_arm.push(childs_arm.clone());
                 to_name_arm.push(quote! { #ty :: #vident{..} => #vlabel,});
                 to_hint_arm.push(quote! { Self :: #vident{..} => #hint_top,});
                 show_childs_arm.push(quote! { #vident_w_inner => {#(#fields_code)*},});
@@ -428,7 +434,17 @@ fn handle_enum(
 
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #ty #ty_generics #where_clause {
+            const SIMPLE_MUT: bool = #simple;//is c-like enum
             type ConfigType = ();
+            fn has_childs_mut(&self) -> bool {
+                match self{
+                    #(#has_childs_mut_arm)* //variant1=>false,
+                    _=> false,
+                }
+            }
+            fn has_primitive_mut(&self) -> bool {
+                true
+            }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
                 #![allow(unused)]
                 #reset_to_struct_default
@@ -698,19 +714,20 @@ fn handle_struct(
     };
 
     let simple = fields.style == ast::Style::Tuple && fields_code.len() == 1;
-    let simple = if let Some(sf) = &single_field {
-        let ty = &sf.ty;
-        quote! {#ty :: SIMPLE && #simple}
-    } else {
-        quote! { #simple}
-    };
 
     macro_rules! show_primitive {
-        ($name:ident, $config:ident) => {
+        ($name:ident, $config:ident, $SIMPLE:ident, $simple:ident) => {
+            let $simple = if let Some(sf) = &single_field {
+                let ty = &sf.ty;
+                quote! {#ty :: $SIMPLE && #simple}
+            } else {
+                quote! { #simple}
+            };
+
             let config = get_config(single_field.as_ref().and_then(|x| x.$config.clone()));
             let $name = if fields.style == ast::Style::Tuple {
                 quote! {
-                    if Self::SIMPLE {
+                    if Self::$SIMPLE {
                         self. #index .$name(ui,#config)
                     } else {
                         ui.label("")
@@ -721,8 +738,8 @@ fn handle_struct(
             };
         };
     }
-    show_primitive!(show_primitive, imconfig);
-    show_primitive!(show_primitive_mut, config);
+    show_primitive!(show_primitive, imconfig, SIMPLE, simple);
+    show_primitive!(show_primitive_mut, config, SIMPLE_MUT, simple_mut);
 
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #name #ty_generics #where_clause {
@@ -730,9 +747,6 @@ fn handle_struct(
             type ConfigTypeImut = ();
             fn has_childs(&self) -> bool {
                !Self::SIMPLE
-            }
-            fn has_primitive(&self) -> bool {
-                !self.has_childs()
             }
             fn show_childs(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>) -> ::egui::Response {
                 #(#fields_code)*
@@ -745,7 +759,11 @@ fn handle_struct(
     };
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
+            const SIMPLE_MUT: bool = #simple_mut;
             type ConfigType = ();
+            fn has_childs_mut(&self) -> bool {
+               !Self::SIMPLE_MUT
+            }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
                 #reset_to_struct_default
                 #reset_to_struct_expr
@@ -789,10 +807,8 @@ fn handle_struct(
     }
     ret
 }
-#[proc_macro_derive(EguiStruct, attributes(eguis))]
-pub fn display_gui(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let ast = syn::parse_macro_input!(input as DeriveInput);
-    let input = EStruct::from_derive_input(&ast).unwrap();
+
+fn egui_struct_inner(input: EStruct) -> TokenStream {
     let mut prefix = String::new();
     let case = input.rename_all.as_ref().map(|x| parse_case_name(&x));
 
@@ -805,11 +821,29 @@ pub fn display_gui(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         prefix += ".";
     }
 
-    let toks = match &input.data {
+    match &input.data {
         ast::Data::Enum(variants) => handle_enum(variants, prefix, &case, &input),
         ast::Data::Struct(fields) => handle_struct(fields, prefix, &case, &input),
-    };
+    }
+}
 
+#[proc_macro_derive(EguiStruct, attributes(eguis, eguisM))]
+pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as DeriveInput);
+    let mut input = EStruct::from_derive_input(&ast).unwrap();
+    input.no_imut = true;
+    let toks = egui_struct_inner(input);
+    debug_print_generated(&ast, &toks);
+    toks.into()
+}
+#[proc_macro_derive(EguiStructImut, attributes(eguis, eguisI))]
+pub fn egui_struct_imut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as DeriveInput);
+    let mut input = EStruct::from_derive_input(&ast).unwrap();
+    input.no_eclone = true;
+    input.no_eeq = true;
+    input.no_mut = true;
+    let toks = egui_struct_inner(input);
     debug_print_generated(&ast, &toks);
     toks.into()
 }

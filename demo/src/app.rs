@@ -76,6 +76,7 @@ pub struct Data {
     #[eguis(resetable = "field_default")]
     i8: i8,
 
+    #[eguisM(resetable = "field_default")]
     i16: i16,
 
     i32: i32,
