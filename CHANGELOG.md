@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - attribute `on_change_struct` similar to `on_change` but takes expr (may use &mut self (whole struct), not only single field reference)
+- **Breaking** (if () was passed as ConfigTypeImut): Imutable String & str & numerics are now configurable:
+  - `NonSelectable` (aka imut; `egui::Label`),
+  - `Selectable` (default imut; aka imutable `egui::TextEdit`),
+- **Breaking** (if () was passed as ConfigType): Mutable String is now configurable:
+  - `SingleLine` (default mut; aka `egui::TextEdit`),
+  - `MultiLine` (mut; aka `egui::TextEdit`),
 
 ### Fixed
 

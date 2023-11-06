@@ -123,7 +123,6 @@ See ./demo
   - add bounds
 - tests
 - code cleanup & simplify
-- EguiStructConfig for String
 - support adding/removing elements for Vec&Hashmap's
 - override trait function for field
 - (requires specialization) EguiStructEq/EguiStructClone default impl

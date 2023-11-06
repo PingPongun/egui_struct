@@ -159,13 +159,17 @@ pub trait EguiStruct: EguiStructClone + EguiStructEq {
 pub trait EguiStructImut {
     generate_show! { show_top_imut, show_collapsing_imut, show_primitive_imut, show_childs_imut, &Self, ConfigTypeImut, COLUMN_COUNT_IMUT, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
+
+///Config structure for mutable view of Numerics
 #[derive(Default)]
 pub enum ConfigNum<T> {
     ///Default: DragValue (without limits)
     #[default]
     NumDefault,
+
     ///DragValue(min, max)
     DragValue(T, T),
+
     ///Slider(min, max)
     Slider(T, T),
 }
@@ -183,9 +187,9 @@ macro_rules! impl_num_primitives {
                 }
             }
             impl EguiStructImut for $typ {
-                type ConfigTypeImut = ();
-                fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
-                    ui.label(self.to_string())
+                type ConfigTypeImut = ConfigStrImut;
+                fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+                    self.to_string().as_str().show_primitive_imut(ui, config)
                 }
             }
             impl_eeqclone!{$typ}
@@ -209,25 +213,52 @@ impl EguiStructImut for bool {
 }
 impl_eeqclone! {bool}
 /////////////////////////////////////////////////////////
+///Config structure for mutable view of String
+#[derive(Default)]
+pub enum ConfigStr {
+    ///Default: single line `egui::TextEdit`
+    #[default]
+    SingleLine,
+
+    ///multi line `egui::TextEdit`
+    MultiLine,
+}
+
+///Config structure for immutable view of many simple types like str, String & numerics
+#[derive(Default)]
+pub enum ConfigStrImut {
+    ///`egui::Label`
+    NonSelectable,
+
+    ///Default: imutable `egui::TextEdit`
+    #[default]
+    Selectable,
+}
 
 impl EguiStruct for String {
-    type ConfigType = ();
-    fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType) -> Response {
-        ui.text_edit_singleline(self)
+    type ConfigType = ConfigStr;
+    fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType) -> Response {
+        match config {
+            ConfigStr::SingleLine => ui.text_edit_singleline(self),
+            ConfigStr::MultiLine => ui.text_edit_multiline(self),
+        }
     }
 }
 impl EguiStructImut for String {
-    type ConfigTypeImut = ();
-    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
-        ui.label(self)
+    type ConfigTypeImut = ConfigStrImut;
+    fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+        self.as_str().show_primitive_imut(ui, config)
     }
 }
 impl_eeqclone! {String}
 
 impl EguiStructImut for str {
-    type ConfigTypeImut = ();
-    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
-        ui.label(self)
+    type ConfigTypeImut = ConfigStrImut;
+    fn show_primitive_imut(mut self: &Self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+        match config {
+            ConfigStrImut::NonSelectable => ui.label(self),
+            ConfigStrImut::Selectable => ui.text_edit_singleline(&mut self),
+        }
     }
 }
 
