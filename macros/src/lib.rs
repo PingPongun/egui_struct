@@ -159,8 +159,8 @@ fn handle_enum(
         let hint = if vhint.is_empty() {
             quote! {}
         } else if cfg!(feature = "i18n") {
-            let label = prefix.clone() + &vname_str + ".hint." + &vhint;
-            quote! { .on_hover_text(::rust_i18n::t!(#label ))}
+            let key = prefix.clone() + &vident.to_string() + ".__hint";
+            quote! { .on_hover_text(::rust_i18n::t!( #[allow(unused_doc_comments)]#[doc = #vhint] #key ))}
         } else {
             quote! { .on_hover_text(#vhint) }
         };
@@ -170,12 +170,12 @@ fn handle_enum(
             quote! { response=response #hint }
         };
         let vlabel = if cfg!(feature = "i18n") {
-            let la = if let Some(n) = &variant.i18n {
+            let key = if let Some(n) = &variant.i18n {
                 n.clone()
             } else {
-                prefix.clone() + &vname_str
+                prefix.clone() + &vident.to_string()
             };
-            quote! { ::rust_i18n::t!(#la )}
+            quote! { ::rust_i18n::t!(#[allow(unused_doc_comments)]#[doc = #vname_str] #key )}
         } else {
             quote! { #vname_str .to_string() }
         };
@@ -552,12 +552,12 @@ fn handle_fields(
             }
 
             if cfg!(feature = "i18n") {
-                let label = if let Some(n) = &field.i18n {
+                let key = if let Some(n) = &field.i18n {
                     n.clone()
                 } else {
-                    prefix.clone() + &label
+                    prefix.clone() + &field_name.to_string()
                 };
-                lab = quote! { ::rust_i18n::t!(#label )};
+                lab = quote! { ::rust_i18n::t!(#[allow(unused_doc_comments)]#[doc = #label] #key )};
             } else {
                 lab = quote! { #label };
             }
@@ -571,8 +571,8 @@ fn handle_fields(
         }
         let hint = &field.hint;
         let hint = if cfg!(feature = "i18n") && !hint.is_empty() {
-            let label = prefix.clone() + &field_name + ".hint." + &hint;
-            quote! { ::rust_i18n::t!(#label )}
+            let key = prefix.clone() + &name_tt.to_string() + ".__hint.";
+            quote! { ::rust_i18n::t!(#[allow(unused_doc_comments)]#[doc = #hint] #key  )}
         } else {
             quote! { #hint }
         };

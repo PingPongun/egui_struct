@@ -1,21 +1,33 @@
 _version: 1
-Data.Limited isize: Limited isize
-Data.Not resetable string: Not resetable string
-Data.Optional string: Optional string
-Data.Primary color: Primary color
-Data.Secondary color: Secondary color
-Data.String: String
-Data.U 128: U 128
-Data.U 16: U 16
-Data.U 32: U 32
-Data.U 8: U 8
-Data.Unnamed struct: Unnamed struct
-Data.Usize: Usize
-Data.Usize boxed: Usize boxed
-Data.isize_imut.hint.This is isize but immutable: This is isize but immutable
-Data.limited_isize.hint.This is also isize but limited to range <5,11>: This is also isize but limited to range <5,11>
-Data.optional.hint.This is Option<_>: This is Option<_>
-Data.optional_string.hint.This is also Option, but as inner value is simple it is presented inline: This is also Option, but as inner value is simple it is presented inline
+Color.NamedCustom: Renamed Custom
+Data.bool: Bool
+Data.f32: F 32
+Data.f64: F 64
+Data.hashmap: Hashmap
+Data.i128: I 128
+Data.i16: I 16
+Data.i32: I 32
+Data.i64: I 64
+Data.i8: I 8
+Data.isize: Isize
+Data.isize_imut: Isize imut
+Data.isize_imut.__hint.: This is isize but immutable
+Data.limited_isize: Limited isize
+Data.limited_isize.__hint.: This is also isize but limited to range <5,11>
+Data.not_resetable_string: Not resetable string
+Data.optional.__hint.: This is Option<_>
+Data.optional_string: Optional string
+Data.optional_string.__hint.: This is also Option, but as inner value is simple it is presented inline
+Data.primary_color: Primary color
+Data.secondary_color: Secondary color
+Data.string: String
+Data.u128: U 128
+Data.u16: U 16
+Data.u32: U 32
+Data.u8: U 8
+Data.unnamed_struct: Unnamed struct
+Data.usize: Usize
+Data.usize_boxed: Usize boxed
 Metadata.message: message
 SubData.number: number
 SubData.value: value
