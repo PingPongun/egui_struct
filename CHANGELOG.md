@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- wrapper type `egui_struct::Combobox<T>(T)` that through `config: ConfigType` takes list of possible values
 - attribute `on_change_struct` similar to `on_change` but takes expr (may use &mut self (whole struct), not only single field reference)
 - **Breaking** (if () was passed as ConfigTypeImut): Imutable String & str & numerics are now configurable:
   - `NonSelectable` (aka imut; `egui::Label`),
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking**: more consistent naming:
   - EguiStruct functions/mutable view have now no suffix (`show_top_mut(..)` -> `show_top(..)`)
   - EguiStructImut functions/imutable view have now "_imut" suffix (`show_top(..)` -> `show_top_imut(..)`)
+- **Breaking**: ConfigType/ConfigTypeImut has now single lifetime parameter
 - attribute `on_change` now has signature fn(&mut field_type)
 - i18n keys may be different (eg. `Color.Renamed Custom.hint.This is named custom : This is named custom` is now `Color.NamedCustom.__hint : This is named custom`; use modifed rust-18n extractor v2.4+)
 

@@ -1,9 +1,10 @@
 use egui::{Button, Grid, Response, ScrollArea, Ui, Widget, WidgetText};
 pub use egui_struct_macros::*;
+use std::ops::{Deref, DerefMut};
 
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $primitive_name:ident, $childs_name:ident, $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs_imut:ident, $has_primitive:ident) => {
-        type $config: Default;
+        type $config<'a>: Default;
         const $COLUMN_COUNT: usize = 2;
         const $SIMPLE: bool = true;
         fn $has_childs_imut(&self) -> bool {
@@ -39,7 +40,7 @@ macro_rules! generate_show {
             label: impl Into<WidgetText> + Clone,
             hint: impl Into<WidgetText> + Clone,
             indent_level: isize,
-            config: Self::$config,
+            config: Self::$config<'_>,
             _reset2: Option<&Self>,
         ) -> Response {
             let mut uncollapsed = true;
@@ -101,7 +102,7 @@ macro_rules! generate_show {
             }
             ret
         }
-        fn $primitive_name(self: $typ, ui: &mut Ui, _config: Self::$config) -> Response {
+        fn $primitive_name(self: $typ, ui: &mut Ui, _config: Self::$config<'_>) -> Response {
             ui.label("")
         }
         fn $childs_name(
@@ -177,8 +178,8 @@ macro_rules! impl_num_primitives {
     ($($typ:ty)*) => {
         $(
             impl EguiStruct for $typ {
-                type ConfigType = ConfigNum<$typ>;
-                fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType) -> Response {
+                type ConfigType<'a> = ConfigNum<$typ>;
+                fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>) -> Response {
                     match config{
                         Self::ConfigType::NumDefault        =>  egui::DragValue::new(self).ui(ui),
                         Self::ConfigType::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
@@ -187,8 +188,8 @@ macro_rules! impl_num_primitives {
                 }
             }
             impl EguiStructImut for $typ {
-                type ConfigTypeImut = ConfigStrImut;
-                fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+                type ConfigTypeImut<'a> = ConfigStrImut;
+                fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut<'_>) -> Response {
                     self.to_string().as_str().show_primitive_imut(ui, config)
                 }
             }
@@ -200,14 +201,14 @@ macro_rules! impl_num_primitives {
 impl_num_primitives!(i8 i16 i32 i64 u8 u16 u32 u64 usize isize f32 f64);
 
 impl EguiStruct for bool {
-    type ConfigType = ();
-    fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType) -> Response {
+    type ConfigType<'a> = ();
+    fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType<'_>) -> Response {
         egui::Checkbox::without_text(self).ui(ui)
     }
 }
 impl EguiStructImut for bool {
-    type ConfigTypeImut = ();
-    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
+    type ConfigTypeImut<'a> = ();
+    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut<'_>) -> Response {
         ui.add_enabled(false, egui::Checkbox::without_text(&mut self.clone()))
     }
 }
@@ -236,8 +237,8 @@ pub enum ConfigStrImut {
 }
 
 impl EguiStruct for String {
-    type ConfigType = ConfigStr;
-    fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType) -> Response {
+    type ConfigType<'a> = ConfigStr;
+    fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>) -> Response {
         match config {
             ConfigStr::SingleLine => ui.text_edit_singleline(self),
             ConfigStr::MultiLine => ui.text_edit_multiline(self),
@@ -245,16 +246,20 @@ impl EguiStruct for String {
     }
 }
 impl EguiStructImut for String {
-    type ConfigTypeImut = ConfigStrImut;
-    fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+    type ConfigTypeImut<'a> = ConfigStrImut;
+    fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut<'_>) -> Response {
         self.as_str().show_primitive_imut(ui, config)
     }
 }
 impl_eeqclone! {String}
 
 impl EguiStructImut for str {
-    type ConfigTypeImut = ConfigStrImut;
-    fn show_primitive_imut(mut self: &Self, ui: &mut Ui, config: Self::ConfigTypeImut) -> Response {
+    type ConfigTypeImut<'a> = ConfigStrImut;
+    fn show_primitive_imut(
+        mut self: &Self,
+        ui: &mut Ui,
+        config: Self::ConfigTypeImut<'_>,
+    ) -> Response {
         match config {
             ConfigStrImut::NonSelectable => ui.label(self),
             ConfigStrImut::Selectable => ui.text_edit_singleline(&mut self),
@@ -265,14 +270,14 @@ impl EguiStructImut for str {
 /////////////////////////////////////////////////////////
 impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
     const SIMPLE_IMUT: bool = false;
-    type ConfigTypeImut = ();
+    type ConfigTypeImut<'a> = ();
     fn has_childs_imut(&self) -> bool {
         !T::SIMPLE_IMUT && self.is_some()
     }
     fn has_primitive_imut(&self) -> bool {
         true
     }
-    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
+    fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut<'_>) -> Response {
         ui.horizontal(|ui| {
             let mut ret = self.is_some().show_primitive_imut(ui, ());
             match (T::SIMPLE_IMUT, self) {
@@ -310,14 +315,14 @@ impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
 }
 impl<T: EguiStruct + Default> EguiStruct for Option<T> {
     const SIMPLE: bool = false;
-    type ConfigType = ();
+    type ConfigType<'a> = ();
     fn has_childs(&self) -> bool {
         !T::SIMPLE && self.is_some()
     }
     fn has_primitive(&self) -> bool {
         true
     }
-    fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType) -> Response {
+    fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType<'_>) -> Response {
         ui.horizontal(|ui| {
             let mut checked = self.is_some();
             let mut ret = checked.show_primitive(ui, ());
@@ -394,7 +399,7 @@ macro_rules! impl_vec {
     ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident,$trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
         impl<T: $trait> $trait for $typ{
             const $SIMPLE: bool = false;
-            type $ConfigType = ();
+            type $ConfigType<'a> = ();
             fn $has_childs_imut(&self) -> bool {
                 !self.is_empty()
             }
@@ -448,7 +453,7 @@ macro_rules! impl_map {
     ($Self:ty, $typ:ty, [$( $Qbound:path),*], $iter:ident, $collapsing_name:ident, $childs_name:ident,$trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
         impl<Q: ToString $(+ $Qbound)*, V: $trait> $trait for $typ{
             const $SIMPLE: bool = false;
-            type $ConfigType = ();
+            type $ConfigType<'a> = ();
             fn $has_childs_imut(&self) -> bool {
                 !self.is_empty()
             }
@@ -513,14 +518,14 @@ impl_map! { indexmap::IndexMap<Q,V> }
 macro_rules! impl_large_numerics {
     ($($t:ty)*) => ($(
         impl EguiStructImut for $t {
-            type ConfigTypeImut = ();
-            fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut) -> Response {
+            type ConfigTypeImut<'a> = ();
+            fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut<'_>) -> Response {
                 ui.label(self.to_string())
             }
         }
         impl EguiStruct for $t {
-            type ConfigType = ();
-            fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType)-> Response  {
+            type ConfigType<'a> = ();
+            fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType<'_>)-> Response  {
                 let mut text = self.to_string();
                 let ret=ui.text_edit_singleline(&mut text);
                 if let Ok(value) = text.parse() {
@@ -533,3 +538,99 @@ macro_rules! impl_large_numerics {
     )*)
 }
 impl_large_numerics!(i128 u128);
+
+////////////////////////////////////////////////////////////
+
+pub struct Combobox<T>(pub T);
+
+impl<T: ToString> EguiStructImut for Combobox<T> {
+    type ConfigTypeImut<'a> = ConfigStrImut;
+
+    fn show_primitive_imut(self: &Self, ui: &mut Ui, config: Self::ConfigTypeImut<'_>) -> Response {
+        self.0.to_string().show_primitive_imut(ui, config)
+    }
+}
+
+impl<T: Clone> EguiStructClone for Combobox<T> {
+    fn eguis_clone(&mut self, source: &Self) {
+        self.0.clone_from(&source.0)
+    }
+}
+impl<T: PartialEq> EguiStructEq for Combobox<T> {
+    fn eguis_eq(&self, rhs: &Self) -> bool {
+        self.0.eq(&rhs.0)
+    }
+}
+impl<T: Clone + ToString + PartialEq + 'static> EguiStruct for Combobox<T> {
+    type ConfigType<'a> = Option<&'a mut dyn Iterator<Item = T>>;
+
+    fn show_primitive(self: &mut Self, ui: &mut Ui, config: Self::ConfigType<'_>) -> Response {
+        show_combobox(&mut self.0, ui, config)
+    }
+}
+
+fn show_combobox<'a, T: Clone + ToString + PartialEq>(
+    sel: &mut T,
+    ui: &mut Ui,
+    config: Option<&'a mut dyn Iterator<Item = T>>,
+) -> Response {
+    let defspacing = ui.spacing().item_spacing.clone();
+    ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+    let mut inner_response = ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
+    let ret = egui::ComboBox::from_id_source((
+        sel as *const T as *const usize as usize,
+        "Combobox_show_primitive",
+    ))
+    .selected_text(sel.to_string())
+    .show_ui(ui, |ui| {
+        ui.spacing_mut().item_spacing = defspacing;
+        if let Some(config) = config {
+            for i in config {
+                let s = i.to_string();
+                inner_response |= ui.selectable_value(sel, i, s);
+            }
+        }
+    })
+    .response;
+    ui.spacing_mut().item_spacing = defspacing;
+    ret | inner_response
+}
+impl<T> Deref for Combobox<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for Combobox<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<T: Default> Default for Combobox<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+impl<T: Clone> Clone for Combobox<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T: Copy> Copy for Combobox<T> {}
+impl<T: Eq> Eq for Combobox<T> {}
+impl<T: Ord> Ord for Combobox<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+impl<T: PartialEq> PartialEq for Combobox<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<T: PartialOrd> PartialOrd for Combobox<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}

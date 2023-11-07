@@ -12,3 +12,4 @@ eframe = { version = "0.23.0", default-features = false, features = [
 ] }
 egui_struct = { path = "../" }
 rust-i18n = "2.2.1"
+lazy_static = "1.4.0"

@@ -393,7 +393,7 @@ fn handle_enum(
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #ty #ty_generics #where_clause {
             const SIMPLE_IMUT: bool = #simple;//is c-like enum
-            type ConfigTypeImut = ();
+            type ConfigTypeImut<'a> = ();
             fn has_childs_imut(&self) -> bool {
                 match self{
                     #(#has_childs_arm)* //variant1=>false,
@@ -410,7 +410,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
                 fn to_text(s:& #ty)-> String{
                     match s{
                         #(#to_name_arm)*
@@ -435,7 +435,7 @@ fn handle_enum(
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #ty #ty_generics #where_clause {
             const SIMPLE: bool = #simple;//is c-like enum
-            type ConfigType = ();
+            type ConfigType<'a> = ();
             fn has_childs(&self) -> bool {
                 match self{
                     #(#has_childs_mut_arm)* //variant1=>false,
@@ -455,7 +455,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> String{
                     match s{
@@ -744,7 +744,7 @@ fn handle_struct(
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #name #ty_generics #where_clause {
             const SIMPLE_IMUT: bool = #simple;
-            type ConfigTypeImut = ();
+            type ConfigTypeImut<'a> = ();
             fn has_childs_imut(&self) -> bool {
                !Self::SIMPLE_IMUT
             }
@@ -752,7 +752,7 @@ fn handle_struct(
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
                 #show_primitive_imut
             }
         }
@@ -760,7 +760,7 @@ fn handle_struct(
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
             const SIMPLE: bool = #simple_mut;
-            type ConfigType = ();
+            type ConfigType<'a> = ();
             fn has_childs(&self) -> bool {
                !Self::SIMPLE
             }
@@ -770,7 +770,7 @@ fn handle_struct(
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>) -> ::egui::Response {
                 #show_primitive
             }
         }

@@ -1,8 +1,9 @@
 #![allow(dead_code)]
+use egui::mutex::RwLock;
 use egui::RichText;
 use egui_struct::*;
 use rust_i18n::set_locale;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use ConfigNum::*;
 
 #[derive(EguiStruct, Default)]
@@ -55,7 +56,11 @@ pub enum Color {
         metadata: Metadata,
     },
 }
-
+lazy_static::lazy_static! {
+    pub static ref STATIC_COMBOBOX: RwLock<HashSet<String>> =  RwLock::new(
+        HashSet::from(["Einar".to_string(), "Olaf".to_string(), "Harald".to_string()])
+    );
+}
 #[derive(EguiStruct)]
 #[eguis(rename_all = "Sentence", resetable = "struct_default")]
 pub struct Data {
@@ -101,7 +106,19 @@ pub struct Data {
     f64: f64,
     u128: u128,
     usize: usize,
+
+    #[eguis(
+        hint = "fields in derived struct needs to implement EguiStruct or deref to type that implements it"
+    )]
     usize_boxed: Box<usize>,
+
+    #[eguis(config = "Some(&mut [2,3,5,7,11,13,17,19].into_iter())")]
+    u8_combobox_wrapper: Combobox<u8>,
+
+    //this(cloning) is not elegant but for most cases would work well enough
+    #[eguis(config = "Some(&mut STATIC_COMBOBOX.read().clone().into_iter())")]
+    static_combobox: Combobox<String>,
+
     nested_struct: SubData,
     unnamed_struct: TupleStruct,
     primary_color: Color,
@@ -145,6 +162,8 @@ impl Default for Data {
             u128: u128::MAX,
             usize: usize::MAX,
             usize_boxed: Box::new(usize::MAX),
+            u8_combobox_wrapper: Combobox(3),
+            static_combobox: Combobox("default name".to_string()),
             nested_struct: SubData::default(),
             unnamed_struct: TupleStruct::default(),
             primary_color: Color::default(),

@@ -20,14 +20,19 @@ Data.optional_string: Optional string
 Data.optional_string.__hint.: This is also Option, but as inner value is simple it is presented inline
 Data.primary_color: Primary color
 Data.secondary_color: Secondary color
+Data.static_combobox: Static combobox
+Data.stepped_isize: Stepped isize
 Data.string: String
 Data.u128: U 128
 Data.u16: U 16
 Data.u32: U 32
 Data.u8: U 8
+Data.u8_combobox_config: U 8 combobox config
+Data.u8_combobox_wrapper: U 8 combobox wrapper
 Data.unnamed_struct: Unnamed struct
 Data.usize: Usize
 Data.usize_boxed: Usize boxed
+Data.usize_boxed.__hint.: fields in derived struct needs to implement EguiStruct or deref to type that implements it
 Metadata.message: message
 SubData.number: number
 SubData.value: value
