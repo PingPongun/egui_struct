@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - wrapper type `egui_struct::Combobox<T>(T)` that through `config: ConfigType` takes list of possible values
+- new config variants for numerics (`SliderStep(..)`, `Combobox(list)`)
 - attribute `on_change_struct` similar to `on_change` but takes expr (may use &mut self (whole struct), not only single field reference)
 - **Breaking** (if () was passed as ConfigTypeImut): Imutable String & str & numerics are now configurable:
   - `NonSelectable` (aka imut; `egui::Label`),
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** (if () was passed as ConfigType): Mutable String is now configurable:
   - `SingleLine` (default mut; aka `egui::TextEdit`),
   - `MultiLine` (mut; aka `egui::TextEdit`),
+  - `Combobox(list)` (mut; aka `egui_struct::Combobox`),
 
 ### Fixed
 

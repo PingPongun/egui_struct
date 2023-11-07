@@ -98,6 +98,9 @@ pub struct Data {
     )]
     limited_isize: isize,
 
+    #[eguis(config = "SliderStep(5,110,5)")]
+    stepped_isize: isize,
+
     bool: bool,
     u8: u8,
     u16: u16,
@@ -114,6 +117,9 @@ pub struct Data {
 
     #[eguis(config = "Some(&mut [2,3,5,7,11,13,17,19].into_iter())")]
     u8_combobox_wrapper: Combobox<u8>,
+
+    #[eguis(config = "ComboBox(&mut [2,3,5,7,11,13,17,19].into_iter())")]
+    u8_combobox_config: u8,
 
     //this(cloning) is not elegant but for most cases would work well enough
     #[eguis(config = "Some(&mut STATIC_COMBOBOX.read().clone().into_iter())")]
@@ -153,6 +159,7 @@ impl Default for Data {
             isize: -14,
             isize_imut: -333,
             limited_isize: 6,
+            stepped_isize: 50,
             bool: true,
             u8: 94,
             u16: 14029,
@@ -163,6 +170,7 @@ impl Default for Data {
             usize: usize::MAX,
             usize_boxed: Box::new(usize::MAX),
             u8_combobox_wrapper: Combobox(3),
+            u8_combobox_config: 3,
             static_combobox: Combobox("default name".to_string()),
             nested_struct: SubData::default(),
             unnamed_struct: TupleStruct::default(),

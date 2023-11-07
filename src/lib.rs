@@ -163,7 +163,7 @@ pub trait EguiStructImut {
 
 ///Config structure for mutable view of Numerics
 #[derive(Default)]
-pub enum ConfigNum<T> {
+pub enum ConfigNum<'a, T: 'a> {
     ///Default: DragValue (without limits)
     #[default]
     NumDefault,
@@ -173,17 +173,25 @@ pub enum ConfigNum<T> {
 
     ///Slider(min, max)
     Slider(T, T),
+
+    ///Slider(min, max, step)
+    SliderStep(T, T, T),
+
+    ///Combobox with available options specified by included iterator
+    ComboBox(&'a mut dyn Iterator<Item = T>),
 }
 macro_rules! impl_num_primitives {
     ($($typ:ty)*) => {
         $(
             impl EguiStruct for $typ {
-                type ConfigType<'a> = ConfigNum<$typ>;
+                type ConfigType<'a> = ConfigNum<'a, $typ>;
                 fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>) -> Response {
                     match config{
                         Self::ConfigType::NumDefault        =>  egui::DragValue::new(self).ui(ui),
                         Self::ConfigType::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
                         Self::ConfigType::Slider(min,max)   =>  egui::Slider::new(self, min..=max).ui(ui),
+                        Self::ConfigType::SliderStep(min,max,step)   =>  egui::Slider::new(self, min..=max).step_by(step as f64).ui(ui),
+                        Self::ConfigType::ComboBox(iter) => show_combobox(self, ui, Some(iter)),
                     }
                 }
             }
@@ -216,13 +224,16 @@ impl_eeqclone! {bool}
 /////////////////////////////////////////////////////////
 ///Config structure for mutable view of String
 #[derive(Default)]
-pub enum ConfigStr {
+pub enum ConfigStr<'a> {
     ///Default: single line `egui::TextEdit`
     #[default]
     SingleLine,
 
     ///multi line `egui::TextEdit`
     MultiLine,
+
+    ///Combobox with available options specified by included iterator
+    ComboBox(&'a mut dyn Iterator<Item = String>),
 }
 
 ///Config structure for immutable view of many simple types like str, String & numerics
@@ -237,11 +248,12 @@ pub enum ConfigStrImut {
 }
 
 impl EguiStruct for String {
-    type ConfigType<'a> = ConfigStr;
+    type ConfigType<'a> = ConfigStr<'a>;
     fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>) -> Response {
         match config {
             ConfigStr::SingleLine => ui.text_edit_singleline(self),
             ConfigStr::MultiLine => ui.text_edit_multiline(self),
+            ConfigStr::ComboBox(iter) => show_combobox(self, ui, Some(iter)),
         }
     }
 }
