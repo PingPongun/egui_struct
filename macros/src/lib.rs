@@ -52,9 +52,9 @@ struct EField {
     /// Override i18n key (key will not contain prefix)
     i18n: Option<String>,
     /// Use function callback (when value has been changed; signature: fn(&mut field_type) )
-    on_change: Option<String>,
-    /// When field value has been changed, call this expr
-    on_change_struct: Option<String>,
+    on_change: Option<Expr>,
+    /// Use function callback (when value has been changed; signature: fn(&mut self) )
+    on_change_struct: Option<Expr>,
     /// pass format/config object to customise how field is displayed
     imconfig: Option<String>,
     /// pass format/config object to customise how field is displayed (when mutable)
@@ -233,6 +233,7 @@ fn handle_enum(
                     fields_map_eclone,
                     fields_map_eeq,
                     single_field,
+                    on_change,
                     fidx,
                 ) = handle_fields(
                     &variant.fields.fields,
@@ -262,7 +263,7 @@ fn handle_enum(
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
                     has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
                     let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig,id),};
-                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config,id);  #map_post; response |=r;},};
+                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config,id);  #map_post; {#on_change}; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -332,6 +333,7 @@ fn handle_enum(
                     mut fields_code_mut,
                     fields_map_eclone,
                     fields_map_eeq,
+                    _,
                     _,
                     _,
                 ) = handle_fields(
@@ -568,6 +570,7 @@ fn handle_fields(
     Vec<TokenStream>,
     Vec<TokenStream>,
     Option<EField>,
+    TokenStream,
     Index,
 ) {
     let mut fields_code = Vec::new();
@@ -577,6 +580,7 @@ fn handle_fields(
     let mut index = syn::Index::from(0);
     let mut single_field = None;
     let mut reset_to_struct_default = false;
+    let mut on_change = quote! {};
     for (idx, field) in fields.iter().enumerate() {
         if field.skip {
             continue;
@@ -635,24 +639,19 @@ fn handle_fields(
         let imconfig = get_config(field.imconfig.clone());
         let config = get_config(field.config.clone());
 
-        let mut on_change = quote! {};
-        if let Some(custom_func) = &field.on_change {
-            let ident = syn::Path::from_string(custom_func)
-                .expect(format!("Could not find function: {}", custom_func).as_str());
+        on_change = quote! {};
+        if let Some(func) = &field.on_change {
             on_change = quote! {
                 if response.changed(){
-                    #ident(&mut #whole_ident);
+                    #func(&mut #whole_ident);
                 }
             };
         }
-        let mut on_change_struct = quote! {};
-        if let Some(custom_expr) = &field.on_change_struct {
-            let expr: TokenStream = custom_expr
-                .parse()
-                .expect(format!("Could parse expr from: {}", custom_expr).as_str());
-            on_change_struct = quote! {
+        if let Some(func) = &field.on_change_struct {
+            on_change = quote! {
+                #on_change
                 if response.changed(){
-                    #expr
+                    #func(self)
                 }
             };
         }
@@ -716,7 +715,7 @@ fn handle_fields(
                 field_code_mut = quote! { #field_code_mut if r.changed() { #map_post(#_ref_mut #whole_ident, mapped);}  };
             }
         }
-        field_code_mut = quote! { #field_code_mut {#on_change}; {#on_change_struct}; };
+        field_code_mut = quote! { #field_code_mut {#on_change}; };
 
         if let Some(expr) = &field.eeq {
             fields_map_eeq.push(quote! {#expr(#_ref #whole_ident,#_ref #whole_ident2);});
@@ -752,6 +751,7 @@ fn handle_fields(
         fields_map_eclone,
         fields_map_eeq,
         single_field,
+        on_change,
         index,
     )
 }
@@ -782,6 +782,7 @@ fn handle_struct(
         fields_map_eclone,
         fields_map_eeq,
         single_field,
+        on_change,
         index,
     ) = handle_fields(
         &fields.fields,
@@ -840,6 +841,7 @@ fn handle_struct(
                     let mut mapped=#map (&mut self. #index);
                     let response=mapped.show_primitive(ui, #config, id);
                     #map_post
+                    {#on_change};
                     response
                 }else {
                   ui.label("")

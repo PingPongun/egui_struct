@@ -76,7 +76,7 @@ pub struct Data {
     #[eguis(skip)]
     skipped_data: u32,
 
-    #[eguis(on_change = "Language::set_locale")]
+    #[eguis(on_change = Language::set_locale)]
     app_language: Language,
 
     hashmap: std::collections::HashMap<String, String>,
@@ -221,7 +221,7 @@ impl Default for Data {
 #[derive(EguiStruct)]
 pub struct TupleStruct(
     #[eguis(resetable = "struct_default")] u8,
-    #[eguis(on_change_struct = "self.2=format!(\"Wololo!: {}\", self.1)")] u32,
+    #[eguis(on_change_struct = (|s: &mut TupleStruct|s.2=format!("Wololo!: {}", s.1)))] u32,
     String,
     SubData,
 );

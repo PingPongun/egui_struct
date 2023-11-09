@@ -106,8 +106,8 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
 - field level
   - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
   - `resetable`- overides enum/struct & variant level resetable
-  - `on_change = "Path::to::func"`- Use function callback (when value has been changed; signature: `fn(&mut field_type)`)
-  - `on_change_struct = "expr"`- When field value has been changed, call this expr (expr can access whole struct through &mut self)
+  - `on_change = "expr"`- Use function (`expr`: closure surounded by `()` OR function path) callback (when value has been changed; signature: `fn(&mut field_type)`)
+  - `on_change_struct = "expr"`- Similar to `on_change` but takes whole struct: signature: `fn(&mut self)`
   - `imconfig`- pass format/config object to customise how field is displayed
   - `config`- same as imconfig but for mutable display
   - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
@@ -139,5 +139,4 @@ See ./demo
 - tests
 - code cleanup & simplify
 - support adding/removing elements for Vec&Hashmap's
-- override trait function for field
 - (requires specialization) EguiStructEq/EguiStructClone default impl

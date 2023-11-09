@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - attributes to map field to another type
 - wrapper type `egui_struct::Combobox<T>(T)` that through `config: ConfigType` takes list of possible values
 - new config variants for numerics (`SliderStep(..)`, `Combobox(list)`)
-- attribute `on_change_struct` similar to `on_change` but takes expr (may use &mut self (whole struct), not only single field reference)
+- attribute `on_change_struct` similar to `on_change` but takes reference to whole struct
 - **Breaking** (if () was passed as ConfigTypeImut): Imutable String & str & numerics are now configurable:
   - `NonSelectable` (aka imut; `egui::Label`),
   - `Selectable` (default imut; aka imutable `egui::TextEdit`),
@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - fix enum combobox indented comparing to other widgets
 - fix same key used to keep state of different collapsing
+- `on_change` now works also on wrapper structs & enum tuple variants with single field
 - use absolute paths inside macro
 
 ### Changed
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructImut functions/imutable view have now "_imut" suffix (`show_top(..)` -> `show_top_imut(..)`)
 - **Breaking**: ConfigType/ConfigTypeImut has now single lifetime parameter
 - **Breaking**: show_collapsing, show_childs take new param: `parent_id`; show_primitive new param: `id`
+- **Breaking**: attribute `on_change`: now takes Expression (closure surounded by `()` OR function path) instead of stringified function path
 - attribute `on_change` now has signature fn(&mut field_type)
 - i18n keys may be different (eg. `Color.Renamed Custom.hint.This is named custom : This is named custom` is now `Color.NamedCustom.__hint : This is named custom`; use modifed rust-18n extractor v2.4+)
 
