@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - fix enum combobox indented comparing to other widgets
 - fix same key used to keep state of different collapsing
+- use absolute paths inside macro
 
 ### Changed
 

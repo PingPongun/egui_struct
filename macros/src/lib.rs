@@ -160,7 +160,7 @@ fn handle_enum(
     if let Resetable::WithExpr(expr) = &input.resetable {
         resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
         reset_to_struct_expr.push(quote! {
-            static STRUCT_DEFAULT_EXPR: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+            static STRUCT_DEFAULT_EXPR: ::std::sync::OnceLock<#ty> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
         })
     };
@@ -207,7 +207,7 @@ fn handle_enum(
             vresetable = Resetable::WithStructExpr(static_name.clone());
             reset_to_struct_expr.push(quote! {
                 #[allow(nonstandard_style)]
-                static #static_name: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+                static #static_name: ::std::sync::OnceLock<#ty> = ::std::sync::OnceLock::new();
                 _=#static_name.get_or_init(#expr);
             })
         };
@@ -307,7 +307,7 @@ fn handle_enum(
                             *self = Self:: #vident(#(#fields_default)*);
                             if let #vident_w_inner2=self{
                                 #( #fields_map_eclone )*
-                            } else {unreachable!()}
+                            } else {::std::unreachable!()}
                         }
                     },
                 });
@@ -382,7 +382,7 @@ fn handle_enum(
                             *self = Self:: #vident{#(#fields_default)*};
                             if let Self::#vident{#(#fields_names2),*}=self{
                                 #( #fields_map_eclone )*
-                            } else {unreachable!()}
+                            } else {::std::unreachable!()}
                         }
                     },
                 });
@@ -409,7 +409,7 @@ fn handle_enum(
     }
     let reset_to_struct_default = if reset_to_struct_default {
         quote! {
-            static STRUCT_DEFAULT: std::sync::OnceLock<#ty> = std::sync::OnceLock::new();
+            static STRUCT_DEFAULT: ::std::sync::OnceLock<#ty> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT.get_or_init(#ty::default);
         }
     } else {
@@ -417,27 +417,27 @@ fn handle_enum(
     };
 
     let egui_struct_imut = quote! {
-        impl #impl_generics EguiStructImut for #ty #ty_generics #where_clause {
-            const SIMPLE_IMUT: bool = #simple;//is c-like enum
+        impl #impl_generics ::egui_struct::EguiStructImut for #ty #ty_generics #where_clause {
+            const SIMPLE_IMUT: ::std::primitive::bool = #simple;//is c-like enum
             type ConfigTypeImut<'a> = ();
-            fn has_childs_imut(&self) -> bool {
+            fn has_childs_imut(&self) -> ::std::primitive::bool {
                 match self{
                     #(#has_childs_arm)* //variant1=>false,
                     _=> false,
                 }
             }
-            fn has_primitive_imut(&self) -> bool {
+            fn has_primitive_imut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
-                fn to_text(s:& #ty)-> String{
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+                fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
                         #(#to_name_arm)*
                         _=>"".to_string()}
@@ -459,19 +459,19 @@ fn handle_enum(
     };
 
     let egui_struct_mut = quote! {
-        impl #impl_generics EguiStruct for #ty #ty_generics #where_clause {
-            const SIMPLE: bool = #simple;//is c-like enum
+        impl #impl_generics ::egui_struct::EguiStruct for #ty #ty_generics #where_clause {
+            const SIMPLE: ::std::primitive::bool = #simple;//is c-like enum
             type ConfigType<'a> = ();
-            fn has_childs(&self) -> bool {
+            fn has_childs(&self) -> ::std::primitive::bool {
                 match self{
                     #(#has_childs_mut_arm)* //variant1=>false,
                     _=> false,
                 }
             }
-            fn has_primitive(&self) -> bool {
+            fn has_primitive(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
@@ -481,17 +481,17 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #![allow(unused)]
-                fn to_text(s:& #ty)-> String{
+                fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
                         #(#to_name_arm)*
                         _=>"".to_string()}
                 }
                 ui.horizontal(|ui|{
                     let defspacing=ui.spacing().item_spacing.clone();
-                    ui.spacing_mut().item_spacing=egui::vec2(0.0, 0.0);
-                    let mut inner_response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
+                    ui.spacing_mut().item_spacing=::egui::vec2(0.0, 0.0);
+                    let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
                     let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
@@ -514,7 +514,7 @@ fn handle_enum(
     };
 
     let eclone = quote! {
-        impl #impl_generics EguiStructClone for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::EguiStructClone for #ty #ty_generics #where_clause {
             fn eguis_clone(&mut self, source: &Self) {
                 match source{
                     #(#eclone_arm)*
@@ -524,8 +524,8 @@ fn handle_enum(
         }
     };
     let eeq = quote! {
-        impl #impl_generics EguiStructEq for #ty #ty_generics #where_clause {
-            fn eguis_eq(&self, rhs: &Self) -> bool {
+        impl #impl_generics ::egui_struct::EguiStructEq for #ty #ty_generics #where_clause {
+            fn eguis_eq(&self, rhs: &Self) -> ::std::primitive::bool {
                 let mut ret=true;
                 match self{
                     #(#eeq_arm)*
@@ -665,25 +665,27 @@ fn handle_fields(
         let resetable = match &bresetable {
             Resetable::FollowArg => {
                 if let Some(variant) = &variant {
-                    quote! { reset2.and_then(|f| if let #variant=f{ Some(#whole_ident) }else{ None } ) }
+                    quote! { reset2.and_then(|f| if let #variant=f{ ::std::option::Option::Some(#whole_ident) }else{ ::std::option::Option::None } ) }
                 } else {
                     quote! { reset2.map(|f|&f.#name_tt) }
                 }
             }
-            Resetable::NotResetable => quote! { None},
+            Resetable::NotResetable => quote! { ::std::option::Option::None},
             Resetable::StructDefault => unreachable!(),
-            Resetable::FieldDefault => quote! { Some(&Default::default())},
-            Resetable::WithExpr(expr) => quote! { Some(&#expr)},
+            Resetable::FieldDefault => {
+                quote! { ::std::option::Option::Some(&::std::default::Default::default())}
+            }
+            Resetable::WithExpr(expr) => quote! { ::std::option::Option::Some(&#expr)},
             Resetable::WithStructExpr(expr) => {
                 if let Some(variant) = &variant {
-                    quote! {if let #variant=&#expr.get().unwrap(){ Some(#whole_ident) }else{ None }  }
+                    quote! {if let #variant=&#expr.get().unwrap(){ ::std::option::Option::Some(#whole_ident) }else{ ::std::option::Option::None }  }
                 } else {
-                    quote! { Some(&#expr.get().unwrap().#name_tt) }
+                    quote! { ::std::option::Option::Some(&#expr.get().unwrap().#name_tt) }
                 }
             }
         };
 
-        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None, id);};
+        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id);};
         let mut field_code_mut = quote! { response |= #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable, id);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
@@ -697,7 +699,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None, id);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -766,7 +768,7 @@ fn handle_struct(
     let reset_to_struct_expr = if let Resetable::WithExpr(expr) = &input.resetable {
         resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
         quote! {
-            static STRUCT_DEFAULT_EXPR: std::sync::OnceLock<#name> = std::sync::OnceLock::new();
+            static STRUCT_DEFAULT_EXPR: ::std::sync::OnceLock<#name> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
         }
     } else {
@@ -795,7 +797,7 @@ fn handle_struct(
 
     let reset_to_struct_default = if reset_to_struct_default {
         quote! {
-            static STRUCT_DEFAULT: std::sync::OnceLock<#name> = std::sync::OnceLock::new();
+            static STRUCT_DEFAULT: ::std::sync::OnceLock<#name> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT.get_or_init(#name::default);
         }
     } else {
@@ -847,50 +849,50 @@ fn handle_struct(
     }
 
     let egui_struct_imut = quote! {
-        impl #impl_generics EguiStructImut for #name #ty_generics #where_clause {
-            const SIMPLE_IMUT: bool = #simple_imut;
+        impl #impl_generics ::egui_struct::EguiStructImut for #name #ty_generics #where_clause {
+            const SIMPLE_IMUT: ::std::primitive::bool = #simple_imut;
             type ConfigTypeImut<'a> = ();
-            fn has_childs_imut(&self) -> bool {
+            fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive_imut
             }
         }
     };
     let egui_struct_mut = quote! {
-        impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
-            const SIMPLE: bool = #simple;
+        impl #impl_generics ::egui_struct::EguiStruct for #name #ty_generics #where_clause {
+            const SIMPLE: ::std::primitive::bool = #simple;
             type ConfigType<'a> = ();
-            fn has_childs(&self) -> bool {
+            fn has_childs(&self) -> ::std::primitive::bool {
                !Self::SIMPLE
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive
             }
         }
     };
 
     let eclone = quote! {
-        impl #impl_generics EguiStructClone for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::EguiStructClone for #name #ty_generics #where_clause {
             fn eguis_clone(&mut self, rhs: &Self) {
                 #(#fields_map_eclone)*
             }
         }
     };
     let eeq = quote! {
-        impl #impl_generics EguiStructEq for #name #ty_generics #where_clause {
-            fn eguis_eq(&self, rhs: &Self) -> bool {
+        impl #impl_generics ::egui_struct::EguiStructEq for #name #ty_generics #where_clause {
+            fn eguis_eq(&self, rhs: &Self) -> ::std::primitive::bool {
                 let mut ret =true;
                 #( ret &= #fields_map_eeq )*
                 ret
@@ -969,7 +971,7 @@ fn debug_print_generated(ast: &DeriveInput, toks: &TokenStream) {
 }
 fn get_config(config: Option<String>) -> TokenStream {
     config
-        .unwrap_or("Default::default()".to_string())
+        .unwrap_or("::std::default::Default::default()".to_string())
         .parse()
         .unwrap()
 }
