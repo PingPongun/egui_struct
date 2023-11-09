@@ -6,41 +6,46 @@
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
 
-Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and  [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
+Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
 
 ## EguiStruct vs similar crates
 
-### EguiStruct vs either(enum2egui or egui_inspect)
+|                            | EguiStruct                                                                   | enum2egui        | egui_inspect                 | egui-controls                     |
+| :------------------------- | :--------------------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
+| egui version               | 0.23                                                                         | 0.23             | 0.20                         | N/A                               |
+| Layout*                    | Grid                                                                         | Group/nested     | Nested                       | Grid                              |
+| i18n support               | ✅ (rust-i18n**)                                                              | ❌                | ❌                            | ❌                                 |
+| Field description          | ✅ on hover hint (from attribute)                                             | ❌                | ❌                            | ✅ third column (from doc comment) |
+| Rename field/variant       | ✅                                                                            | ✅/❌ (enum only)  | ❌                            | ❌                                 |
+| Mass name case conversion  | ✅                                                                            | ❌                | ❌                            | ❌                                 |
+| Callback on-change         | ✅                                                                            | ❌                | ❌                            | ❌                                 |
+| Reset button               | ✅                                                                            | ❌                | ❌                            | ❌                                 |
+| Skip field                 | ✅                                                                            | ✅                | ✅                            | ❌                                 |
+|                            |                                                                              |                  |                              |
+| Numerics & strings support | ✅                                                                            | ✅                | ✅                            | ✅                                 |
+| Vec support                | ✅/❌ (does not support adding/removing elements)                              | ✅                | ✅                            | ❌                                 |
+| Other support              | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option   | ✅ bool, [T;N]                | ❌                                 |
+| HashMap/Set support        | ✅ std, indexmap                                                              | ✅ std, hashbrown | ❌                            | ❌                                 |
+| Map field/override impl    | ✅                                                                            | ❌                | ✅                            | ❌                                 |
+| Struct derive              | ✅                                                                            | ✅                | ✅                            | ✅                                 |
+| Enum derive                | ✅                                                                            | ✅                | ❌                            | ❌                                 |
+| Custom types in derive     | ✅                                                                            | ✅                | ✅                            | ❌                                 |
+|                            |                                                                              |                  |                              |
+| Configuration numerics     | ✅ Slider(min,max), Slider(min,max,step), DragValue(min,max), DragValue, List | ❌                | ✅ Slider(min,max), DragValue | ❌                                 |
+| Configuration string       | ✅ multi/singleline, List                                                     | ❌                | ✅ multi/singleline           | ❌                                 |
+| Configuration user types   | ✅                                                                            | ❌                | ❌                            | ❌                                 |
+| List/Combobox wrapper      | ✅ ***                                                                        | ❌                | ❌                            | ❌                                 |
 
-- Everything is put inside scroll&grid layout (with collapsable rows)
-  - Gui is less chaotic,
-  - all values are aligned,
-- integrated/with i18n in mind (with [rust-i18n](https://github.com/longbridgeapp/rust-i18n) crate (or if using extractor [modified rust-i18n](https://github.com/PingPongun/rust-i18n.git)) )
-- supports on hover hints
-- supports renaming&converting case for fields/variants
-- supports callback on-change for fields
-- (optionaly) adds button to reset value to some specified value
 
-### EguiStruct vs enum2egui
+\* Everything is put inside scroll&grid layout (with collapsable rows)
 
-- supports some configuration (i.e. currently numerics can be displayed as unbounded DragValue, DragValue.clamp(min,max) or Slider)
-- numerously nested structs are compact in width
-- currently for maps & vec is only possible to edit values, not insert/remove/move elements
+- Gui is less chaotic,
+- all values are aligned,
+- Gui is comact in width
 
-### EguiStruct vs egui_inspect
+** integrated/with i18n in mind (with [rust-i18n](https://github.com/longbridgeapp/rust-i18n) crate (or if using extractor [modified rust-i18n](https://github.com/PingPongun/rust-i18n.git)))
 
-- depends on egui v0.23 (egui_inspect on v0.20)
-- currently only supports configuration of numerics
-- supports also enums
-- does not support overriding trait function through attribute
-
-### EguiStruct vs egui-controls
-
-- egui-controls supports only types that can be passed to Slider or TextEdit, and does not support neither nested types nor enums
-- egui-controls does not use traits (it implements single function)
-- egui-controls, unless field is marked, generates immutable view
-- egui-controls parses doc comments to display field description (next to value), EguiStruct offers similar feature through hint attribute (but visible only on hover)
-- EguiStruct supports i18n/ renaming&converting case/ callback on-change/ reset button
+*** Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
 
 ## Usage
 
