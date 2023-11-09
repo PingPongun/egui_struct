@@ -261,8 +261,8 @@ fn handle_enum(
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
                     has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
-                    let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig),};
-                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config);  #map_post; response |=r;},};
+                    let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig,id),};
+                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config,id);  #map_post; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -429,14 +429,14 @@ fn handle_enum(
             fn has_primitive_imut(&self) -> bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
                 fn to_text(s:& #ty)-> String{
                     match s{
                         #(#to_name_arm)*
@@ -471,7 +471,7 @@ fn handle_enum(
             fn has_primitive(&self) -> bool {
                 true
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
+            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
@@ -481,7 +481,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> String{
                     match s{
@@ -492,8 +492,7 @@ fn handle_enum(
                     let defspacing=ui.spacing().item_spacing.clone();
                     ui.spacing_mut().item_spacing=egui::vec2(0.0, 0.0);
                     let mut inner_response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
-                    let id = ui.make_persistent_id( self as *const Self as *const usize as usize );
-                    let mut response=::egui::ComboBox::from_id_source(id).wrap(false)
+                    let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
                         ui.spacing_mut().item_spacing=defspacing;
@@ -684,8 +683,8 @@ fn handle_fields(
             }
         };
 
-        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None);};
-        let mut field_code_mut = quote! { response |= #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable);};
+        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None, id);};
+        let mut field_code_mut = quote! { response |= #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable, id);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -698,7 +697,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None, id);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -707,7 +706,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref());
+                let r = mapped .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), id);
                 response |= r.clone();
             };
 
@@ -829,7 +828,7 @@ fn handle_struct(
             );
             show_primitive_imut = quote! {
                   if Self::SIMPLE_IMUT {
-                    #map_ref (&self. #index).show_primitive_imut(ui,#config_imut)
+                    #map_ref (&self. #index).show_primitive_imut(ui,#config_imut, id)
                   }else {
                     ui.label("")
                   }
@@ -837,7 +836,7 @@ fn handle_struct(
             show_primitive = quote! {
                 if Self::SIMPLE {
                     let mut mapped=#map (&mut self. #index);
-                    let response=mapped.show_primitive(ui,#config);
+                    let response=mapped.show_primitive(ui, #config, id);
                     #map_post
                     response
                 }else {
@@ -854,11 +853,11 @@ fn handle_struct(
             fn has_childs_imut(&self) -> bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, _reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
                 #show_primitive_imut
             }
         }
@@ -870,13 +869,13 @@ fn handle_struct(
             fn has_childs(&self) -> bool {
                !Self::SIMPLE
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>) -> ::egui::Response {
+            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: isize, mut response: ::egui::Response, reset2: Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>) -> ::egui::Response {
+            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + Clone) -> ::egui::Response {
                 #show_primitive
             }
         }

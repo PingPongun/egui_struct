@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStruct functions/mutable view have now no suffix (`show_top_mut(..)` -> `show_top(..)`)
   - EguiStructImut functions/imutable view have now "_imut" suffix (`show_top(..)` -> `show_top_imut(..)`)
 - **Breaking**: ConfigType/ConfigTypeImut has now single lifetime parameter
+- **Breaking**: show_collapsing, show_childs take new param: `parent_id`; show_primitive new param: `id`
 - attribute `on_change` now has signature fn(&mut field_type)
 - i18n keys may be different (eg. `Color.Renamed Custom.hint.This is named custom : This is named custom` is now `Color.NamedCustom.__hint : This is named custom`; use modifed rust-18n extractor v2.4+)
 
