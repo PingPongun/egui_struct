@@ -41,6 +41,7 @@ Data.string: String
 Data.u128: U 128
 Data.u16: U 16
 Data.u32: U 32
+Data.u32_rwlock: U 32 rwlock
 Data.u8: U 8
 Data.u8_combobox_config: U 8 combobox config
 Data.u8_combobox_wrapper: U 8 combobox wrapper

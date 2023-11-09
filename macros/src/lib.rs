@@ -59,8 +59,28 @@ struct EField {
     imconfig: Option<String>,
     /// pass format/config object to customise how field is displayed (when mutable)
     config: Option<String>,
-    ///add reset(to default) button (what is called default depends on selected Resetable::*; overrides resetable setting for parrent struct)
+    /// add reset(to default) button (what is called default depends on selected Resetable::*; overrides resetable setting for parrent struct)
     resetable: Option<Resetable>,
+    /// Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
+    /// - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
+    /// - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type
+    /// - ! beware, becouse(if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
+    /// - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
+    map_pre: Option<Expr>,
+    /// similar to `map_pre`, but takes immutable reference (signature:` fn(&field_type)->mapped` ),
+    /// - used for EguiStructImut, converting default/reset2 and inside eguis_eq (if eeq not specified)
+    map_pre_ref: Option<Expr>,
+    /// Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
+    /// - only used if `map_pre` is set AND not for EguiStructImut
+    /// - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
+    /// - expresion should assign new value to `&mut field_type`
+    map_post: Option<Expr>,
+    /// override `eguis_eq` function for field (signature fn(&field_type, &field_type))
+    /// - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
+    eeq: Option<Expr>,
+    /// override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
+    // / - if `field_type : EguiStructClone` can be unused
+    eclone: Option<Expr>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -198,22 +218,20 @@ fn handle_enum(
                 let mut fields_default = Vec::new();
                 let mut fields_names = Vec::new();
                 let mut fields_names2 = Vec::new();
-                let mut fields_names_nskipped2 = Vec::new();
                 for (idx, field) in variant.fields.fields.iter().enumerate() {
                     let field_type = &field.ty;
                     fields_default.push(quote! { #field_type::default(), });
                     fields_names.push(format_ident!("_field_{}", idx));
-                    fields_names2.push(format_ident!("_field_{}_2", idx));
-                    if !field.skip {
-                        fields_names_nskipped2.push(format_ident!("_field_{}_2", idx));
-                    }
+                    fields_names2.push(format_ident!("_2_field_{}", idx));
                 }
                 let vident_w_inner = quote! { Self :: #vident(#(#fields_names),*)};
+                let vident_w_inner2 = quote! { Self :: #vident(#( #fields_names2),*)};
                 let (
                     _reset_to_struct_default,
                     fields_code,
                     mut fields_code_mut,
-                    fields_names_nskipped,
+                    fields_map_eclone,
+                    fields_map_eeq,
                     single_field,
                     fidx,
                 ) = handle_fields(
@@ -222,6 +240,8 @@ fn handle_enum(
                     case,
                     quote! {},
                     "_field_",
+                    quote! {},
+                    "_2_field_",
                     vresetable,
                     Some(vident_w_inner.clone()),
                 );
@@ -230,12 +250,19 @@ fn handle_enum(
                     let fident = format_ident!("_field_{}", fidx);
                     let single_field = single_field.unwrap();
                     let fty = single_field.ty;
+                    let map_ref = single_field.map_pre_ref.map_or(quote! {}, |x| quote! {#x});
+                    let map = single_field.map_pre.map_or(quote! {}, |x| quote! {#x});
+                    let map_post = single_field.map_post.map_or(
+                        quote! {},
+                        |x| quote! {if r.changed() { #x(#fident, mapped); } },
+                    );
+
                     let imconfig = get_config(single_field.imconfig);
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
                     has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
-                    let primitive_imut = quote! {#vident_w_inner => response |= #fident.show_primitive_imut(ui,#imconfig),};
-                    let primitive_mut = quote! { #vident_w_inner => response |= #fident.show_primitive(ui,#config),};
+                    let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig),};
+                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config);  #map_post; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -267,19 +294,19 @@ fn handle_enum(
 
                 eeq_arm.push(quote! {
                     #vident_w_inner => {
-                        if let Self::#vident(#(#fields_names2),*)=rhs{
-                            #( ret &= #fields_names_nskipped.eguis_eq( #fields_names_nskipped2); )*
+                        if let #vident_w_inner2=rhs{
+                            #( ret &= #fields_map_eeq )*
                         } else {ret= false;}
                     },
                 });
                 eclone_arm.push(quote! {
                     #vident_w_inner=>{
-                        if let Self::#vident(#(#fields_names2),*)=self{
-                            #( #fields_names_nskipped2.eguis_clone(#fields_names_nskipped); )*
+                        if let #vident_w_inner2=self{
+                            #( #fields_map_eclone )*
                         } else {
                             *self = Self:: #vident(#(#fields_default)*);
-                            if let Self::#vident(#(#fields_names2),*)=self{
-                                #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                            if let #vident_w_inner2=self{
+                                #( #fields_map_eclone )*
                             } else {unreachable!()}
                         }
                     },
@@ -290,24 +317,21 @@ fn handle_enum(
                 let mut fields_default = Vec::new();
                 let mut fields_names = Vec::new();
                 let mut fields_names2 = Vec::new();
-                let mut fields_names_nskipped2 = Vec::new();
                 for field in &variant.fields.fields {
                     let field_name = field.ident.as_ref().unwrap();
                     let field_type = &field.ty;
                     fields_default.push(quote! { #field_name: #field_type::default(), });
                     fields_names.push(field_name);
-                    let fname2 = format_ident!("{}_2", field_name);
+                    let fname2 = format_ident!("_2_{}", field_name);
                     fields_names2.push(quote! { #field_name: #fname2 });
-                    if !field.skip {
-                        fields_names_nskipped2.push(format_ident!("{}_2", field_name));
-                    }
                 }
                 let vident_w_inner = quote! { Self :: #vident{#(#fields_names),*}};
                 let (
                     _reset_to_struct_default,
                     fields_code,
                     mut fields_code_mut,
-                    fields_names_nskipped,
+                    fields_map_eclone,
+                    fields_map_eeq,
                     _,
                     _,
                 ) = handle_fields(
@@ -316,6 +340,8 @@ fn handle_enum(
                     case,
                     quote! {},
                     "",
+                    quote! {},
+                    "_2_",
                     vresetable,
                     Some(vident_w_inner.clone()),
                 );
@@ -344,18 +370,18 @@ fn handle_enum(
                 eeq_arm.push(quote! {
                     #vident_w_inner =>{
                         if let Self::#vident{#(#fields_names2),*}=rhs{
-                            #( ret &= #fields_names_nskipped.eguis_eq( #fields_names_nskipped2); )*
+                            #( ret &= #fields_map_eeq )*
                         } else {ret= false;}
                     },
                 });
                 eclone_arm.push(quote! {
                     #vident_w_inner=>{
                         if let Self::#vident{#(#fields_names2),*}=self{
-                            #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                            #( #fields_map_eclone )*
                         } else {
                             *self = Self:: #vident{#(#fields_default)*};
                             if let Self::#vident{#(#fields_names2),*}=self{
-                                #( #fields_names_nskipped2.eguis_clone( #fields_names_nskipped); )*
+                                #( #fields_map_eclone )*
                             } else {unreachable!()}
                         }
                     },
@@ -466,7 +492,8 @@ fn handle_enum(
                     let defspacing=ui.spacing().item_spacing.clone();
                     ui.spacing_mut().item_spacing=egui::vec2(0.0, 0.0);
                     let mut inner_response=ui.allocate_response(egui::vec2(0.0,0.0), egui::Sense::hover());
-                    let mut response=::egui::ComboBox::from_id_source(ui.next_auto_id()).wrap(false)
+                    let id = ui.make_persistent_id( self as *const Self as *const usize as usize );
+                    let mut response=::egui::ComboBox::from_id_source(id).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
                         ui.spacing_mut().item_spacing=defspacing;
@@ -531,10 +558,13 @@ fn handle_fields(
     case: &Option<Converter>,
     prefix_code: TokenStream,
     prefix_ident: &str,
+    prefix_code2: TokenStream,
+    prefix_ident2: &str,
     resetable: Resetable,
     variant: Option<TokenStream>,
 ) -> (
     bool,
+    Vec<TokenStream>,
     Vec<TokenStream>,
     Vec<TokenStream>,
     Vec<TokenStream>,
@@ -543,7 +573,8 @@ fn handle_fields(
 ) {
     let mut fields_code = Vec::new();
     let mut fields_code_mut = Vec::new();
-    let mut fields_names_nskipped = Vec::new();
+    let mut fields_map_eclone = Vec::new();
+    let mut fields_map_eeq = Vec::new();
     let mut index = syn::Index::from(0);
     let mut single_field = None;
     let mut reset_to_struct_default = false;
@@ -578,7 +609,6 @@ fn handle_fields(
                 lab = quote! { #label };
             }
         } else {
-            single_field = Some(field.clone());
             index = syn::Index::from(idx);
             name_tt = index.to_token_stream();
             field_name = idx.to_string();
@@ -593,9 +623,15 @@ fn handle_fields(
             quote! { #hint }
         };
         let mut whole_ident = quote! { #name_tt};
+        let mut whole_ident2 = quote! { #name_tt};
         if !prefix_ident.is_empty() {
             whole_ident = format_ident!("{}{}", prefix_ident, field_name).into_token_stream();
         };
+        if !prefix_ident2.is_empty() {
+            whole_ident2 = format_ident!("{}{}", prefix_ident2, field_name).into_token_stream();
+        };
+        whole_ident = quote! {#prefix_code #whole_ident};
+        whole_ident2 = quote! {#prefix_code2 #whole_ident2};
 
         let imconfig = get_config(field.imconfig.clone());
         let config = get_config(field.config.clone());
@@ -606,7 +642,7 @@ fn handle_fields(
                 .expect(format!("Could not find function: {}", custom_func).as_str());
             on_change = quote! {
                 if response.changed(){
-                    #ident(&mut #prefix_code #whole_ident);
+                    #ident(&mut #whole_ident);
                 }
             };
         }
@@ -647,22 +683,73 @@ fn handle_fields(
                 }
             }
         };
-        fields_names_nskipped.push(quote! { #whole_ident});
 
-        let field_code_imut = quote! { response |= #prefix_code #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None); };
-        let field_code_mut = quote! { response |= #prefix_code #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable); #on_change #on_change_struct};
+        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None);};
+        let mut field_code_mut = quote! { response |= #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable);};
+        let (_ref, _ref_mut) = if variant.is_some() {
+            (quote! {}, quote! {})
+        } else {
+            (quote! {&}, quote! {&mut})
+        };
+        let mut sfield = field.clone();
+        let mut map_reset = quote! {};
+        if let Some(map_pre_ref) = &field.map_pre_ref {
+            let _ = sfield.map_pre.get_or_insert(map_pre_ref.clone());
+            field_code_imut = quote! {
+                #[allow(unused_mut)]
+                let mut mapped = #map_pre_ref(#_ref #whole_ident);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, None);
+            };
+            map_reset = quote! {#map_pre_ref};
+        }
+
+        if let Some(map_pre) = &sfield.map_pre {
+            field_code_mut = quote! {
+                #[allow(unused_mut)]
+                let mut mapped = #map_pre(#_ref_mut #whole_ident);
+                let r = mapped .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref());
+                response |= r.clone();
+            };
+
+            if let Some(map_post) = &field.map_post {
+                field_code_mut = quote! { #field_code_mut if r.changed() { #map_post(#_ref_mut #whole_ident, mapped);}  };
+            }
+        }
+        field_code_mut = quote! { #field_code_mut {#on_change}; {#on_change_struct}; };
+
+        if let Some(expr) = &field.eeq {
+            fields_map_eeq.push(quote! {#expr(#_ref #whole_ident,#_ref #whole_ident2);});
+        } else {
+            if let Some(map_pre_ref) = &field.map_pre_ref {
+                fields_map_eeq.push(quote! {#map_pre_ref(#_ref #whole_ident).eguis_eq(&#map_pre_ref(#_ref #whole_ident));});
+            } else {
+                fields_map_eeq.push(quote! {#whole_ident.eguis_eq(#_ref #whole_ident2);});
+            }
+        }
+
+        if variant.is_some() {
+            (whole_ident, whole_ident2) = (whole_ident2, whole_ident); //in enum eclone self is destructed to whole_ident2
+        }
+        if let Some(expr) = &field.eclone {
+            fields_map_eclone.push(quote! {#expr(#_ref_mut #whole_ident,#_ref #whole_ident2);});
+        } else {
+            fields_map_eclone.push(quote! {#whole_ident.eguis_clone(#_ref #whole_ident2);});
+        }
+
         fields_code.push(field_code_imut.clone());
         if field.imut {
             fields_code_mut.push(field_code_imut)
         } else {
             fields_code_mut.push(field_code_mut)
         }
+        single_field = Some(sfield);
     }
     (
         reset_to_struct_default,
         fields_code,
         fields_code_mut,
-        fields_names_nskipped,
+        fields_map_eclone,
+        fields_map_eeq,
         single_field,
         index,
     )
@@ -691,14 +778,17 @@ fn handle_struct(
         reset_to_struct_default,
         fields_code,
         fields_code_mut,
-        fields_names_nskipped,
+        fields_map_eclone,
+        fields_map_eeq,
         single_field,
         index,
     ) = handle_fields(
         &fields.fields,
         prefix,
         case,
-        quote! { self.},
+        quote! {self.},
+        "",
+        quote! {rhs.},
         "",
         resetable,
         None,
@@ -713,37 +803,53 @@ fn handle_struct(
         quote! {}
     };
 
-    let simple = fields.style == ast::Style::Tuple && fields_code.len() == 1;
+    let mut show_primitive = quote! { ui.label("") };
+    let mut show_primitive_imut = quote! { ui.label("") };
+    let (mut simple_imut, mut simple) = (quote! {false}, quote! {false});
+    if fields.style == ast::Style::Tuple && fields_code.len() == 1 {
+        if let Some(single_field) = &single_field {
+            let ty = &single_field.ty;
+            simple_imut = quote! { #ty::SIMPLE_IMUT};
+            simple = quote! { #ty::SIMPLE };
 
-    macro_rules! show_primitive {
-        ($name:ident, $config:ident, $SIMPLE:ident, $simple:ident) => {
-            let $simple = if let Some(sf) = &single_field {
-                let ty = &sf.ty;
-                quote! {#ty :: $SIMPLE && #simple}
-            } else {
-                quote! { #simple}
+            let config_imut = get_config(single_field.imconfig.clone());
+            let config = get_config(single_field.config.clone());
+
+            let map_ref = single_field
+                .map_pre_ref
+                .clone()
+                .map_or(quote! {}, |x| quote! {#x});
+            let map = single_field
+                .map_pre
+                .clone()
+                .map_or(quote! {}, |x| quote! {#x});
+            let map_post = single_field.map_post.clone().map_or(
+                quote! {},
+                |x| quote! { if response.changed() {#x(&mut self.#index, mapped);} },
+            );
+            show_primitive_imut = quote! {
+                  if Self::SIMPLE_IMUT {
+                    #map_ref (&self. #index).show_primitive_imut(ui,#config_imut)
+                  }else {
+                    ui.label("")
+                  }
             };
-
-            let config = get_config(single_field.as_ref().and_then(|x| x.$config.clone()));
-            let $name = if fields.style == ast::Style::Tuple {
-                quote! {
-                    if Self::$SIMPLE {
-                        self. #index .$name(ui,#config)
-                    } else {
-                        ui.label("")
-                    }
+            show_primitive = quote! {
+                if Self::SIMPLE {
+                    let mut mapped=#map (&mut self. #index);
+                    let response=mapped.show_primitive(ui,#config);
+                    #map_post
+                    response
+                }else {
+                  ui.label("")
                 }
-            } else {
-                quote! {ui.label("")}
             };
-        };
+        }
     }
-    show_primitive!(show_primitive_imut, imconfig, SIMPLE_IMUT, simple);
-    show_primitive!(show_primitive, config, SIMPLE, simple_mut);
 
     let egui_struct_imut = quote! {
         impl #impl_generics EguiStructImut for #name #ty_generics #where_clause {
-            const SIMPLE_IMUT: bool = #simple;
+            const SIMPLE_IMUT: bool = #simple_imut;
             type ConfigTypeImut<'a> = ();
             fn has_childs_imut(&self) -> bool {
                !Self::SIMPLE_IMUT
@@ -759,7 +865,7 @@ fn handle_struct(
     };
     let egui_struct_mut = quote! {
         impl #impl_generics EguiStruct for #name #ty_generics #where_clause {
-            const SIMPLE: bool = #simple_mut;
+            const SIMPLE: bool = #simple;
             type ConfigType<'a> = ();
             fn has_childs(&self) -> bool {
                !Self::SIMPLE
@@ -778,8 +884,8 @@ fn handle_struct(
 
     let eclone = quote! {
         impl #impl_generics EguiStructClone for #name #ty_generics #where_clause {
-            fn eguis_clone(&mut self, source: &Self) {
-                #(self.#fields_names_nskipped.eguis_clone(&source.#fields_names_nskipped);)*
+            fn eguis_clone(&mut self, rhs: &Self) {
+                #(#fields_map_eclone)*
             }
         }
     };
@@ -787,7 +893,7 @@ fn handle_struct(
         impl #impl_generics EguiStructEq for #name #ty_generics #where_clause {
             fn eguis_eq(&self, rhs: &Self) -> bool {
                 let mut ret =true;
-                #( ret &= self.#fields_names_nskipped.eguis_eq(&rhs.#fields_names_nskipped); )*
+                #( ret &= #fields_map_eeq )*
                 ret
             }
         }

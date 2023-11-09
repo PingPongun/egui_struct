@@ -106,10 +106,25 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
 - field level
   - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
   - `resetable`- overides enum/struct & variant level resetable
-  - `on_change = "Path::to::func"`- Use function callback (when value has been changed; signature: `fn(&mut field_type)` )
+  - `on_change = "Path::to::func"`- Use function callback (when value has been changed; signature: `fn(&mut field_type)`)
   - `on_change_struct = "expr"`- When field value has been changed, call this expr (expr can access whole struct through &mut self)
   - `imconfig`- pass format/config object to customise how field is displayed
   - `config`- same as imconfig but for mutable display
+  - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
+    - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
+    - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type
+    - ! beware, becouse (if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
+    - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
+  - `map_pre_ref`- similar to `map_pre`, but takes immutable reference (signature: `fn(&field_type)->mapped`),
+    - used for EguiStructImut, converting default/reset2 and inside eguis_eq (if eeq not specified)
+  - `map_post`- Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
+    - only used if `map_pre` is set AND not for EguiStructImut
+    - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
+    - expresion should assign new value to `&mut field_type`
+  - `eeq`- override `eguis_eq` function for field (signature fn(&field_type, &field_type))
+    - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
+  - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
+    - if `field_type : EguiStructClone` can be unused
 
 ### Example
 

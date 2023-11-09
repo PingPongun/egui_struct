@@ -35,7 +35,16 @@ pub enum Color {
     },
 
     #[eguis(resetable(with_expr = ||Color::Custom(255,13,17) ))]
-    Custom(u8, u8, #[eguis(config = "DragValue(1,111)")] u8),
+    Custom(
+        #[eguis(
+        resetable = "not_resetable",
+        map_pre = (|field: &mut u8| field.to_string()),
+        map_post = (|field: &mut u8, mapped: String| { use std::str::FromStr; if let Ok(new_val)=u8::from_str(mapped.as_str()) {*field=new_val;} })
+    )]
+        u8,
+        u8,
+        #[eguis(config = "DragValue(1,111)")] u8,
+    ),
 
     #[eguis(skip, rename = "Skipped Custom")]
     SkippedCustom(u8, u8, u8),
@@ -104,7 +113,20 @@ pub struct Data {
     bool: bool,
     u8: u8,
     u16: u16,
+
+    #[eguis(
+        map_pre_ref = u32::to_string, //Same as: map_pre_ref = (|field: &u32| field.to_string()),
+        map_post = (|field: &mut u32, mapped: String| { use std::str::FromStr; if let Ok(new_val)=u32::from_str(mapped.as_str()) {*field=new_val;} })
+    )]
     u32: u32,
+
+    #[eguis(
+        resetable = "not_resetable",
+        map_pre = RwLock::write, //more eleagent would be to use sth like: map_pre_ref = RwLock::read, map_post= (|field, mapped|*field.write()=mapped;),
+        eeq = (|field: &RwLock<u32>, rhs: &RwLock<u32>| field.read().eguis_eq(&*rhs.read()) ),
+        eclone = (|field: &mut RwLock<u32>, rhs: &RwLock<u32>| field.write().eguis_clone(&*rhs.read()) )
+    )]
+    u32_rwlock: RwLock<u32>,
     f32: f32,
     f64: f64,
     u128: u128,
@@ -164,6 +186,7 @@ impl Default for Data {
             u8: 94,
             u16: 14029,
             u32: 3025844,
+            u32_rwlock: RwLock::new(9999),
             f32: std::f32::consts::PI,
             f64: std::f64::consts::PI,
             u128: u128::MAX,
