@@ -36,7 +36,6 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 | Configuration user types   | ✅                                                                            | ❌                | ❌                            | ❌                                 |
 | List/Combobox wrapper      | ✅ ***                                                                        | ❌                | ❌                            | ❌                                 |
 
-
 \* Everything is put inside scroll&grid layout (with collapsable rows)
 
 - Gui is less chaotic,
@@ -51,10 +50,10 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 ### Basic description
 
-Add this to your `Cargo.toml`:
+Add `egui_struct` to your `Cargo.toml`:
 
 ```toml
-egui_struct = { git = "https://github.com/PingPongun/egui_struct.git", branch = "master" }
+egui_struct = "0.3.0"
 ```
 
 Add derive macro `EguiStruct` to struct you want to show (and all nested types):
