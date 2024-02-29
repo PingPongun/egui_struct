@@ -3,6 +3,19 @@ pub use egui_struct_macros::*;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 
+#[cfg(feature = "egui21")]
+use egui21 as egui;
+#[cfg(feature = "egui22")]
+use egui22 as egui;
+#[cfg(feature = "egui23")]
+use egui23 as egui;
+#[cfg(feature = "egui24")]
+use egui24 as egui;
+#[cfg(feature = "egui25")]
+use egui25 as egui;
+#[cfg(feature = "egui26")]
+use egui26 as egui;
+
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $primitive_name:ident, $childs_name:ident, $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs_imut:ident, $has_primitive:ident) => {
         type $config<'a>: Default;

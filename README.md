@@ -12,7 +12,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 |                            | EguiStruct                                                                   | enum2egui        | egui_inspect                 | egui-controls                     |
 | :------------------------- | :--------------------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
-| egui version               | 0.23                                                                         | 0.23             | 0.20                         | N/A                               |
+| egui version               | 0.26 (0.21-0.26) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
 | Layout*                    | Grid                                                                         | Group/nested     | Nested                       | Grid                              |
 | i18n support               | ✅ (rust-i18n**)                                                              | ❌                | ❌                            | ❌                                 |
 | Field description          | ✅ on hover hint (from attribute)                                             | ❌                | ❌                            | ✅ third column (from doc comment) |
@@ -46,6 +46,8 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 *** Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
 
+**** See section `Usage >> egui version`
+
 ## Usage
 
 ### Basic description
@@ -53,7 +55,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 Add `egui_struct` to your `Cargo.toml`:
 
 ```toml
-egui_struct = "0.3.0"
+egui_struct = "0.4"
 ```
 
 Add derive macro `EguiStruct` to struct you want to show (and all nested types):
@@ -135,6 +137,17 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
 See ./demo
 
 ![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/5c7281f7-4fba-4fc5-8a4d-de36000155f6)
+
+### egui version
+
+`egui_struct 0.4` by default depends on `egui 0.26`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
+
+```toml
+egui_struct = { version = "0.4", default-features = false, features = [ "egui25" ] }
+```
+OR use `[patch]` section.
+
+Default egui version feature will be updated to newest egui on semver minor release(0.5).  
 
 ## TODO
 

@@ -1,25 +1,35 @@
 [package]
 name = "egui_struct"
 authors = ["PingPongun <pp.pp4@vp.pl>"]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 exclude = ["demo/*", ".vscode/*"]
 description = "EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums."
 repository = "https://github.com/PingPongun/egui_struct"
 keywords = ["egui"]
+rust-version = "1.70"
 
 [lib]
 
 [dependencies]
 egui_struct_macros = { path = "./macros/", version = "0.3" }
-egui = { version = "0.23", default-features = false }
+
+# egui dep is handled through feature to overcome cargo resolver not be able to select same egui version as used in rest of the app.
+# this allows egui_struct to work with newer egui through semver patch update
+# breaking-change updates (0.4, 0.5, 1., 2., ...) will update default egui version feature to newest one.
+egui21 = { version = "0.21", package = "egui", default-features = false, optional = true }
+egui22 = { version = "0.22", package = "egui", default-features = false, optional = true }
+egui23 = { version = "0.23", package = "egui", default-features = false, optional = true }
+egui24 = { version = "0.24", package = "egui", default-features = false, optional = true }
+egui25 = { version = "0.25", package = "egui", default-features = false, optional = true }
+egui26 = { version = "0.26", package = "egui", default-features = false, optional = true }
 
 indexmap = { version = "2.0", optional = true }
 
 [features]
 indexmap = ["dep:indexmap"]
-default = ["i18n"]
+default = ["egui26", "i18n"]
 i18n = ["egui_struct_macros/i18n"]
 
 [workspace]
