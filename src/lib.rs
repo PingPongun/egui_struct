@@ -41,10 +41,8 @@ macro_rules! generate_show {
             let id =
                 ui.make_persistent_id((label.text().to_string(), std::any::TypeId::of::<Self>()));
             ScrollArea::vertical()
-                .auto_shrink([false; 2])
                 .show(ui, |ui| {
                     Grid::new(id)
-                        .striped(true)
                         .num_columns(Self::$COLUMN_COUNT)
                         .show(ui, |ui| {
                             self.$collapsing_name(ui, label, "", -1, Default::default(), reset2, id)

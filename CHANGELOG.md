@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- support more versions of egui (through features)(supports egui 0.21-0.26)
+- support more versions of egui (through features)(supports egui 0.21-0.26; default: 0.26)
+- visual updates:
+  - show_top(..) ScrollArea, will now auto shrink on both axes
+  - show_top(..) Grid, will be stripped as set in style.visuals.stripped
 
 ## [0.3.0] - 2023-11-10
 
