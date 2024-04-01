@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2024-04-01
+
+### Added
+
+- added feature with egui 0.27 support
+
 ## [0.4.0] - 2024-02-29
 
 ### Changed

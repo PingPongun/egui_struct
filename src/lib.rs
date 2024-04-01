@@ -15,6 +15,8 @@ use egui24 as egui;
 use egui25 as egui;
 #[cfg(feature = "egui26")]
 use egui26 as egui;
+#[cfg(feature = "egui27")]
+use egui27 as egui;
 
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $primitive_name:ident, $childs_name:ident, $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs_imut:ident, $has_primitive:ident) => {

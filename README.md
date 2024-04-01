@@ -12,7 +12,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 |                            | EguiStruct                                                                   | enum2egui        | egui_inspect                 | egui-controls                     |
 | :------------------------- | :--------------------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
-| egui version               | 0.26 (0.21-0.26) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
+| egui version               | 0.26 (0.21-0.27) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
 | Layout*                    | Grid                                                                         | Group/nested     | Nested                       | Grid                              |
 | i18n support               | ✅ (rust-i18n**)                                                              | ❌                | ❌                            | ❌                                 |
 | Field description          | ✅ on hover hint (from attribute)                                             | ❌                | ❌                            | ✅ third column (from doc comment) |
