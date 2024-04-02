@@ -86,6 +86,7 @@ Crate consists of 4 traits (`EguiStructImut` -> `EguiStructEq`+`EguiStructClone`
     - `const SIMPLE_IMUT` - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
     - `type ConfigTypeImut` - type that will pass some data to cutomise how data is shown, in most cases this will be ()
     - `show_collapsing_imut(..)` - do not overide this method, use it when implementing `show_childs_imut(..)` to display single nested element
+    - `start_collapsed_imut(self)` - controls if struct is collapsed/uncollapsed at the begining (if "show_childs" is shown by default); eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
 - `EguiStructEq`/`EguiStructClone` are similar to std `PartialEq`/`Clone` traits, but they respect `eguis(skip)`. They are necessary to implement `EguiStruct` (if type is Clone/PartialEq can be implemented through `impl_eclone!{ty}`/`impl_eeq!{ty}`/`impl_eeqclone!{ty}`).
 - `EguiStruct` is mutable equivalent of `EguiStructImut`.
 
@@ -99,6 +100,7 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
   - `no_mut` - do not generate `EguiStruct` implementation
   - `no_eclone` - do not generate `EguiStructClone` implementation
   - `no_eeq` - do not generate `EguiStructEq` implementation
+  - `start_collapsed = "Expr"` - sets `start_collapsed()` implementation (should return `bool`; can use `self`)
   - `resetable = "val"` OR `resetable(with_expr = Expr)` - all fields/variants will be resetable according to provieded value (val: `"not_resetable"`, `"field_default"`, `"struct_default"`, `"follow_arg"`(use value passed on runtime through reset2 arg))
 
 - variant level:
@@ -116,6 +118,7 @@ Macro supports attribute `eguis` on either enum/struct, field or variant level:
   - `on_change_struct = "expr"`- Similar to `on_change` but takes whole struct: signature: `fn(&mut self)`
   - `imconfig`- pass format/config object to customise how field is displayed
   - `config`- same as imconfig but for mutable display
+  - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
   - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
     - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
     - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type
@@ -145,6 +148,7 @@ See ./demo
 ```toml
 egui_struct = { version = "0.4", default-features = false, features = [ "egui25" ] }
 ```
+
 OR use `[patch]` section.
 
 Default egui version feature will be updated to newest egui on semver minor release(0.5).  

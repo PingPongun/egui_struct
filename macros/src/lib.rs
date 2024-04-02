@@ -81,6 +81,8 @@ struct EField {
     /// override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
     // / - if `field_type : EguiStructClone` can be unused
     eclone: Option<Expr>,
+    /// Override fields `start_collapsed()` output (if set true field will always start collapsed)
+    start_collapsed: Option<bool>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -131,6 +133,9 @@ struct EStruct {
     ///add reset(to default) button to all fields (same as marking all fields with same attribute)
     #[darling(default)]
     resetable: Resetable,
+    /// Set `start_collapsed()` implementation (if not specified fn return `false`)
+    #[darling(default)]
+    start_collapsed: Option<Expr>,
 }
 
 fn handle_enum(
@@ -418,6 +423,12 @@ fn handle_enum(
         quote! {}
     };
 
+    let start_collapsed = input
+        .start_collapsed
+        .as_ref()
+        .map(|x| quote!(#x))
+        .unwrap_or(quote!(false));
+
     let egui_struct_imut = quote! {
         impl #impl_generics ::egui_struct::EguiStructImut for #ty #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple;//is c-like enum
@@ -456,6 +467,9 @@ fn handle_enum(
                     }
                     response
                 }).inner
+            }
+            fn start_collapsed_imut(&self) -> bool {
+                #start_collapsed
             }
         }
     };
@@ -511,6 +525,9 @@ fn handle_enum(
                     }
                     response | inner_response
                 }).inner
+            }
+            fn start_collapsed(&self) -> bool {
+                #start_collapsed
             }
         }
     };
@@ -683,9 +700,14 @@ fn handle_fields(
                 }
             }
         };
+        let start_collapsed = if let Some(x) = field.start_collapsed {
+            quote!(Some(#x))
+        } else {
+            quote!(None)
+        };
 
-        let mut field_code_imut = quote! { response |= #whole_ident .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id);};
-        let mut field_code_mut = quote! { response |= #whole_ident .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable, id);};
+        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_inner( ui, #lab, #hint, indent_level, #config, #resetable, id, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -698,7 +720,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id);
+                response |=mapped .show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id, #start_collapsed);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -707,7 +729,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), id);
+                let r = mapped .show_collapsing_inner( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), id, #start_collapsed);
                 response |= r.clone();
             };
 
@@ -850,6 +872,12 @@ fn handle_struct(
         }
     }
 
+    let start_collapsed = input
+        .start_collapsed
+        .as_ref()
+        .map(|x| quote!(#x))
+        .unwrap_or(quote!(false));
+
     let egui_struct_imut = quote! {
         impl #impl_generics ::egui_struct::EguiStructImut for #name #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple_imut;
@@ -863,6 +891,9 @@ fn handle_struct(
             }
             fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive_imut
+            }
+            fn start_collapsed_imut(&self) -> bool {
+                #start_collapsed
             }
         }
     };
@@ -881,6 +912,9 @@ fn handle_struct(
             }
             fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive
+            }
+            fn start_collapsed(&self) -> bool {
+                #start_collapsed
             }
         }
     };

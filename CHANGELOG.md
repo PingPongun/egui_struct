@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2024-04-01
+## [0.4.1] - 2024-04-02
 
 ### Added
 
 - added feature with egui 0.27 support
+- `start_collapsed(..)`/`start_collapsed_imut(..)` functions to `EguiStruct`/`EguiStructImut` traits
+- struct-level attribute (`start_collapsed`) that sets `start_collapsed()` implementation
+- field-level attribute (`start_collapsed`) that field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
+
+### Changed
+
+- Vecs, slices, hashsets & hashmaps are now by default collapsed if they have more than 16 elements
 
 ## [0.4.0] - 2024-02-29
 

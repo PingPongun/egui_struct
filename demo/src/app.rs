@@ -22,6 +22,7 @@ impl Language {
     }
 }
 #[derive(EguiStruct, Default)]
+#[eguis(start_collapsed = "if let Self::NamedCustom{..} = self {true} else {false}")]
 pub enum Color {
     #[default]
     Red,
@@ -152,7 +153,7 @@ pub struct Data {
     primary_color: Color,
     secondary_color: Color,
 
-    #[eguis(hint = "This is Option<_>")]
+    #[eguis(hint = "This is Option<_>", start_collapsed = true)]
     optional: Option<SubData>,
 
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]

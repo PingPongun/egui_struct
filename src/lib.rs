@@ -19,15 +19,16 @@ use egui26 as egui;
 use egui27 as egui;
 
 macro_rules! generate_show {
-    ($top_name:ident, $collapsing_name:ident, $primitive_name:ident, $childs_name:ident, $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
+         $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
         type $config<'a>: Default;
         const $COLUMN_COUNT: usize = 2;
         const $SIMPLE: bool = true;
-        fn $has_childs_imut(&self) -> bool {
+        fn $has_childs(&self) -> bool {
             false
         }
         fn $has_primitive(&self) -> bool {
-            !self.$has_childs_imut()
+            !self.$has_childs()
         }
 
         fn $top_name(
@@ -54,7 +55,7 @@ macro_rules! generate_show {
                 .inner
         }
 
-        fn $collapsing_name(
+        fn $show_collapsing_inner(
             self: $typ,
             ui: &mut Ui,
             label: impl Into<WidgetText> + Clone,
@@ -63,21 +64,27 @@ macro_rules! generate_show {
             config: Self::$config<'_>,
             _reset2: Option<&Self>,
             parent_id: Id,
+            start_collapsed: Option<bool>,
         ) -> Response {
-            let mut uncollapsed = true;
-            let has_childs_imut = self.$has_childs_imut();
+            let mut collapsed = false;
+            let has_childs = self.$has_childs();
             let id = parent_id.with(label.clone().into().text());
             ui.horizontal(|ui| {
                 if indent_level >= 0 {
                     for _ in 0..indent_level {
                         ui.separator();
                     }
-                    if has_childs_imut {
+                    if has_childs {
                         let id = id.with("__EguiStruct_collapsing_state");
-                        uncollapsed = ui.data_mut(|d| d.get_temp_mut_or(id, true).clone());
-                        let icon = if uncollapsed { "⏷" } else { "⏵" };
+                        collapsed = ui.data_mut(|d| {
+                            d.get_temp_mut_or_insert_with(id, || {
+                                start_collapsed.unwrap_or(self.$start_collapsed())
+                            })
+                            .clone()
+                        });
+                        let icon = if collapsed { "⏵" } else { "⏷" };
                         if Button::new(icon).frame(false).small().ui(ui).clicked() {
-                            ui.data_mut(|d| d.insert_temp(id, !uncollapsed));
+                            ui.data_mut(|d| d.insert_temp(id, !collapsed));
                         }
                     }
                 }
@@ -117,11 +124,34 @@ macro_rules! generate_show {
                 .inner;
             ui.end_row();
 
-            if has_childs_imut && uncollapsed {
+            if has_childs && !collapsed {
                 ret = self.$childs_name(ui, indent_level + 1, ret, _reset2, id);
             }
             ret
         }
+
+        fn $collapsing_name(
+            self: $typ,
+            ui: &mut Ui,
+            label: impl Into<WidgetText> + Clone,
+            hint: impl Into<WidgetText> + Clone,
+            indent_level: isize,
+            config: Self::$config<'_>,
+            reset2: Option<&Self>,
+            parent_id: Id,
+        ) -> Response {
+            self.$show_collapsing_inner(
+                ui,
+                label,
+                hint,
+                indent_level,
+                config,
+                reset2,
+                parent_id,
+                None,
+            )
+        }
+
         fn $primitive_name(
             self: $typ,
             ui: &mut Ui,
@@ -130,6 +160,7 @@ macro_rules! generate_show {
         ) -> Response {
             ui.label("")
         }
+
         fn $childs_name(
             self: $typ,
             _ui: &mut Ui,
@@ -139,6 +170,10 @@ macro_rules! generate_show {
             _parent_id: Id,
         ) -> Response {
             unreachable!()
+        }
+
+        fn $start_collapsed(&self) -> bool {
+            false
         }
     };
 }
@@ -181,10 +216,12 @@ macro_rules! impl_eeqclone {
 }
 
 pub trait EguiStruct: EguiStructClone + EguiStructEq {
-    generate_show! { show_top, show_collapsing, show_primitive, show_childs, &mut Self, ConfigType, COLUMN_COUNT, SIMPLE, has_childs, has_primitive }
+    generate_show! { show_top, show_collapsing, show_collapsing_inner, show_primitive, show_childs, start_collapsed,
+    &mut Self, ConfigType, COLUMN_COUNT, SIMPLE, has_childs, has_primitive }
 }
 pub trait EguiStructImut {
-    generate_show! { show_top_imut, show_collapsing_imut, show_primitive_imut, show_childs_imut, &Self, ConfigTypeImut, COLUMN_COUNT_IMUT, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
+    generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
+    &Self, ConfigTypeImut, COLUMN_COUNT_IMUT, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
 
 ///Config structure for mutable view of Numerics
@@ -472,7 +509,9 @@ impl<T: EguiStructEq> EguiStructEq for Option<T> {
 }
 ///////////////////////////////////////////////////
 macro_rules! impl_vec {
-    ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident,$trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+    ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed:ident,
+        $trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+
         impl<T: $trait> $trait for $typ{
             const $SIMPLE: bool = false;
             type $ConfigType<'a> = ();
@@ -495,13 +534,18 @@ macro_rules! impl_vec {
                 });
                 response
             }
+            fn $start_collapsed(&self) -> bool {
+                self.len() > 16
+            }
         }
     };
-    (IMUT, $($typ:ty)*) => { $(impl_vec! {&Self, $typ, iter, show_collapsing_imut, show_childs_imut, EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut})* };
+    (IMUT, $($typ:ty)*) => { $(impl_vec! {&Self, $typ, iter, show_collapsing_imut, show_childs_imut, start_collapsed_imut,
+        EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut})* };
     ($($typ:ty)*) => {
         $(
             impl_vec! {IMUT, $typ}
-            impl_vec! {&mut Self, $typ, iter_mut, show_collapsing, show_childs, EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
+            impl_vec! {&mut Self, $typ, iter_mut, show_collapsing, show_childs, start_collapsed,
+                EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
 
             impl<T: EguiStructClone> EguiStructClone for $typ {
                 fn eguis_clone(&mut self, source: &Self) {
@@ -527,7 +571,9 @@ impl_vec! {IMUT, indexmap::IndexSet<T> }
 
 /////////////////////////////////////////////////
 macro_rules! impl_map {
-    ($Self:ty, $typ:ty, [$( $Qbound:path),*], $iter:ident, $collapsing_name:ident, $childs_name:ident,$trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+    ($Self:ty, $typ:ty, [$( $Qbound:path),*], $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed:ident,
+        $trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+
         impl<Q: ToString $(+ $Qbound)*, V: $trait> $trait for $typ{
             const $SIMPLE: bool = false;
             type $ConfigType<'a> = ();
@@ -557,11 +603,16 @@ macro_rules! impl_map {
                 });
                 response
             }
+            fn $start_collapsed(&self) -> bool {
+                self.len() > 16
+            }
         }
     };
     ($typ:ty) => {
-        impl_map! {&Self, $typ, [], iter, show_collapsing_imut, show_childs_imut, EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut}
-        impl_map! {&mut Self, $typ, [Eq, std::hash::Hash], iter_mut, show_collapsing, show_childs, EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
+        impl_map! {&Self, $typ, [], iter, show_collapsing_imut, show_childs_imut, start_collapsed_imut,
+            EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut}
+        impl_map! {&mut Self, $typ, [Eq, std::hash::Hash], iter_mut, show_collapsing, show_childs, start_collapsed,
+            EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
 
         impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructClone> EguiStructClone for $typ {
             fn eguis_clone(&mut self, source: &Self) {
