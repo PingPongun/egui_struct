@@ -1,6 +1,7 @@
 # EguiStruct
 
 [![crates.io](https://img.shields.io/crates/v/egui_struct.svg)](https://crates.io/crates/egui_struct)
+[![Documentation](https://docs.rs/egui_struct/badge.svg)](https://docs.rs/egui_struct)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE)
 
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
@@ -75,65 +76,7 @@ egui::CentralPanel::default().show(ctx, |ui| {
 
 ### Detailed description
 
-Crate consists of 4 traits (`EguiStructImut` -> `EguiStructEq`+`EguiStructClone` -> `EguiStruct`) and one derive macro (`EguiStruct`).
-
-- `EguiStructImut`:
-  - for end user ofers one function `show_top_imut(..)`, which displays struct inside scroll area.
-  - when implementing (most of bellow has some default impl):
-    - `show_primitive_imut(..)` - ui elements shown in the same line as label
-    - `show_childs_imut(..)` - ui elements related to nested data, that is show inside collapsible rows
-    - `has_childs_imut(..)` && `has_primitive_imut(..)` - indicates if data has at the moment childs/primitive section
-    - `const SIMPLE_IMUT` - flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
-    - `type ConfigTypeImut` - type that will pass some data to cutomise how data is shown, in most cases this will be ()
-    - `show_collapsing_imut(..)` - do not overide this method, use it when implementing `show_childs_imut(..)` to display single nested element
-    - `start_collapsed_imut(self)` - controls if struct is collapsed/uncollapsed at the begining (if "show_childs" is shown by default); eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
-- `EguiStructEq`/`EguiStructClone` are similar to std `PartialEq`/`Clone` traits, but they respect `eguis(skip)`. They are necessary to implement `EguiStruct` (if type is Clone/PartialEq can be implemented through `impl_eclone!{ty}`/`impl_eeq!{ty}`/`impl_eeqclone!{ty}`).
-- `EguiStruct` is mutable equivalent of `EguiStructImut`.
-
-Macro `EguiStruct` can be used on structs&enums to derive all traits ( `EguiStructImut` & `EguiStruct` & `EguiStructEq` & `EguiStructClone`).
-Macro supports attribute `eguis` on either enum/struct, field or variant level:
-
-- enum/struct level:
-  - `rename_all = "str"`- renames all fields/variants to selected case (recognized values: `"Upper"`, `"Lower"`, `"Title"`, `"Toggle"`, `"Camel"`, `"Pascal"`, `"UpperCamel"`, `"Snake"`, `"UpperSnake"`, `"ScreamingSnake"`, `"Kebab"`, `"Cobol"`, `"UpperKebab"`, `"Train"`, `"Flat"`, `"UpperFlat"`, `"Alternating"`, `"Sentence"`)
-  - `prefix = "str"`- add this prefix when generating `rust-i18n` keys
-  - `no_imut` - do not generate `EguiStructImut` implementation
-  - `no_mut` - do not generate `EguiStruct` implementation
-  - `no_eclone` - do not generate `EguiStructClone` implementation
-  - `no_eeq` - do not generate `EguiStructEq` implementation
-  - `start_collapsed = "Expr"` - sets `start_collapsed()` implementation (should return `bool`; can use `self`)
-  - `resetable = "val"` OR `resetable(with_expr = Expr)` - all fields/variants will be resetable according to provieded value (val: `"not_resetable"`, `"field_default"`, `"struct_default"`, `"follow_arg"`(use value passed on runtime through reset2 arg))
-
-- variant level:
-  - `rename ="str"`- Name of the field to be displayed on UI labels or variantName in i18n key
-  - `skip` - Don't generate code for the given variant
-  - `hint ="str"` - add on hover hint
-  - `imut` - variant will be shown as immutable
-  - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
-  - `resetable`- overides enum/struct level resetable
-
-- field level
-  - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
-  - `resetable`- overides enum/struct & variant level resetable
-  - `on_change = "expr"`- Use function (`expr`: closure surounded by `()` OR function path) callback (when value has been changed; signature: `fn(&mut field_type)`)
-  - `on_change_struct = "expr"`- Similar to `on_change` but takes whole struct: signature: `fn(&mut self)`
-  - `imconfig`- pass format/config object to customise how field is displayed
-  - `config`- same as imconfig but for mutable display
-  - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
-  - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
-    - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
-    - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type
-    - ! beware, becouse (if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
-    - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
-  - `map_pre_ref`- similar to `map_pre`, but takes immutable reference (signature: `fn(&field_type)->mapped`),
-    - used for EguiStructImut, converting default/reset2 and inside eguis_eq (if eeq not specified)
-  - `map_post`- Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
-    - only used if `map_pre` is set AND not for EguiStructImut
-    - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
-    - expresion should assign new value to `&mut field_type`
-  - `eeq`- override `eguis_eq` function for field (signature fn(&field_type, &field_type))
-    - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
-  - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
-    - if `field_type : EguiStructClone` can be unused
+See [docs](https://docs.rs/egui_struct/latest/egui_struct/index.html).
 
 ### Example
 

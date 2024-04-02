@@ -1,3 +1,7 @@
+//! Crate consists of 4 traits ([`EguiStructImut`] & [`EguiStruct`]: [`EguiStructEq`]+[`EguiStructClone`]) and two derive macros (`EguiStruct` to derive [`macro@EguiStructImut`] & [`macro@EguiStruct`] to derive the other three).
+//!
+//! See [demo](https://github.com/PingPongun/egui_struct/tree/master/demo)
+
 use egui::{Button, Grid, Id, Response, ScrollArea, Ui, Widget, WidgetText};
 pub use egui_struct_macros::*;
 use std::hash::Hash;
@@ -21,16 +25,28 @@ use egui27 as egui;
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
          $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
+        /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
         type $config<'a>: Default;
+
+        #[doc(hidden)]
         const $COLUMN_COUNT: usize = 2;
+
+        /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
         const $SIMPLE: bool = true;
+
+        /// Indicates if data has childs section at the moment
         fn $has_childs(&self) -> bool {
             false
         }
+
+        /// Indicates if data has primitive section at the moment
         fn $has_primitive(&self) -> bool {
             !self.$has_childs()
         }
 
+        /// Show data in view contained ScrollArea&Grid
+        ///
+        /// You should rather not need to override default impl
         fn $top_name(
             self: $typ,
             ui: &mut Ui,
@@ -55,6 +71,7 @@ macro_rules! generate_show {
                 .inner
         }
 
+        #[doc(hidden)]
         fn $show_collapsing_inner(
             self: $typ,
             ui: &mut Ui,
@@ -130,6 +147,9 @@ macro_rules! generate_show {
             ret
         }
 
+        /// Do not overide this method.
+        ///
+        /// Use it when implementing [.show_childs()](EguiStruct::show_childs) to display single nested element
         fn $collapsing_name(
             self: $typ,
             ui: &mut Ui,
@@ -152,6 +172,9 @@ macro_rules! generate_show {
             )
         }
 
+        /// UI elements shown in the same line as label
+        ///
+        /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStruct::has_primitive) with default impl
         fn $primitive_name(
             self: $typ,
             ui: &mut Ui,
@@ -161,6 +184,9 @@ macro_rules! generate_show {
             ui.label("")
         }
 
+        /// UI elements related to nested data, that is show inside collapsible rows
+        ///
+        /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStruct::has_childs) with default impl
         fn $childs_name(
             self: $typ,
             _ui: &mut Ui,
@@ -172,21 +198,37 @@ macro_rules! generate_show {
             unreachable!()
         }
 
+        /// Controls if struct is initally collapsed/uncollapsed (if "show_childs" is shown by default)
+        ///
+        /// eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
         fn $start_collapsed(&self) -> bool {
             false
         }
     };
 }
+/// Similar to std [`Clone`] trait, but they respect `#[eguis(skip)]`.
+///
+/// Necessary to implement [`EguiStruct`]. Used to provide reset functionality.
+///
+/// If type is [`Clone`] can be implemented with [`impl_eclone!`]/[`impl_eeqclone!`].
 pub trait EguiStructClone {
     fn eguis_clone(&mut self, source: &Self);
 }
+
+/// Similar to std [`PartialEq`] trait, but they respect `#[eguis(skip)]`.
+///
+/// Necessary to implement [`EguiStruct`]. Used to provide reset functionality (if reset is not used, may be blank impl).
+///
+/// If type is [`PartialEq`] can be implemented with [`impl_eeq!`]/[`impl_eeqclone!`].
 pub trait EguiStructEq {
     fn eguis_eq(&self, _rhs: &Self) -> bool {
         //default implementation can be used if reset button is not required
         true
     }
 }
+
 #[macro_export]
+/// Generate [EguiStructClone] implementation based on [Clone]
 macro_rules! impl_eclone {
     ([$($generics:tt)*], $type:ty) => {
         impl<$($generics)*> EguiStructClone for $type {
@@ -196,7 +238,9 @@ macro_rules! impl_eclone {
         }
     };
 }
+
 #[macro_export]
+/// Generate [EguiStructEq] implementation based on [PartialEq]
 macro_rules! impl_eeq {
     ([$($generics:tt)*], $type:ty) => {
         impl<$($generics)*> EguiStructEq for $type {
@@ -206,7 +250,17 @@ macro_rules! impl_eeq {
         }
     };
 }
+
 #[macro_export]
+/// Wrapper for both [impl_eeq!] & [impl_eclone!]
+///
+/// Generate [EguiStructClone] & [EguiStructEq] implementation based on [Clone] & [PartialEq]
+///
+/// Usage:
+/// ```
+/// impl_eeqclone!(MyType)
+/// impl_eeqclone!([T], MyType2) //for MyType2<T>
+/// ```
 macro_rules! impl_eeqclone {
     ([$($generics:tt)*], $type:ty) => {
         impl_eeq!{[$($generics)*], $type}
@@ -215,32 +269,36 @@ macro_rules! impl_eeqclone {
     ($type:ty) => {impl_eeqclone!{[],$type}}
 }
 
+/// Trait, that allows generating mutable view of data (takes `&mut data`)
+///
+///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top()`](Self::show_top), which displays struct inside scroll area.
 pub trait EguiStruct: EguiStructClone + EguiStructEq {
     generate_show! { show_top, show_collapsing, show_collapsing_inner, show_primitive, show_childs, start_collapsed,
     &mut Self, ConfigType, COLUMN_COUNT, SIMPLE, has_childs, has_primitive }
 }
+/// Trait, that allows generating immutable view of data (takes `&data`)
 pub trait EguiStructImut {
     generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
     &Self, ConfigTypeImut, COLUMN_COUNT_IMUT, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
 
-///Config structure for mutable view of Numerics
+/// Config structure for mutable view of Numerics
 #[derive(Default)]
 pub enum ConfigNum<'a, T: 'a> {
-    ///Default: DragValue (without limits)
+    /// Default: DragValue (without limits)
     #[default]
     NumDefault,
 
-    ///DragValue(min, max)
+    /// DragValue(min, max)
     DragValue(T, T),
 
-    ///Slider(min, max)
+    /// Slider(min, max)
     Slider(T, T),
 
-    ///Slider(min, max, step)
+    /// Slider(min, max, step)
     SliderStep(T, T, T),
 
-    ///Combobox with available options specified by included iterator
+    /// Combobox with available options specified by included iterator
     ComboBox(&'a mut dyn Iterator<Item = T>),
 }
 macro_rules! impl_num_primitives {

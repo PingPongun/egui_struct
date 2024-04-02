@@ -970,6 +970,57 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
     }
 }
 
+/// Derive `EguiStruct`, `EguiStructClone` & `EguiStructEq` for struct/enum
+///
+/// ```
+/// #[derive(EguiStruct)]
+/// #[eguis(rename_all = "Upper")]
+/// struct Data{
+///     #[eguis(hint = "This is field")]
+///     field: usize
+/// }
+/// ```
+///
+/// Atributtes `eguis` & `eguisM` are supported on either enum/struct, field or variant level
+/// to configure trait implementation and may take following values:
+///
+/// - enum/struct level:
+///   - `rename_all = "str"`- renames all fields/variants to selected case (recognized values: `"Upper"`, `"Lower"`, `"Title"`, `"Toggle"`, `"Camel"`, `"Pascal"`, `"UpperCamel"`, `"Snake"`, `"UpperSnake"`, `"ScreamingSnake"`, `"Kebab"`, `"Cobol"`, `"UpperKebab"`, `"Train"`, `"Flat"`, `"UpperFlat"`, `"Alternating"`, `"Sentence"`)
+///   - `prefix = "str"`- add this prefix when generating `rust-i18n` keys
+///   - `no_mut` - do not generate `EguiStruct` implementation
+///   - `no_eclone` - do not generate `EguiStructClone` implementation
+///   - `no_eeq` - do not generate `EguiStructEq` implementation
+///   - `start_collapsed = "Expr"` - sets `start_collapsed()` implementation (should return `bool`; can use `self`)
+///   - `resetable = "val"` OR `resetable(with_expr = Expr)` - all fields/variants will be resetable according to provieded value (val: `"not_resetable"`, `"field_default"`, `"struct_default"`, `"follow_arg"`(use value passed on runtime through reset2 arg))
+/// - variant level:
+///   - `rename ="str"`- Name of the field to be displayed on UI labels or variantName in i18n key
+///   - `skip` - Don't generate code for the given variant
+///   - `hint ="str"` - add on hover hint
+///   - `imut` - variant will be shown as immutable
+///   - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
+///   - `resetable`- overides enum/struct level resetable
+/// - field level
+///   - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
+///   - `resetable`- overides enum/struct & variant level resetable
+///   - `on_change = "expr"`- Use function (`expr`: closure surounded by `()` OR function path) callback (when value has been changed; signature: `fn(&mut field_type)`)
+///   - `on_change_struct = "expr"`- Similar to `on_change` but takes whole struct: signature: `fn(&mut self)`
+///   - `config`- pass format/config object to customise how field is displayed
+///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
+///   - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
+///     - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
+///     - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type (that implements `EguiStruct`)
+///     - ! beware, because (if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
+///     - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
+///   - `map_pre_ref`- similar to `map_pre`, but takes immutable reference (signature: `fn(&field_type)->mapped`),
+///     - used to convert default/reset2 and inside eguis_eq (if eeq not specified)
+///   - `map_post`- Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
+///     - only used if `map_pre` is set
+///     - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
+///     - expresion should assign new value to `&mut field_type`
+///   - `eeq`- override `eguis_eq` function for field (signature fn(&field_type, &field_type))
+///     - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
+///   - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
+///     - if `field_type : EguiStructClone` can be unused
 #[proc_macro_derive(EguiStruct, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
@@ -979,6 +1030,37 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     debug_print_generated(&ast, &toks);
     toks.into()
 }
+
+/// Derive `EguiStructImut` for struct/enum
+///
+/// ```
+/// #[derive(EguiStructImut)]
+/// #[eguis(rename_all = "Upper")]
+/// struct Data{
+///     #[eguis(hint = "This is field")]
+///     field: usize
+/// }
+/// ```
+///
+/// Atributtes `eguis` & `eguisI` are supported on either enum/struct, field or variant level
+/// to configure trait implementation and may take following values:
+///
+/// - enum/struct level:
+///   - `rename_all = "str"`- renames all fields/variants to selected case (recognized values: `"Upper"`, `"Lower"`, `"Title"`, `"Toggle"`, `"Camel"`, `"Pascal"`, `"UpperCamel"`, `"Snake"`, `"UpperSnake"`, `"ScreamingSnake"`, `"Kebab"`, `"Cobol"`, `"UpperKebab"`, `"Train"`, `"Flat"`, `"UpperFlat"`, `"Alternating"`, `"Sentence"`)
+///   - `prefix = "str"`- add this prefix when generating `rust-i18n` keys
+///   - `start_collapsed = "Expr"` - sets `EguiStructImut::start_collapsed_imut()` implementation (should return `bool`; can use `self`)
+/// - variant level:
+///   - `rename ="str"`- Name of the field to be displayed on UI labels or variantName in i18n key
+///   - `skip` - Don't generate code for the given variant
+///   - `hint ="str"` - add on hover hint
+///   - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
+/// - field level
+///   - `rename`, `skip`, `hint`, `i18n`- see variant level
+///   - `imconfig`- pass format/config object([`EguiStructImut::ConfigTypeImut`) to customise how field is displayed
+///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `EguiStructImut::start_collapsed_imut()` return)
+///   - `map_pre_ref`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
+///     - this allows displaying fields that does not implement `EguiStructImut` or overiding how field is shown
+///     - function shall take `&field_type` AND return either reference or owned value of selected type (that implements `EguiStructImut`)
 #[proc_macro_derive(EguiStructImut, attributes(eguis, eguisI))]
 pub fn egui_struct_imut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
