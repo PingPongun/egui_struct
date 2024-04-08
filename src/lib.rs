@@ -86,60 +86,72 @@ macro_rules! generate_show {
             let mut collapsed = false;
             let has_childs = self.$has_childs();
             let id = parent_id.with(label.clone().into().text());
-            ui.horizontal(|ui| {
-                if indent_level >= 0 {
-                    for _ in 0..indent_level {
-                        ui.separator();
-                    }
-                    if has_childs {
-                        let id = id.with("__EguiStruct_collapsing_state");
-                        collapsed = ui.data_mut(|d| {
-                            d.get_temp_mut_or_insert_with(id, || {
-                                start_collapsed.unwrap_or(self.$start_collapsed())
-                            })
-                            .clone()
-                        });
-                        let icon = if collapsed { "⏵" } else { "⏷" };
-                        if Button::new(icon).frame(false).small().ui(ui).clicked() {
-                            ui.data_mut(|d| d.insert_temp(id, !collapsed));
+            let label = label.into();
+            let mut ret = ui.interact(
+                egui::Rect::NOTHING,
+                "dummy".into(),
+                egui::Sense {
+                    click: false,
+                    drag: false,
+                    focusable: false,
+                },
+            );
+            if !label.is_empty() || indent_level != -1 {
+                ui.horizontal(|ui| {
+                    if indent_level >= 0 {
+                        for _ in 0..indent_level {
+                            ui.separator();
+                        }
+                        if has_childs {
+                            let id = id.with("__EguiStruct_collapsing_state");
+                            collapsed = ui.data_mut(|d| {
+                                d.get_temp_mut_or_insert_with(id, || {
+                                    start_collapsed.unwrap_or(self.$start_collapsed())
+                                })
+                                .clone()
+                            });
+                            let icon = if collapsed { "⏵" } else { "⏷" };
+                            if Button::new(icon).frame(false).small().ui(ui).clicked() {
+                                ui.data_mut(|d| d.insert_temp(id, !collapsed));
+                            }
                         }
                     }
-                }
-                let mut lab = ui.label(label.into());
-                let hint = hint.into();
-                if !hint.is_empty() {
-                    lab = lab.on_hover_text(hint);
-                }
-                lab
-            });
-
-            let mut ret = ui
-                .horizontal(|ui| {
-                    let id = id.with("__EguiStruct_primitive");
-                    #[allow(unused_mut)]
-                    let mut ret = self.$primitive_name(ui, config, id);
-                    macro_rules! reset {
-                        (show_collapsing_imut) => {
-                            ret
-                        };
-                        (show_collapsing_mut) => {
-                            if let Some(reset2) = _reset2 {
-                                if !reset2.eguis_eq(self) {
-                                    let mut r = ui.button("⟲");
-                                    if r.clicked() {
-                                        self.eguis_clone(reset2);
-                                        r.mark_changed();
-                                    }
-                                    ret |= r;
-                                }
-                            }
-                            ret
-                        };
+                    let mut lab = ui.label(label);
+                    let hint = hint.into();
+                    if !hint.is_empty() {
+                        lab = lab.on_hover_text(hint);
                     }
-                    reset! {$collapsing_name}
-                })
-                .inner;
-            ui.end_row();
+                    lab
+                });
+
+                ret = ui
+                    .horizontal(|ui| {
+                        let id = id.with("__EguiStruct_primitive");
+                        #[allow(unused_mut)]
+                        let mut ret = self.$primitive_name(ui, config, id);
+                        macro_rules! reset {
+                            (show_collapsing_imut) => {
+                                ret
+                            };
+                            (show_collapsing_mut) => {
+                                if let Some(reset2) = _reset2 {
+                                    if !reset2.eguis_eq(self) {
+                                        let mut r = ui.button("⟲");
+                                        if r.clicked() {
+                                            self.eguis_clone(reset2);
+                                            r.mark_changed();
+                                        }
+                                        ret |= r;
+                                    }
+                                }
+                                ret
+                            };
+                        }
+                        reset! {$collapsing_name}
+                    })
+                    .inner;
+                ui.end_row();
+            }
 
             if has_childs && !collapsed {
                 ret = self.$childs_name(ui, indent_level + 1, ret, _reset2, id);

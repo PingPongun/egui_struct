@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::start_collapsed -> EguiStructMut::start_collapsed_mut
   - EguiStructMut::{SIMPLE, COLUMN_COUNT} -> EguiStructMut::{$1}_MUT
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
+- Removed empty first row when label passed in show_top is empty
 
 ## [0.4.1] - 2024-04-02
 
