@@ -13,7 +13,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 |                            | EguiStruct                                                                   | enum2egui        | egui_inspect                 | egui-controls                     |
 | :------------------------- | :--------------------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
-| egui version               | 0.26 (0.21-0.27) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
+| egui version               | 0.27 (0.21-0.27) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
 | Layout*                    | Grid                                                                         | Group/nested     | Nested                       | Grid                              |
 | i18n support               | ✅ (rust-i18n**)                                                              | ❌                | ❌                            | ❌                                 |
 | Field description          | ✅ on hover hint (from attribute)                                             | ❌                | ❌                            | ✅ third column (from doc comment) |
@@ -56,7 +56,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 Add `egui_struct` to your `Cargo.toml`:
 
 ```toml
-egui_struct = "0.4"
+egui_struct = "0.5"
 ```
 
 Add derive macro `EguiStructMut` to struct you want to show (and all nested types):
@@ -86,10 +86,10 @@ See ./demo
 
 ### egui version
 
-`egui_struct 0.4` by default depends on `egui 0.26`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
+`egui_struct 0.5` by default depends on `egui 0.27`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
 
 ```toml
-egui_struct = { version = "0.4", default-features = false, features = [ "egui25" ] }
+egui_struct = { version = "0.5", default-features = false, features = [ "egui25" ] }
 ```
 
 OR use `[patch]` section.

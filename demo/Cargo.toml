@@ -1,12 +1,12 @@
 [package]
 name = "egui_struct_demo"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["PingPongun"]
 edition = "2021"
 
 [dependencies]
-egui = "0.26.2"
-eframe = { version = "0.26.2", default-features = false, features = [
+egui = "0.27"
+eframe = { version = "0.27", default-features = false, features = [
     "default_fonts",
     "glow",
 ] }

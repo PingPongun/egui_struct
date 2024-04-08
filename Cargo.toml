@@ -1,7 +1,7 @@
 [package]
 name = "egui_struct"
 authors = ["PingPongun <pp.pp4@vp.pl>"]
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 exclude = ["demo/*", ".vscode/*"]
@@ -13,7 +13,7 @@ rust-version = "1.70"
 [lib]
 
 [dependencies]
-egui_struct_macros = { path = "./macros/", version = "0.4.1" }
+egui_struct_macros = { path = "./macros/", version = "0.5.0" }
 
 # egui dep is handled through feature to overcome cargo resolver not be able to select same egui version as used in rest of the app.
 # this allows egui_struct to work with newer egui through semver patch update
@@ -30,7 +30,7 @@ indexmap = { version = "2.0", optional = true }
 
 [features]
 indexmap = ["dep:indexmap"]
-default = ["egui26", "i18n"]
+default = ["egui27", "i18n"]
 i18n = ["egui_struct_macros/i18n"]
 
 [workspace]
