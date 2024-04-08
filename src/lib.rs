@@ -24,12 +24,9 @@ use egui27 as egui;
 
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
-         $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
+         $typ:ty, $config:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
         /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
         type $config<'a>: Default;
-
-        #[doc(hidden)]
-        const $COLUMN_COUNT: usize = 2;
 
         /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
         const $SIMPLE: bool = true;
@@ -62,7 +59,7 @@ macro_rules! generate_show {
             ScrollArea::vertical()
                 .show(ui, |ui| {
                     Grid::new(id)
-                        .num_columns(Self::$COLUMN_COUNT)
+                        .num_columns(2)
                         .show(ui, |ui| {
                             self.$collapsing_name(ui, label, "", -1, Default::default(), reset2, id)
                         })
@@ -286,12 +283,12 @@ macro_rules! impl_eeqclone {
 ///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top_mut()`](Self::show_top_mut), which displays struct inside scroll area.
 pub trait EguiStructMut: EguiStructClone + EguiStructEq {
     generate_show! { show_top_mut, show_collapsing_mut, show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
-    &mut Self, ConfigTypeMut, COLUMN_COUNT_MUT, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
+    &mut Self, ConfigTypeMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
 }
 /// Trait, that allows generating immutable view of data (takes `&data`)
 pub trait EguiStructImut {
     generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
-    &Self, ConfigTypeImut, COLUMN_COUNT_IMUT, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
+    &Self, ConfigTypeImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
 
 /// Config structure for mutable view of Numerics

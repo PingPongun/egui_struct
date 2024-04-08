@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
 - Removed empty first row when label passed in show_top is empty
 
+### Removed
+
+- EguiStruct{Mut, Imut}::COLUMN_COUNT_{MUT, IMUT} (it was used only internally, highly unlikely anyone will notice difference)
+
 ## [0.4.1] - 2024-04-02
 
 ### Added
