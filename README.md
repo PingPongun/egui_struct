@@ -59,18 +59,18 @@ Add `egui_struct` to your `Cargo.toml`:
 egui_struct = "0.4"
 ```
 
-Add derive macro `EguiStruct` to struct you want to show (and all nested types):
+Add derive macro `EguiStructMut` to struct you want to show (and all nested types):
 
 ```Rust
-#[derive(EguiStruct)]
+#[derive(EguiStructMut)]
 pub struct TupleStruct(u8, u32, String, SubData);
 ```
 
-then to show data, you only need to call `show_top(..)` on top level struct:
+then to show data, you only need to call `show_top_mut(..)` on top level struct:
 
 ```Rust
 egui::CentralPanel::default().show(ctx, |ui| {
-  data.show_top(ui, RichText::new("Data").heading(), None);
+  data.show_top_mut(ui, RichText::new("Data").heading(), None);
 });
 ```
 

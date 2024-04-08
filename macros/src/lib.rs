@@ -118,7 +118,7 @@ struct EStruct {
     rename_all: Option<String>,
     ///prefix to be added to i18n keys
     prefix: Option<String>,
-    ///do not generate EguiStruct impl
+    ///do not generate EguiStructMut impl
     #[darling(default)]
     no_mut: bool,
     ///do not generate EguiStructImut impl
@@ -266,9 +266,9 @@ fn handle_enum(
                     let imconfig = get_config(single_field.imconfig);
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
-                    has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE,});
+                    has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_MUT,});
                     let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig,id),};
-                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive(ui,#config,id);  #map_post; {#on_change}; response |=r;},};
+                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive_mut(ui,#config,id);  #map_post; {#on_change}; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -475,19 +475,19 @@ fn handle_enum(
     };
 
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::EguiStruct for #ty #ty_generics #where_clause {
-            const SIMPLE: ::std::primitive::bool = #simple;//is c-like enum
-            type ConfigType<'a> = ();
-            fn has_childs(&self) -> ::std::primitive::bool {
+        impl #impl_generics ::egui_struct::EguiStructMut for #ty #ty_generics #where_clause {
+            const SIMPLE_MUT: ::std::primitive::bool = #simple;//is c-like enum
+            type ConfigTypeMut<'a> = ();
+            fn has_childs_mut(&self) -> ::std::primitive::bool {
                 match self{
                     #(#has_childs_mut_arm)* //variant1=>false,
                     _=> false,
                 }
             }
-            fn has_primitive(&self) -> ::std::primitive::bool {
+            fn has_primitive_mut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
@@ -497,7 +497,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
@@ -526,7 +526,7 @@ fn handle_enum(
                     response | inner_response
                 }).inner
             }
-            fn start_collapsed(&self) -> bool {
+            fn start_collapsed_mut(&self) -> bool {
                 #start_collapsed
             }
         }
@@ -707,7 +707,7 @@ fn handle_fields(
         };
 
         let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, id, #start_collapsed);};
-        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_inner( ui, #lab, #hint, indent_level, #config, #resetable, id, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable, id, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -729,7 +729,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing_inner( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), id, #start_collapsed);
+                let r = mapped .show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), id, #start_collapsed);
                 response |= r.clone();
             };
 
@@ -827,14 +827,14 @@ fn handle_struct(
         quote! {}
     };
 
-    let mut show_primitive = quote! { ui.label("") };
+    let mut show_primitive_mut = quote! { ui.label("") };
     let mut show_primitive_imut = quote! { ui.label("") };
     let (mut simple_imut, mut simple) = (quote! {false}, quote! {false});
     if fields.style == ast::Style::Tuple && fields_code.len() == 1 {
         if let Some(single_field) = &single_field {
             let ty = &single_field.ty;
             simple_imut = quote! { #ty::SIMPLE_IMUT};
-            simple = quote! { #ty::SIMPLE };
+            simple = quote! { #ty::SIMPLE_MUT };
 
             let config_imut = get_config(single_field.imconfig.clone());
             let config = get_config(single_field.config.clone());
@@ -858,10 +858,10 @@ fn handle_struct(
                     ui.label("")
                   }
             };
-            show_primitive = quote! {
-                if Self::SIMPLE {
+            show_primitive_mut = quote! {
+                if Self::SIMPLE_MUT {
                     let mut mapped=#map (&mut self. #index);
-                    let response=mapped.show_primitive(ui, #config, id);
+                    let response=mapped.show_primitive_mut(ui, #config, id);
                     #map_post
                     {#on_change};
                     response
@@ -898,22 +898,22 @@ fn handle_struct(
         }
     };
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::EguiStruct for #name #ty_generics #where_clause {
-            const SIMPLE: ::std::primitive::bool = #simple;
-            type ConfigType<'a> = ();
-            fn has_childs(&self) -> ::std::primitive::bool {
-               !Self::SIMPLE
+        impl #impl_generics ::egui_struct::EguiStructMut for #name #ty_generics #where_clause {
+            const SIMPLE_MUT: ::std::primitive::bool = #simple;
+            type ConfigTypeMut<'a> = ();
+            fn has_childs_mut(&self) -> ::std::primitive::bool {
+               !Self::SIMPLE_MUT
             }
-            fn show_childs(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigType<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
-                #show_primitive
+            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+                #show_primitive_mut
             }
-            fn start_collapsed(&self) -> bool {
+            fn start_collapsed_mut(&self) -> bool {
                 #start_collapsed
             }
         }
@@ -970,10 +970,10 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
     }
 }
 
-/// Derive `EguiStruct`, `EguiStructClone` & `EguiStructEq` for struct/enum
+/// Derive `EguiStructMut`, `EguiStructClone` & `EguiStructEq` for struct/enum
 ///
 /// ```
-/// #[derive(EguiStruct)]
+/// #[derive(EguiStructMut)]
 /// #[eguis(rename_all = "Upper")]
 /// struct Data{
 ///     #[eguis(hint = "This is field")]
@@ -987,7 +987,7 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 /// - enum/struct level:
 ///   - `rename_all = "str"`- renames all fields/variants to selected case (recognized values: `"Upper"`, `"Lower"`, `"Title"`, `"Toggle"`, `"Camel"`, `"Pascal"`, `"UpperCamel"`, `"Snake"`, `"UpperSnake"`, `"ScreamingSnake"`, `"Kebab"`, `"Cobol"`, `"UpperKebab"`, `"Train"`, `"Flat"`, `"UpperFlat"`, `"Alternating"`, `"Sentence"`)
 ///   - `prefix = "str"`- add this prefix when generating `rust-i18n` keys
-///   - `no_mut` - do not generate `EguiStruct` implementation
+///   - `no_mut` - do not generate `EguiStructMut` implementation
 ///   - `no_eclone` - do not generate `EguiStructClone` implementation
 ///   - `no_eeq` - do not generate `EguiStructEq` implementation
 ///   - `start_collapsed = "Expr"` - sets `start_collapsed()` implementation (should return `bool`; can use `self`)
@@ -1021,7 +1021,7 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///     - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
 ///   - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
 ///     - if `field_type : EguiStructClone` can be unused
-#[proc_macro_derive(EguiStruct, attributes(eguis, eguisM))]
+#[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
     let mut input = EStruct::from_derive_input(&ast).unwrap();

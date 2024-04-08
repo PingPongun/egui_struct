@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- [Breaking] Mutable EguiStruct trait&functions suffixed with mut
+  - EguiStruct -> EguiStructMut
+  - EguiStructMut::has_{childs, primitive} -> EguiStructMut::has_{$1}_mut
+  - EguiStructMut::show_{top, childs, collapsing, collapsing_inner, primitive} -> EguiStructMut::has_{$1}_mut
+  - EguiStructMut::start_collapsed -> EguiStructMut::start_collapsed_mut
+  - EguiStructMut::{SIMPLE, COLUMN_COUNT} -> EguiStructMut::{$1}_MUT
+  - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
+
 ## [0.4.1] - 2024-04-02
 
 ### Added

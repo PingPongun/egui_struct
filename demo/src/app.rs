@@ -6,7 +6,7 @@ use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
 use ConfigNum::*;
 
-#[derive(EguiStruct, Default)]
+#[derive(EguiStructMut, Default)]
 enum Language {
     #[default]
     English,
@@ -21,7 +21,7 @@ impl Language {
         }
     }
 }
-#[derive(EguiStruct, Default)]
+#[derive(EguiStructMut, Default)]
 #[eguis(start_collapsed = "if let Self::NamedCustom{..} = self {true} else {false}")]
 pub enum Color {
     #[default]
@@ -71,7 +71,7 @@ lazy_static::lazy_static! {
         HashSet::from(["Einar".to_string(), "Olaf".to_string(), "Harald".to_string()])
     );
 }
-#[derive(EguiStruct)]
+#[derive(EguiStructMut)]
 #[eguis(rename_all = "Sentence", resetable = "struct_default")]
 pub struct Data {
     #[eguis(skip)]
@@ -134,7 +134,7 @@ pub struct Data {
     usize: usize,
 
     #[eguis(
-        hint = "fields in derived struct needs to implement EguiStruct or deref to type that implements it"
+        hint = "fields in derived struct needs to implement EguiStructMut or deref to type that implements it"
     )]
     usize_boxed: Box<usize>,
 
@@ -219,7 +219,7 @@ impl Default for Data {
     }
 }
 
-#[derive(EguiStruct)]
+#[derive(EguiStructMut)]
 pub struct TupleStruct(
     #[eguis(resetable = "struct_default")] u8,
     #[eguis(on_change_struct = (|s: &mut TupleStruct|s.2=format!("Wololo!: {}", s.1)))] u32,
@@ -233,12 +233,12 @@ impl Default for TupleStruct {
     }
 }
 
-#[derive(EguiStruct, Default)]
+#[derive(EguiStructMut, Default)]
 pub struct Metadata {
     message: String,
 }
 
-#[derive(EguiStruct, Default)]
+#[derive(EguiStructMut, Default)]
 #[eguis(resetable = "struct_default")]
 pub struct SubData {
     value: String,
@@ -255,7 +255,7 @@ impl eframe::App for DemoApp {
         let Self { data } = self;
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.style_mut().visuals.striped = true;
-            data.show_top(ui, RichText::new("Data").heading(), None);
+            data.show_top_mut(ui, RichText::new("Data").heading(), None);
         });
     }
 }

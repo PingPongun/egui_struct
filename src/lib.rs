@@ -1,4 +1,4 @@
-//! Crate consists of 4 traits ([`EguiStructImut`] & [`EguiStruct`]: [`EguiStructEq`]+[`EguiStructClone`]) and two derive macros (`EguiStruct` to derive [`macro@EguiStructImut`] & [`macro@EguiStruct`] to derive the other three).
+//! Crate consists of 4 traits ([`EguiStructImut`] & [`EguiStructMut`]: [`EguiStructEq`]+[`EguiStructClone`]) and two derive macros ([`macro@EguiStructImut`] to derive [`EguiStructImut`] & [`macro@EguiStructMut`] to derive the other three).
 //!
 //! See [demo](https://github.com/PingPongun/egui_struct/tree/master/demo)
 
@@ -23,7 +23,7 @@ use egui26 as egui;
 use egui27 as egui;
 
 macro_rules! generate_show {
-    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
+    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
          $typ:ty, $config:ident, $COLUMN_COUNT:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
         /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
         type $config<'a>: Default;
@@ -72,7 +72,7 @@ macro_rules! generate_show {
         }
 
         #[doc(hidden)]
-        fn $show_collapsing_inner(
+        fn $show_collapsing_inner_mut(
             self: $typ,
             ui: &mut Ui,
             label: impl Into<WidgetText> + Clone,
@@ -122,7 +122,7 @@ macro_rules! generate_show {
                         (show_collapsing_imut) => {
                             ret
                         };
-                        (show_collapsing) => {
+                        (show_collapsing_mut) => {
                             if let Some(reset2) = _reset2 {
                                 if !reset2.eguis_eq(self) {
                                     let mut r = ui.button("⟲");
@@ -149,7 +149,7 @@ macro_rules! generate_show {
 
         /// Do not overide this method.
         ///
-        /// Use it when implementing [.show_childs()](EguiStruct::show_childs) to display single nested element
+        /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
         fn $collapsing_name(
             self: $typ,
             ui: &mut Ui,
@@ -160,7 +160,7 @@ macro_rules! generate_show {
             reset2: Option<&Self>,
             parent_id: Id,
         ) -> Response {
-            self.$show_collapsing_inner(
+            self.$show_collapsing_inner_mut(
                 ui,
                 label,
                 hint,
@@ -174,7 +174,7 @@ macro_rules! generate_show {
 
         /// UI elements shown in the same line as label
         ///
-        /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStruct::has_primitive) with default impl
+        /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive) with default impl
         fn $primitive_name(
             self: $typ,
             ui: &mut Ui,
@@ -186,7 +186,7 @@ macro_rules! generate_show {
 
         /// UI elements related to nested data, that is show inside collapsible rows
         ///
-        /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStruct::has_childs) with default impl
+        /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStructMut::has_childs) with default impl
         fn $childs_name(
             self: $typ,
             _ui: &mut Ui,
@@ -198,7 +198,7 @@ macro_rules! generate_show {
             unreachable!()
         }
 
-        /// Controls if struct is initally collapsed/uncollapsed (if "show_childs" is shown by default)
+        /// Controls if struct is initally collapsed/uncollapsed (if "show_childs_mut" is shown by default)
         ///
         /// eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
         fn $start_collapsed(&self) -> bool {
@@ -208,7 +208,7 @@ macro_rules! generate_show {
 }
 /// Similar to std [`Clone`] trait, but they respect `#[eguis(skip)]`.
 ///
-/// Necessary to implement [`EguiStruct`]. Used to provide reset functionality.
+/// Necessary to implement [`EguiStructMut`]. Used to provide reset functionality.
 ///
 /// If type is [`Clone`] can be implemented with [`impl_eclone!`]/[`impl_eeqclone!`].
 pub trait EguiStructClone {
@@ -217,7 +217,7 @@ pub trait EguiStructClone {
 
 /// Similar to std [`PartialEq`] trait, but they respect `#[eguis(skip)]`.
 ///
-/// Necessary to implement [`EguiStruct`]. Used to provide reset functionality (if reset is not used, may be blank impl).
+/// Necessary to implement [`EguiStructMut`]. Used to provide reset functionality (if reset is not used, may be blank impl).
 ///
 /// If type is [`PartialEq`] can be implemented with [`impl_eeq!`]/[`impl_eeqclone!`].
 pub trait EguiStructEq {
@@ -271,10 +271,10 @@ macro_rules! impl_eeqclone {
 
 /// Trait, that allows generating mutable view of data (takes `&mut data`)
 ///
-///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top()`](Self::show_top), which displays struct inside scroll area.
-pub trait EguiStruct: EguiStructClone + EguiStructEq {
-    generate_show! { show_top, show_collapsing, show_collapsing_inner, show_primitive, show_childs, start_collapsed,
-    &mut Self, ConfigType, COLUMN_COUNT, SIMPLE, has_childs, has_primitive }
+///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top_mut()`](Self::show_top_mut), which displays struct inside scroll area.
+pub trait EguiStructMut: EguiStructClone + EguiStructEq {
+    generate_show! { show_top_mut, show_collapsing_mut, show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
+    &mut Self, ConfigTypeMut, COLUMN_COUNT_MUT, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
 }
 /// Trait, that allows generating immutable view of data (takes `&data`)
 pub trait EguiStructImut {
@@ -304,15 +304,15 @@ pub enum ConfigNum<'a, T: 'a> {
 macro_rules! impl_num_primitives {
     ($($typ:ty)*) => {
         $(
-            impl EguiStruct for $typ {
-                type ConfigType<'a> = ConfigNum<'a, $typ>;
-                fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>, id: impl Hash  + Clone) -> Response {
+            impl EguiStructMut for $typ {
+                type ConfigTypeMut<'a> = ConfigNum<'a, $typ>;
+                fn show_primitive_mut(&mut self, ui: &mut Ui, config: Self::ConfigTypeMut<'_>, id: impl Hash  + Clone) -> Response {
                     match config{
-                        Self::ConfigType::NumDefault        =>  egui::DragValue::new(self).ui(ui),
-                        Self::ConfigType::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
-                        Self::ConfigType::Slider(min,max)   =>  egui::Slider::new(self, min..=max).ui(ui),
-                        Self::ConfigType::SliderStep(min,max,step)   =>  egui::Slider::new(self, min..=max).step_by(step as f64).ui(ui),
-                        Self::ConfigType::ComboBox(iter) => show_combobox(self, ui, Some(iter), id),
+                        Self::ConfigTypeMut::NumDefault        =>  egui::DragValue::new(self).ui(ui),
+                        Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
+                        Self::ConfigTypeMut::Slider(min,max)   =>  egui::Slider::new(self, min..=max).ui(ui),
+                        Self::ConfigTypeMut::SliderStep(min,max,step)   =>  egui::Slider::new(self, min..=max).step_by(step as f64).ui(ui),
+                        Self::ConfigTypeMut::ComboBox(iter) => show_combobox(self, ui, Some(iter), id),
                     }
                 }
             }
@@ -329,12 +329,12 @@ macro_rules! impl_num_primitives {
 
 impl_num_primitives!(i8 i16 i32 i64 u8 u16 u32 u64 usize isize f32 f64);
 
-impl EguiStruct for bool {
-    type ConfigType<'a> = ();
-    fn show_primitive(
+impl EguiStructMut for bool {
+    type ConfigTypeMut<'a> = ();
+    fn show_primitive_mut(
         &mut self,
         ui: &mut Ui,
-        _config: Self::ConfigType<'_>,
+        _config: Self::ConfigTypeMut<'_>,
         _id: impl Hash + Clone,
     ) -> Response {
         egui::Checkbox::without_text(self).ui(ui)
@@ -378,12 +378,12 @@ pub enum ConfigStrImut {
     Selectable,
 }
 
-impl EguiStruct for String {
-    type ConfigType<'a> = ConfigStr<'a>;
-    fn show_primitive(
+impl EguiStructMut for String {
+    type ConfigTypeMut<'a> = ConfigStr<'a>;
+    fn show_primitive_mut(
         &mut self,
         ui: &mut Ui,
-        config: Self::ConfigType<'_>,
+        config: Self::ConfigTypeMut<'_>,
         id: impl Hash + Clone,
     ) -> Response {
         match config {
@@ -474,28 +474,28 @@ impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
         response
     }
 }
-impl<T: EguiStruct + Default> EguiStruct for Option<T> {
-    const SIMPLE: bool = false;
-    type ConfigType<'a> = ();
-    fn has_childs(&self) -> bool {
-        !T::SIMPLE && self.is_some()
+impl<T: EguiStructMut + Default> EguiStructMut for Option<T> {
+    const SIMPLE_MUT: bool = false;
+    type ConfigTypeMut<'a> = ();
+    fn has_childs_mut(&self) -> bool {
+        !T::SIMPLE_MUT && self.is_some()
     }
-    fn has_primitive(&self) -> bool {
+    fn has_primitive_mut(&self) -> bool {
         true
     }
-    fn show_primitive(
+    fn show_primitive_mut(
         &mut self,
         ui: &mut Ui,
-        _config: Self::ConfigType<'_>,
+        _config: Self::ConfigTypeMut<'_>,
         id: impl Hash + Clone,
     ) -> Response {
         ui.horizontal(|ui| {
             let mut checked = self.is_some();
-            let mut ret = checked.show_primitive(ui, (), ());
+            let mut ret = checked.show_primitive_mut(ui, (), ());
 
-            match (checked, T::SIMPLE, self.as_mut()) {
+            match (checked, T::SIMPLE_MUT, self.as_mut()) {
                 (true, true, Some(value)) => {
-                    ret |= value.show_primitive(ui, Default::default(), id)
+                    ret |= value.show_primitive_mut(ui, Default::default(), id)
                 }
                 (true, false, Some(_)) => (), //if inner is not simple, it will be shown below
                 (true, _, None) => *self = Some(T::default()),
@@ -505,7 +505,7 @@ impl<T: EguiStruct + Default> EguiStruct for Option<T> {
         })
         .inner
     }
-    fn show_childs(
+    fn show_childs_mut(
         &mut self,
         ui: &mut Ui,
         indent_level: isize,
@@ -514,8 +514,8 @@ impl<T: EguiStruct + Default> EguiStruct for Option<T> {
         id: Id,
     ) -> Response {
         if let Some(inner) = self {
-            if inner.has_primitive() {
-                response |= inner.show_collapsing(
+            if inner.has_primitive_mut() {
+                response |= inner.show_collapsing_mut(
                     ui,
                     "[0]",
                     "",
@@ -525,7 +525,7 @@ impl<T: EguiStruct + Default> EguiStruct for Option<T> {
                     id,
                 );
             } else {
-                response |= inner.show_childs(
+                response |= inner.show_childs_mut(
                     ui,
                     indent_level,
                     response.clone(),
@@ -567,16 +567,16 @@ impl<T: EguiStructEq> EguiStructEq for Option<T> {
 }
 ///////////////////////////////////////////////////
 macro_rules! impl_vec {
-    ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed:ident,
-        $trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+    ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed_mut:ident,
+        $trait:ident, $SIMPLE:ident, $ConfigTypeMut:ident, $has_childs_imut:ident, $has_primitive_mut:ident) => {
 
         impl<T: $trait> $trait for $typ{
             const $SIMPLE: bool = false;
-            type $ConfigType<'a> = ();
+            type $ConfigTypeMut<'a> = ();
             fn $has_childs_imut(&self) -> bool {
                 !self.is_empty()
             }
-            fn $has_primitive(&self) -> bool {
+            fn $has_primitive_mut(&self) -> bool {
                 false
             }
             fn $childs_name(
@@ -592,7 +592,7 @@ macro_rules! impl_vec {
                 });
                 response
             }
-            fn $start_collapsed(&self) -> bool {
+            fn $start_collapsed_mut(&self) -> bool {
                 self.len() > 16
             }
         }
@@ -602,8 +602,8 @@ macro_rules! impl_vec {
     ($($typ:ty)*) => {
         $(
             impl_vec! {IMUT, $typ}
-            impl_vec! {&mut Self, $typ, iter_mut, show_collapsing, show_childs, start_collapsed,
-                EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
+            impl_vec! {&mut Self, $typ, iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
+                EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
 
             impl<T: EguiStructClone> EguiStructClone for $typ {
                 fn eguis_clone(&mut self, source: &Self) {
@@ -629,16 +629,16 @@ impl_vec! {IMUT, indexmap::IndexSet<T> }
 
 /////////////////////////////////////////////////
 macro_rules! impl_map {
-    ($Self:ty, $typ:ty, [$( $Qbound:path),*], $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed:ident,
-        $trait:ident, $SIMPLE:ident, $ConfigType:ident, $has_childs_imut:ident, $has_primitive:ident) => {
+    ($Self:ty, $typ:ty, [$( $Qbound:path),*], $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed_mut:ident,
+        $trait:ident, $SIMPLE_MUT:ident, $ConfigTypeMut:ident, $has_childs_imut:ident, $has_primitive_mut:ident) => {
 
         impl<Q: ToString $(+ $Qbound)*, V: $trait> $trait for $typ{
-            const $SIMPLE: bool = false;
-            type $ConfigType<'a> = ();
+            const $SIMPLE_MUT: bool = false;
+            type $ConfigTypeMut<'a> = ();
             fn $has_childs_imut(&self) -> bool {
                 !self.is_empty()
             }
-            fn $has_primitive(&self) -> bool {
+            fn $has_primitive_mut(&self) -> bool {
                 false
             }
             fn $childs_name(
@@ -661,7 +661,7 @@ macro_rules! impl_map {
                 });
                 response
             }
-            fn $start_collapsed(&self) -> bool {
+            fn $start_collapsed_mut(&self) -> bool {
                 self.len() > 16
             }
         }
@@ -669,8 +669,8 @@ macro_rules! impl_map {
     ($typ:ty) => {
         impl_map! {&Self, $typ, [], iter, show_collapsing_imut, show_childs_imut, start_collapsed_imut,
             EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut}
-        impl_map! {&mut Self, $typ, [Eq, std::hash::Hash], iter_mut, show_collapsing, show_childs, start_collapsed,
-            EguiStruct, SIMPLE, ConfigType, has_childs, has_primitive}
+        impl_map! {&mut Self, $typ, [Eq, std::hash::Hash], iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
+            EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
 
         impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructClone> EguiStructClone for $typ {
             fn eguis_clone(&mut self, source: &Self) {
@@ -710,9 +710,9 @@ macro_rules! impl_large_numerics {
                 ui.label(self.to_string())
             }
         }
-        impl EguiStruct for $t {
-            type ConfigType<'a> = ();
-            fn show_primitive(&mut self, ui: &mut Ui, _config: Self::ConfigType<'_>, _id: impl Hash + Clone)-> Response  {
+        impl EguiStructMut for $t {
+            type ConfigTypeMut<'a> = ();
+            fn show_primitive_mut(&mut self, ui: &mut Ui, _config: Self::ConfigTypeMut<'_>, _id: impl Hash + Clone)-> Response  {
                 let mut text = self.to_string();
                 let ret=ui.text_edit_singleline(&mut text);
                 if let Ok(value) = text.parse() {
@@ -753,13 +753,13 @@ impl<T: PartialEq> EguiStructEq for Combobox<T> {
         self.0.eq(&rhs.0)
     }
 }
-impl<T: Clone + ToString + PartialEq + 'static> EguiStruct for Combobox<T> {
-    type ConfigType<'a> = Option<&'a mut dyn Iterator<Item = T>>;
+impl<T: Clone + ToString + PartialEq + 'static> EguiStructMut for Combobox<T> {
+    type ConfigTypeMut<'a> = Option<&'a mut dyn Iterator<Item = T>>;
 
-    fn show_primitive(
+    fn show_primitive_mut(
         self: &mut Self,
         ui: &mut Ui,
-        config: Self::ConfigType<'_>,
+        config: Self::ConfigTypeMut<'_>,
         id: impl Hash + Clone,
     ) -> Response {
         show_combobox(&mut self.0, ui, config, id)

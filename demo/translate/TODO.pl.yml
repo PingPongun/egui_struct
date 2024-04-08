@@ -33,7 +33,7 @@ Data.u8_combobox_wrapper: U 8 combobox wrapper
 Data.unnamed_struct: Unnamed struct
 Data.usize: Usize
 Data.usize_boxed: Usize boxed
-Data.usize_boxed.__hint.: fields in derived struct needs to implement EguiStruct or deref to type that implements it
+Data.usize_boxed.__hint.: fields in derived struct needs to implement EguiStructMut or deref to type that implements it
 Metadata.message: message
 SubData.number: number
 SubData.value: value
