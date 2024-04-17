@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use egui::mutex::RwLock;
 use egui::RichText;
-use egui_struct::{prelude::*, Combobox, ConfigNum};
+use egui_struct::prelude::*;
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
 use ConfigNum::*;

@@ -430,7 +430,7 @@ fn handle_enum(
         .unwrap_or(quote!(false));
 
     let egui_struct_imut = quote! {
-        impl #impl_generics ::egui_struct::EguiStructImut for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructImut for #ty #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple;//is c-like enum
             type ConfigTypeImut<'a> = ();
             fn has_childs_imut(&self) -> ::std::primitive::bool {
@@ -443,7 +443,7 @@ fn handle_enum(
                 true
             }
             fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
-                use ::egui_struct::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
@@ -476,7 +476,7 @@ fn handle_enum(
     };
 
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::EguiStructMut for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructMut for #ty #ty_generics #where_clause {
             const SIMPLE_MUT: ::std::primitive::bool = #simple;//is c-like enum
             type ConfigTypeMut<'a> = ();
             fn has_childs_mut(&self) -> ::std::primitive::bool {
@@ -490,8 +490,8 @@ fn handle_enum(
             }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
-                use ::egui_struct::EguiStructMutInner;
-                use ::egui_struct::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
                 match self{
@@ -536,7 +536,7 @@ fn handle_enum(
     };
 
     let eclone = quote! {
-        impl #impl_generics ::egui_struct::EguiStructClone for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructClone for #ty #ty_generics #where_clause {
             fn eguis_clone(&mut self, source: &Self) {
                 match source{
                     #(#eclone_arm)*
@@ -546,7 +546,7 @@ fn handle_enum(
         }
     };
     let eeq = quote! {
-        impl #impl_generics ::egui_struct::EguiStructEq for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructEq for #ty #ty_generics #where_clause {
             fn eguis_eq(&self, rhs: &Self) -> ::std::primitive::bool {
                 let mut ret=true;
                 match self{
@@ -882,14 +882,14 @@ fn handle_struct(
         .unwrap_or(quote!(false));
 
     let egui_struct_imut = quote! {
-        impl #impl_generics ::egui_struct::EguiStructImut for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructImut for #name #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple_imut;
             type ConfigTypeImut<'a> = ();
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
             fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
-                use ::egui_struct::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
                 #(#fields_code)*
                 response
             }
@@ -902,15 +902,15 @@ fn handle_struct(
         }
     };
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::EguiStructMut for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructMut for #name #ty_generics #where_clause {
             const SIMPLE_MUT: ::std::primitive::bool = #simple;
             type ConfigTypeMut<'a> = ();
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_MUT
             }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
-                use ::egui_struct::EguiStructMutInner;
-                use ::egui_struct::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*
@@ -926,14 +926,14 @@ fn handle_struct(
     };
 
     let eclone = quote! {
-        impl #impl_generics ::egui_struct::EguiStructClone for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructClone for #name #ty_generics #where_clause {
             fn eguis_clone(&mut self, rhs: &Self) {
                 #(#fields_map_eclone)*
             }
         }
     };
     let eeq = quote! {
-        impl #impl_generics ::egui_struct::EguiStructEq for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructEq for #name #ty_generics #where_clause {
             fn eguis_eq(&self, rhs: &Self) -> ::std::primitive::bool {
                 let mut ret =true;
                 #( ret &= #fields_map_eeq )*
