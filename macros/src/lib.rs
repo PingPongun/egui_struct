@@ -443,6 +443,7 @@ fn handle_enum(
                 true
             }
             fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+                use ::egui_struct::EguiStructImutInner;
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
@@ -489,6 +490,8 @@ fn handle_enum(
             }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
+                use ::egui_struct::EguiStructMutInner;
+                use ::egui_struct::EguiStructImutInner;
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
                 match self{
@@ -886,6 +889,7 @@ fn handle_struct(
                !Self::SIMPLE_IMUT
             }
             fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+                use ::egui_struct::EguiStructImutInner;
                 #(#fields_code)*
                 response
             }
@@ -905,6 +909,8 @@ fn handle_struct(
                !Self::SIMPLE_MUT
             }
             fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+                use ::egui_struct::EguiStructMutInner;
+                use ::egui_struct::EguiStructImutInner;
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*

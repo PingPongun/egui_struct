@@ -3,7 +3,10 @@
 //! See [demo](https://github.com/PingPongun/egui_struct/tree/master/demo)
 
 use egui::{Button, Grid, Id, Response, ScrollArea, Ui, Widget, WidgetText};
-pub use egui_struct_macros::*;
+pub mod prelude {
+    pub use crate::EguiStruct;
+    pub use egui_struct_macros::*;
+}
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 
@@ -22,61 +25,18 @@ use egui26 as egui;
 #[cfg(feature = "egui27")]
 use egui27 as egui;
 
-macro_rules! generate_show {
-    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
-         $typ:ty, $config:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
-        /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
-        type $config<'a>: Default;
-
-        /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
-        const $SIMPLE: bool = true;
-
-        /// Indicates if data has childs section at the moment
-        fn $has_childs(&self) -> bool {
-            false
-        }
-
-        /// Indicates if data has primitive section at the moment
-        fn $has_primitive(&self) -> bool {
-            !self.$has_childs()
-        }
-
-        /// Show data in view contained ScrollArea&Grid
-        ///
-        /// You should rather not need to override default impl
-        fn $top_name(
-            self: $typ,
-            ui: &mut Ui,
-            label: impl Into<WidgetText> + Clone,
-            reset2: Option<&Self>,
-        ) -> Response
-        where
-            Self: 'static,
-        {
-            let label: WidgetText = label.into();
-            let id =
-                ui.make_persistent_id((label.text().to_string(), std::any::TypeId::of::<Self>()));
-            ScrollArea::vertical()
-                .show(ui, |ui| {
-                    Grid::new(id)
-                        .num_columns(2)
-                        .show(ui, |ui| {
-                            self.$collapsing_name(ui, label, "", -1, Default::default(), reset2, id)
-                        })
-                        .inner
-                })
-                .inner
-        }
-
+macro_rules! generate_show_collapsing {
+    ($show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
+         $typ:ty, $config:ident,$has_childs:ident) => {
         #[doc(hidden)]
-        fn $show_collapsing_inner_mut(
+        fn $show_collapsing_inner(
             self: $typ,
             ui: &mut Ui,
             label: impl Into<WidgetText> + Clone,
             hint: impl Into<WidgetText> + Clone,
             indent_level: isize,
             config: Self::$config<'_>,
-            _reset2: Option<&Self>,
+            reset2: Option<&Self>,
             parent_id: Id,
             start_collapsed: Option<bool>,
         ) -> Response {
@@ -127,11 +87,11 @@ macro_rules! generate_show {
                         #[allow(unused_mut)]
                         let mut ret = self.$primitive_name(ui, config, id);
                         macro_rules! reset {
-                            (show_collapsing_imut) => {
+                            (show_collapsing_inner_imut) => {
                                 ret
                             };
-                            (show_collapsing_mut) => {
-                                if let Some(reset2) = _reset2 {
+                            (show_collapsing_inner_mut) => {
+                                if let Some(reset2) = reset2 {
                                     if !reset2.eguis_eq(self) {
                                         let mut r = ui.button("⟲");
                                         if r.clicked() {
@@ -144,20 +104,51 @@ macro_rules! generate_show {
                                 ret
                             };
                         }
-                        reset! {$collapsing_name}
+                        reset! {$show_collapsing_inner}
                     })
                     .inner;
                 ui.end_row();
             }
 
             if has_childs && !collapsed {
-                ret = self.$childs_name(ui, indent_level + 1, ret, _reset2, id);
+                ret = self.$childs_name(ui, indent_level + 1, ret, reset2, id);
             }
             ret
         }
+    };
+}
 
-        /// Do not overide this method.
-        ///
+pub trait EguiStructMutInner: EguiStructMut {
+    generate_show_collapsing! { show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
+    &mut Self, ConfigTypeMut, has_childs_mut }
+}
+/// Trait, that allows generating immutable view of data (takes `&data`)
+pub trait EguiStructImutInner: EguiStructImut {
+    generate_show_collapsing! { show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
+    &Self, ConfigTypeImut, has_childs_imut }
+}
+impl<T: EguiStructMut + ?Sized> EguiStructMutInner for T {}
+impl<T: EguiStructImut + ?Sized> EguiStructImutInner for T {}
+
+macro_rules! generate_show {
+    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
+         $typ:ty, $config:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
+        /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
+        type $config<'a>: Default;
+
+        /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
+        const $SIMPLE: bool = true;
+
+        /// Indicates if data has childs section at the moment
+        fn $has_childs(&self) -> bool {
+            false
+        }
+
+        /// Indicates if data has primitive section at the moment
+        fn $has_primitive(&self) -> bool {
+            !self.$has_childs()
+        }
+
         /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
         fn $collapsing_name(
             self: $typ,
@@ -290,6 +281,102 @@ pub trait EguiStructImut {
     generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
     &Self, ConfigTypeImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
+macro_rules! generate_IntoEguiStruct {
+    ($typ:ty, $cfg_name:ident, $trait:ident) => {
+        fn $cfg_name(self: $typ) -> EguiStructWrapper<$typ>
+        where
+            Self: $trait,
+        {
+            EguiStructWrapper {
+                data: self,
+                label: Default::default(),
+                reset2: None,
+                scroll_area_auto_shrink: [true; 2],
+                #[cfg(not(feature = "egui21"))]
+                scroll_bar_visibility: Default::default(),
+                striped: None,
+            }
+        }
+    };
+}
+
+pub trait EguiStruct {
+    generate_IntoEguiStruct! {&mut Self, eguis_mut, EguiStructMut}
+    generate_IntoEguiStruct! {&Self, eguis_imut, EguiStructImut}
+}
+impl<T> EguiStruct for T {}
+#[non_exhaustive]
+pub struct EguiStructWrapper<'a, T: Deref> {
+    pub data: T,
+    pub label: WidgetText,
+    pub reset2: Option<&'a T::Target>,
+    pub scroll_area_auto_shrink: [bool; 2],
+    #[cfg(not(feature = "egui21"))]
+    pub scroll_bar_visibility: egui::scroll_area::ScrollBarVisibility,
+    pub striped: Option<bool>,
+}
+
+macro_rules! generate_EguiStruct_show {
+    ($collapsing_name:ident, $generic:ident, $typ:ty, $bound:ident) => {
+        impl<'a, $generic: $bound + ?Sized> EguiStructWrapper<'a, $typ> {
+            pub fn show(self, ui: &mut Ui) -> Response
+            where
+                $generic: 'static,
+            {
+                let id = ui.make_persistent_id((
+                    self.label.text().to_string(),
+                    std::any::TypeId::of::<$generic>(),
+                ));
+                ScrollArea::vertical()
+                    .id_source(id)
+                    .auto_shrink(self.scroll_area_auto_shrink)
+                    .show(ui, |ui| {
+                        let mut grid = Grid::new(id);
+                        if let Some(s) = self.striped {
+                            grid = grid.striped(s);
+                        }
+                        grid.show(ui, |ui| {
+                            self.data.$collapsing_name(
+                                ui,
+                                self.label,
+                                "",
+                                -1,
+                                Default::default(),
+                                self.reset2,
+                                id,
+                            )
+                        })
+                        .inner
+                    })
+                    .inner
+            }
+        }
+    };
+}
+generate_EguiStruct_show! {show_collapsing_mut, T, &mut T, EguiStructMut}
+generate_EguiStruct_show! {show_collapsing_imut, T, &T, EguiStructImut}
+
+impl<'a, T: Deref> EguiStructWrapper<'a, T> {
+    pub fn auto_shrink(mut self, val: [bool; 2]) -> Self {
+        self.scroll_area_auto_shrink = val;
+        self
+    }
+    pub fn label(mut self, label: impl Into<WidgetText> + Clone) -> Self {
+        self.label = label.into();
+        self
+    }
+    pub fn reset2(mut self, reset2: &'a T::Target) -> Self {
+        self.reset2 = Some(reset2);
+        self
+    }
+    pub fn striped(mut self, striped: bool) -> Self {
+        self.striped = Some(striped);
+        self
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 /// Config structure for mutable view of Numerics
 #[derive(Default)]
@@ -608,30 +695,29 @@ macro_rules! impl_vec {
     };
     (IMUT, $($typ:ty)*) => { $(impl_vec! {&Self, $typ, iter, show_collapsing_imut, show_childs_imut, start_collapsed_imut,
         EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut})* };
-    ($($typ:ty)*) => {
-        $(
-            impl_vec! {IMUT, $typ}
-            impl_vec! {&mut Self, $typ, iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
-                EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
+    ($typ:ty) => {
+        impl_vec! {IMUT, $typ}
+        impl_vec! {&mut Self, $typ, iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
+            EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
 
-            impl<T: EguiStructClone> EguiStructClone for $typ {
-                fn eguis_clone(&mut self, source: &Self) {
-                    //TODO update this if vector length can change
-                    self.iter_mut().zip(source.iter()).for_each(|(s,r)|s.eguis_clone(r))
-                }
+        impl<T: EguiStructClone> EguiStructClone for $typ {
+            fn eguis_clone(&mut self, source: &Self) {
+                //TODO update this if vector length can change
+                self.iter_mut().zip(source.iter()).for_each(|(s,r)|s.eguis_clone(r))
             }
-            impl<T: EguiStructEq> EguiStructEq for $typ  {
-                fn eguis_eq(&self, rhs: &Self) -> bool {
-                    let mut ret = self.len()==rhs.len();
-                    self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
-                    ret
-                }
+        }
+        impl<T: EguiStructEq> EguiStructEq for $typ  {
+            fn eguis_eq(&self, rhs: &Self) -> bool {
+                let mut ret = self.len()==rhs.len();
+                self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
+                ret
             }
-        )*
+        }
     };
 }
 
-impl_vec! {[T] Vec<T>}
+impl_vec! {[T]}
+impl_vec! {Vec<T>}
 impl_vec! {IMUT, std::collections::HashSet<T> }
 #[cfg(feature = "indexmap")]
 impl_vec! {IMUT, indexmap::IndexSet<T> }
@@ -683,7 +769,7 @@ macro_rules! impl_map {
 
         impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructClone> EguiStructClone for $typ {
             fn eguis_clone(&mut self, source: &Self) {
-                //this is very simplified implementation, that asummes that lenghts & keys are the same
+                //this is very simplified implementation, that assumes that lenghts & keys are the same
                 self.iter_mut().for_each(|(q, v)| {
                     if let Some(r) = source.get(q) {
                         v.eguis_clone(r)

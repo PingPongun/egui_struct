@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use egui::mutex::RwLock;
 use egui::RichText;
-use egui_struct::*;
+use egui_struct::{prelude::*, Combobox, ConfigNum};
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
 use ConfigNum::*;
@@ -255,7 +255,10 @@ impl eframe::App for DemoApp {
         let Self { data } = self;
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.style_mut().visuals.striped = true;
-            data.show_top_mut(ui, RichText::new("Data").heading(), None);
+            // data.show_top_mut(ui, RichText::new("Data").heading(), None);
+            data.eguis_mut()
+                .label(RichText::new("Data").heading())
+                .show(ui);
         });
     }
 }
