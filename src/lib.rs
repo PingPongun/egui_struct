@@ -17,6 +17,7 @@ pub mod trait_implementor_set {
         EguiStructMutInner,
     };
 }
+pub use exgrid;
 
 #[cfg(feature = "egui21")]
 use egui21 as egui;

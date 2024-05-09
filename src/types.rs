@@ -1,5 +1,6 @@
 use crate::egui;
 use egui::{Response, Ui};
+use exgrid::ExUi;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 /// Config structure for mutable view of Numerics
@@ -59,7 +60,7 @@ pub(crate) mod combobox {
 
         fn show_primitive_imut(
             self: &Self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             config: Self::ConfigTypeImut<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
@@ -92,37 +93,38 @@ pub(crate) mod combobox {
 
         fn show_primitive_mut(
             self: &mut Self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             config: Self::ConfigTypeMut<'_>,
             id: impl Hash + Clone,
         ) -> Response {
-            show_combobox(&mut self.0, ui, config, id)
+            show_combobox(&mut self.0, ui, config, ui.id())
         }
     }
 
     pub(crate) fn show_combobox<'a, T: Clone + ToString + PartialEq>(
         sel: &mut T,
-        ui: &mut Ui,
+        ui: &mut ExUi,
         config: Option<&'a mut dyn Iterator<Item = T>>,
         id: impl Hash + Clone,
     ) -> Response {
-        let defspacing = ui.spacing().item_spacing.clone();
-        ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-        let mut inner_response = ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
-        let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
-            .selected_text(sel.to_string())
-            .show_ui(ui, |ui| {
-                ui.spacing_mut().item_spacing = defspacing;
-                if let Some(config) = config {
-                    for i in config {
-                        let s = i.to_string();
-                        inner_response |= ui.selectable_value(sel, i, s);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+            let mut inner_response =
+                ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
+            let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
+                .selected_text(sel.to_string())
+                .show_ui(ui, |ui| {
+                    if let Some(config) = config {
+                        for i in config {
+                            let s = i.to_string();
+                            inner_response |= ui.selectable_value(sel, i, s);
+                        }
                     }
-                }
-            })
-            .response;
-        ui.spacing_mut().item_spacing = defspacing;
-        ret | inner_response
+                })
+                .response;
+            ret | inner_response
+        })
+        .inner
     }
     impl<T> Deref for Combobox<T> {
         type Target = T;

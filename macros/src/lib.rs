@@ -442,21 +442,32 @@ fn handle_enum(
             fn has_primitive_imut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
                 match self{
                     #(#show_childs_arm)*
                     _=>(),
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
                         #(#to_name_arm)*
                         _=>"".to_string()}
                 }
                 ui.horizontal(|ui|{
+                    let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
+                    let ui = &mut ui;
                     let mut response =ui.label(to_text(self));
                     match self{
                         #(#to_hint_arm)*
@@ -488,10 +499,19 @@ fn handle_enum(
             fn has_primitive_mut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 #![allow(unused)]
                 use ::egui_struct::trait_implementor_set::EguiStructMutInner;
                 use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
                 #reset_to_struct_default
                 #(#reset_to_struct_expr)*
                 match self{
@@ -500,7 +520,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
@@ -508,6 +528,8 @@ fn handle_enum(
                         _=>"".to_string()}
                 }
                 ui.horizontal(|ui|{
+                    let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
+                    let ui = &mut ui;
                     let defspacing=ui.spacing().item_spacing.clone();
                     ui.spacing_mut().item_spacing=::egui::vec2(0.0, 0.0);
                     let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
@@ -888,12 +910,21 @@ fn handle_struct(
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive_imut
             }
             fn start_collapsed_imut(&self) -> bool {
@@ -908,15 +939,24 @@ fn handle_struct(
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_MUT
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui::Ui, indent_level: ::std::primitive::isize, mut response: ::egui::Response, reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  reset2: ::std::option::Option<&Self>, id: ::egui::Id) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructMutInner;
                 use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
                 #reset_to_struct_default
                 #reset_to_struct_expr
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui::Ui, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>, id: impl ::std::hash::Hash + ::std::clone::Clone) -> ::egui::Response {
                 #show_primitive_mut
             }
             fn start_collapsed_mut(&self) -> bool {

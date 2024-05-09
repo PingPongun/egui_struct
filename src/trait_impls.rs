@@ -2,7 +2,8 @@ use crate::traits::*;
 use crate::types::combobox::show_combobox;
 use crate::types::*;
 use crate::*;
-use egui::{Id, Response, Ui, Widget};
+use egui::{Id, Response};
+use exgrid::{ExUi, ExWidgetConvinence};
 use std::hash::Hash;
 
 pub mod macros {
@@ -56,7 +57,7 @@ mod impl_numerics {
         $(
             impl EguiStructMut for $typ {
                 type ConfigTypeMut<'a> = ConfigNum<'a, $typ>;
-                fn show_primitive_mut(&mut self, ui: &mut Ui, config: Self::ConfigTypeMut<'_>, id: impl Hash  + Clone) -> Response {
+                fn show_primitive_mut(&mut self, ui: &mut ExUi, config: Self::ConfigTypeMut<'_>, id: impl Hash  + Clone) -> Response {
                     match config{
                         Self::ConfigTypeMut::NumDefault        =>  egui::DragValue::new(self).ui(ui),
                         Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
@@ -68,7 +69,7 @@ mod impl_numerics {
             }
             impl EguiStructImut for $typ {
                 type ConfigTypeImut<'a> = ConfigStrImut;
-                fn show_primitive_imut(&self, ui: &mut Ui, config: Self::ConfigTypeImut<'_>, _id: impl Hash  + Clone) -> Response {
+                fn show_primitive_imut(&self, ui: &mut ExUi, config: Self::ConfigTypeImut<'_>, _id: impl Hash  + Clone) -> Response {
                     self.to_string().as_str().show_primitive_imut(ui, config, ())
                 }
             }
@@ -83,13 +84,13 @@ mod impl_numerics {
     ($($t:ty)*) => ($(
         impl EguiStructImut for $t {
             type ConfigTypeImut<'a> = ();
-            fn show_primitive_imut(&self, ui: &mut Ui, _config: Self::ConfigTypeImut<'_>, _id: impl Hash + Clone) -> Response {
+            fn show_primitive_imut(&self, ui: &mut ExUi, _config: Self::ConfigTypeImut<'_>, _id: impl Hash + Clone) -> Response {
                 ui.label(self.to_string())
             }
         }
         impl EguiStructMut for $t {
             type ConfigTypeMut<'a> = ();
-            fn show_primitive_mut(&mut self, ui: &mut Ui, _config: Self::ConfigTypeMut<'_>, _id: impl Hash + Clone)-> Response  {
+            fn show_primitive_mut(&mut self, ui: &mut ExUi, _config: Self::ConfigTypeMut<'_>, _id: impl Hash + Clone)-> Response  {
                 let mut text = self.to_string();
                 let ret=ui.text_edit_singleline(&mut text);
                 if let Ok(value) = text.parse() {
@@ -107,7 +108,7 @@ mod impl_numerics {
         type ConfigTypeMut<'a> = ();
         fn show_primitive_mut(
             &mut self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             _config: Self::ConfigTypeMut<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
@@ -118,7 +119,7 @@ mod impl_numerics {
         type ConfigTypeImut<'a> = ();
         fn show_primitive_imut(
             &self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             _config: Self::ConfigTypeImut<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
@@ -134,7 +135,7 @@ mod impl_str {
         type ConfigTypeMut<'a> = ConfigStr<'a>;
         fn show_primitive_mut(
             &mut self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             config: Self::ConfigTypeMut<'_>,
             id: impl Hash + Clone,
         ) -> Response {
@@ -149,7 +150,7 @@ mod impl_str {
         type ConfigTypeImut<'a> = ConfigStrImut;
         fn show_primitive_imut(
             &self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             config: Self::ConfigTypeImut<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
@@ -162,10 +163,11 @@ mod impl_str {
         type ConfigTypeImut<'a> = ConfigStrImut;
         fn show_primitive_imut(
             mut self: &Self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             config: Self::ConfigTypeImut<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
+            // egui::TextEdit::singleline(&mut self).horizontal_align(egui::Align::Max)
             match config {
                 ConfigStrImut::NonSelectable => ui.label(self),
                 ConfigStrImut::Selectable => ui.text_edit_singleline(&mut self),
@@ -187,15 +189,15 @@ mod impl_option {
         }
         fn show_primitive_imut(
             &self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             _config: Self::ConfigTypeImut<'_>,
             id: impl Hash + Clone,
         ) -> Response {
             ui.horizontal(|ui| {
-                let mut ret = self.is_some().show_primitive_imut(ui, (), ());
+                let mut ret = self.is_some().show_primitive_imut(&mut ui.into(), (), ());
                 match (T::SIMPLE_IMUT, self) {
                     (true, Some(value)) => {
-                        ret |= value.show_primitive_imut(ui, Default::default(), id)
+                        ret |= value.show_primitive_imut(&mut ui.into(), Default::default(), id)
                     }
                     (true, None) => (),
                     (false, _) => (),
@@ -206,12 +208,21 @@ mod impl_option {
         }
         fn show_childs_imut(
             &self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             indent_level: isize,
-            mut response: Response,
             _reset2: Option<&Self>,
             id: Id,
         ) -> Response {
+            let mut response = ui.interact(
+                egui::Rect::NOTHING,
+                "dummy".into(),
+                egui::Sense {
+                    click: false,
+                    drag: false,
+                    focusable: false,
+                },
+            );
+
             if let Some(inner) = self {
                 if inner.has_primitive_imut() {
                     response |= inner.show_collapsing_imut(
@@ -224,7 +235,7 @@ mod impl_option {
                         id,
                     );
                 } else {
-                    response |= inner.show_childs_imut(ui, indent_level, response.clone(), None, id)
+                    response |= inner.show_childs_imut(ui, indent_level, None, id)
                 }
             }
             response
@@ -241,17 +252,17 @@ mod impl_option {
         }
         fn show_primitive_mut(
             &mut self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             _config: Self::ConfigTypeMut<'_>,
             id: impl Hash + Clone,
         ) -> Response {
             ui.horizontal(|ui| {
                 let mut checked = self.is_some();
-                let mut ret = checked.show_primitive_mut(ui, (), ());
+                let mut ret = checked.show_primitive_mut(&mut ui.into(), (), ());
 
                 match (checked, T::SIMPLE_MUT, self.as_mut()) {
                     (true, true, Some(value)) => {
-                        ret |= value.show_primitive_mut(ui, Default::default(), id)
+                        ret |= value.show_primitive_mut(&mut ui.into(), Default::default(), id)
                     }
                     (true, false, Some(_)) => (), //if inner is not simple, it will be shown below
                     (true, _, None) => *self = Some(T::default()),
@@ -263,12 +274,21 @@ mod impl_option {
         }
         fn show_childs_mut(
             &mut self,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             indent_level: isize,
-            mut response: Response,
             reset2: Option<&Self>,
             id: Id,
         ) -> Response {
+            let mut response = ui.interact(
+                egui::Rect::NOTHING,
+                "dummy".into(),
+                egui::Sense {
+                    click: false,
+                    drag: false,
+                    focusable: false,
+                },
+            );
+
             if let Some(inner) = self {
                 if inner.has_primitive_mut() {
                     response |= inner.show_collapsing_mut(
@@ -284,7 +304,6 @@ mod impl_option {
                     response |= inner.show_childs_mut(
                         ui,
                         indent_level,
-                        response.clone(),
                         reset2.unwrap_or(&None).as_ref(),
                         id,
                     )
@@ -372,12 +391,21 @@ mod impl_sets {
             }
             fn $childs_name(
                 self: $Self,
-                ui: &mut Ui,
+                ui: &mut ExUi,
                 indent_level: isize,
-                mut response: Response,
                 _reset2: Option<&Self>,
                 id: Id
             ) -> Response {
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
+
                 self.$iter().enumerate().for_each(|(idx, x)| {
                     response |= x.$collapsing_name(ui, idx.to_string(), "", indent_level, Default::default(), None, id)
                 });
@@ -453,11 +481,20 @@ mod impl_maps {
             }
             fn $childs_name(
                 self: $Self,
-                ui: &mut Ui,
+                ui: &mut ExUi,
                 indent_level: isize,
-                mut response: Response,
                 _reset2: Option<&Self>,id:Id
             ) -> Response {
+                let mut response = ui.interact(
+                    egui::Rect::NOTHING,
+                    "dummy".into(),
+                    egui::Sense {
+                        click: false,
+                        drag: false,
+                        focusable: false,
+                    },
+                );
+
                 self.$iter().for_each(|(q, v)| {
                     response |= v.$collapsing_name(
                         ui,

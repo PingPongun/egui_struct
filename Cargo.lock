@@ -687,6 +687,7 @@ dependencies = [
  "egui 0.26.2",
  "egui 0.27.2",
  "egui_struct_macros",
+ "exgrid",
  "indexmap",
 ]
 
@@ -883,6 +884,14 @@ checksum = "64f18991e7bf11e7ffee451b5318b5c1a73c52d0d0ada6e5a3017c8c1ced6a21"
 dependencies = [
  "libc",
  "str-buf",
+]
+
+[[package]]
+name = "exgrid"
+version = "0.1.0"
+dependencies = [
+ "egui 0.27.2",
+ "maybe-owned",
 ]
 
 [[package]]
@@ -1293,6 +1302,12 @@ checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "maybe-owned"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4facc753ae494aeb6e3c22f839b158aebd4f9270f55cd3c79906c45476c47ab4"
 
 [[package]]
 name = "memchr"

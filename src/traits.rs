@@ -1,5 +1,6 @@
 use crate::egui;
-use egui::{Button, Grid, Id, Response, ScrollArea, Ui, Widget, WidgetText};
+use egui::{Id, Response, RichText, ScrollArea, Ui};
+use exgrid::*;
 use std::hash::Hash;
 use std::ops::Deref;
 
@@ -9,89 +10,141 @@ macro_rules! generate_show_collapsing {
         #[doc(hidden)]
         fn $show_collapsing_inner(
             self: $typ,
-            ui: &mut Ui,
-            label: impl Into<WidgetText> + Clone,
-            hint: impl Into<WidgetText> + Clone,
+            ui: &mut ExUi,
+            label: impl Into<RichText> + Clone,
+            hint: impl Into<RichText> + Clone,
             indent_level: isize,
             config: Self::$config<'_>,
             reset2: Option<&Self>,
             parent_id: Id,
             start_collapsed: Option<bool>,
         ) -> Response {
-            let mut collapsed = false;
+            // let mut collapsed = false;
             let has_childs = self.$has_childs();
-            let id = parent_id.with(label.clone().into().text());
-            let label = label.into();
-            let mut ret = ui.interact(
-                egui::Rect::NOTHING,
-                "dummy".into(),
-                egui::Sense {
-                    click: false,
-                    drag: false,
-                    focusable: false,
-                },
-            );
-            if !label.is_empty() || indent_level != -1 {
-                ui.horizontal(|ui| {
-                    if indent_level >= 0 {
-                        for _ in 0..indent_level {
-                            ui.separator();
-                        }
-                        if has_childs {
-                            let id = id.with("__EguiStruct_collapsing_state");
-                            collapsed = ui.data_mut(|d| {
-                                d.get_temp_mut_or_insert_with(id, || {
-                                    start_collapsed.unwrap_or(self.$start_collapsed())
-                                })
-                                .clone()
-                            });
-                            let icon = if collapsed { "⏵" } else { "⏷" };
-                            if Button::new(icon).frame(false).small().ui(ui).clicked() {
-                                ui.data_mut(|d| d.insert_temp(id, !collapsed));
+
+            // let id = parent_id.with(label.clone().into().text());
+            if has_childs {
+                ui.collapsing_rows_initial_state(|| {
+                    start_collapsed.unwrap_or(self.$start_collapsed())
+                });
+            }
+            let header = |ui: &mut ExUi| {
+                let lab = ui.extext(label);
+                let hint = hint.into();
+                if !hint.is_empty() {
+                    lab.on_hover_text(hint);
+                }
+                let id = ui.id();
+                // ui.horizontal(|ui| {
+                #[allow(unused_mut)]
+                let mut ret = self.$primitive_name(ui, config, id);
+                macro_rules! reset {
+                    (show_collapsing_inner_imut) => {
+                        ret
+                    };
+                    (show_collapsing_inner_mut) => {
+                        if let Some(reset2) = reset2 {
+                            if !reset2.eguis_eq(self) {
+                                let mut r = ui.button("⟲");
+                                if r.clicked() {
+                                    self.eguis_clone(reset2);
+                                    r.mark_changed();
+                                }
+                                ret |= r;
                             }
                         }
-                    }
-                    let mut lab = ui.label(label);
-                    let hint = hint.into();
-                    if !hint.is_empty() {
-                        lab = lab.on_hover_text(hint);
-                    }
-                    lab
-                });
-
-                ret = ui
-                    .horizontal(|ui| {
-                        let id = id.with("__EguiStruct_primitive");
-                        #[allow(unused_mut)]
-                        let mut ret = self.$primitive_name(ui, config, id);
-                        macro_rules! reset {
-                            (show_collapsing_inner_imut) => {
-                                ret
-                            };
-                            (show_collapsing_inner_mut) => {
-                                if let Some(reset2) = reset2 {
-                                    if !reset2.eguis_eq(self) {
-                                        let mut r = ui.button("⟲");
-                                        if r.clicked() {
-                                            self.eguis_clone(reset2);
-                                            r.mark_changed();
-                                        }
-                                        ret |= r;
-                                    }
-                                }
-                                ret
-                            };
-                        }
-                        reset! {$show_collapsing_inner}
-                    })
-                    .inner;
+                        ret
+                    };
+                }
+                // ret
+                reset! {$show_collapsing_inner}
+                // })
+                // .inner
+            };
+            if has_childs {
+                let header_resp = ui.collapsing_rows_header(header);
+                ui.collapsing_rows_body(|ui| {
+                    self.$childs_name(ui, indent_level + 1, reset2, ui.id())
+                })
+                .map(|b| b | header_resp.clone())
+                .unwrap_or(header_resp)
+            } else {
+                let ret = header(ui);
                 ui.end_row();
+                ret
             }
 
-            if has_childs && !collapsed {
-                ret = self.$childs_name(ui, indent_level + 1, ret, reset2, id);
-            }
-            ret
+            // let label = label.into();
+            // let mut ret = ui.interact(
+            //     egui::Rect::NOTHING,
+            //     "dummy".into(),
+            //     egui::Sense {
+            //         click: false,
+            //         drag: false,
+            //         focusable: false,
+            //     },
+            // );
+            // if !label.is_empty() || indent_level != -1 {
+            //     ui.horizontal(|ui| {
+            //         if indent_level >= 0 {
+            //             for _ in 0..indent_level {
+            //                 ui.separator();
+            //             }
+            //             if has_childs {
+            //                 let id = id.with("__EguiStruct_collapsing_state");
+            //                 collapsed = ui.data_mut(|d| {
+            //                     d.get_temp_mut_or_insert_with(id, || {
+            //                         start_collapsed.unwrap_or(self.$start_collapsed())
+            //                     })
+            //                     .clone()
+            //                 });
+            //                 let icon = if collapsed { "⏵" } else { "⏷" };
+            //                 if Button::new(icon).frame(false).small().ui(ui).clicked() {
+            //                     ui.data_mut(|d| d.insert_temp(id, !collapsed));
+            //                 }
+            //             }
+            //         }
+            //         let mut lab = ui.label(label);
+            //         let hint = hint.into();
+            //         if !hint.is_empty() {
+            //             lab = lab.on_hover_text(hint);
+            //         }
+            //         lab
+            //     });
+
+            //     ret = ui
+            //         .horizontal(|ui| {
+            //             let id = id.with("__EguiStruct_primitive");
+            //             #[allow(unused_mut)]
+            //             let mut ret = self.$primitive_name(ui, config, id);
+            //             macro_rules! reset {
+            //                 (show_collapsing_inner_imut) => {
+            //                     ret
+            //                 };
+            //                 (show_collapsing_inner_mut) => {
+            //                     if let Some(reset2) = reset2 {
+            //                         if !reset2.eguis_eq(self) {
+            //                             let mut r = ui.button("⟲");
+            //                             if r.clicked() {
+            //                                 self.eguis_clone(reset2);
+            //                                 r.mark_changed();
+            //                             }
+            //                             ret |= r;
+            //                         }
+            //                     }
+            //                     ret
+            //                 };
+            //             }
+            //             reset! {$show_collapsing_inner}
+            //         })
+            //         .inner;
+            //     ui.end_row();
+            // }
+
+            // if has_childs && !collapsed {
+            //     ret = self.$childs_name(ui, indent_level + 1, ret, reset2, id);
+            // }
+            // ret
         }
     };
 }
@@ -130,9 +183,9 @@ macro_rules! generate_show {
         /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
         fn $collapsing_name(
             self: $typ,
-            ui: &mut Ui,
-            label: impl Into<WidgetText> + Clone,
-            hint: impl Into<WidgetText> + Clone,
+            ui: &mut ExUi,
+            label: impl Into<RichText> + Clone,
+            hint: impl Into<RichText> + Clone,
             indent_level: isize,
             config: Self::$config<'_>,
             reset2: Option<&Self>,
@@ -155,7 +208,7 @@ macro_rules! generate_show {
         /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive) with default impl
         fn $primitive_name(
             self: $typ,
-            ui: &mut Ui,
+            ui: &mut ExUi,
             _config: Self::$config<'_>,
             _id: impl Hash + Clone,
         ) -> Response {
@@ -167,9 +220,9 @@ macro_rules! generate_show {
         /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStructMut::has_childs) with default impl
         fn $childs_name(
             self: $typ,
-            _ui: &mut Ui,
+            _ui: &mut ExUi,
             _indent_level: isize,
-            _response: Response,
+            // _response: Response,
             _reset2: Option<&Self>,
             _parent_id: Id,
         ) -> Response {
@@ -354,7 +407,7 @@ impl<T> EguiStruct for T {}
 #[non_exhaustive]
 pub struct EguiStructWrapper<'a, T: Deref> {
     pub data: T,
-    pub label: WidgetText,
+    pub label: RichText,
     pub reset2: Option<&'a T::Target>,
     pub scroll_area_auto_shrink: [bool; 2],
     #[cfg(not(feature = "egui21"))]
@@ -377,7 +430,7 @@ macro_rules! generate_EguiStruct_show {
                     .id_source(id)
                     .auto_shrink(self.scroll_area_auto_shrink)
                     .show(ui, |ui| {
-                        let mut grid = Grid::new(id);
+                        let mut grid = ExGrid::new(id);
                         if let Some(s) = self.striped {
                             grid = grid.striped(s);
                         }
@@ -407,7 +460,7 @@ impl<'a, T: Deref> EguiStructWrapper<'a, T> {
         self.scroll_area_auto_shrink = val;
         self
     }
-    pub fn label(mut self, label: impl Into<WidgetText> + Clone) -> Self {
+    pub fn label(mut self, label: impl Into<RichText> + Clone) -> Self {
         self.label = label.into();
         self
     }
