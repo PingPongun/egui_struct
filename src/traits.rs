@@ -394,6 +394,7 @@ macro_rules! generate_IntoEguiStruct {
                 #[cfg(not(feature = "egui21"))]
                 scroll_bar_visibility: Default::default(),
                 striped: None,
+                view_mode: Default::default(),
             }
         }
     };
@@ -413,6 +414,7 @@ pub struct EguiStructWrapper<'a, T: Deref> {
     #[cfg(not(feature = "egui21"))]
     pub scroll_bar_visibility: egui::scroll_area::ScrollBarVisibility,
     pub striped: Option<bool>,
+    pub view_mode: exgrid::GridMode,
 }
 
 macro_rules! generate_EguiStruct_show {
@@ -434,18 +436,19 @@ macro_rules! generate_EguiStruct_show {
                         if let Some(s) = self.striped {
                             grid = grid.striped(s);
                         }
-                        grid.show(ui, |ui| {
-                            self.data.$collapsing_name(
-                                ui,
-                                self.label,
-                                "",
-                                -1,
-                                Default::default(),
-                                self.reset2,
-                                id,
-                            )
-                        })
-                        .inner
+                        grid.mode(self.view_mode)
+                            .show(ui, |ui| {
+                                self.data.$collapsing_name(
+                                    ui,
+                                    self.label,
+                                    "",
+                                    -1,
+                                    Default::default(),
+                                    self.reset2,
+                                    id,
+                                )
+                            })
+                            .inner
                     })
                     .inner
             }
@@ -460,16 +463,24 @@ impl<'a, T: Deref> EguiStructWrapper<'a, T> {
         self.scroll_area_auto_shrink = val;
         self
     }
+
     pub fn label(mut self, label: impl Into<RichText> + Clone) -> Self {
         self.label = label.into();
         self
     }
+
     pub fn reset2(mut self, reset2: &'a T::Target) -> Self {
         self.reset2 = Some(reset2);
         self
     }
+
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = Some(striped);
+        self
+    }
+
+    pub fn view_mode(mut self, view_mode: exgrid::GridMode) -> Self {
+        self.view_mode = view_mode;
         self
     }
 }

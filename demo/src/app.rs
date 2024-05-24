@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use egui::mutex::RwLock;
 use egui::RichText;
+use egui_struct::exgrid::GridMode;
 use egui_struct::prelude::*;
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
@@ -258,6 +259,7 @@ impl eframe::App for DemoApp {
             // data.show_top_mut(ui, RichText::new("Data").heading(), None);
             data.eguis_mut()
                 .label(RichText::new("Data").heading())
+                .view_mode(GridMode::Traditional)
                 .show(ui);
         });
     }
