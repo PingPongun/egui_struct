@@ -1,7 +1,6 @@
 use crate::egui;
-use egui::{Response, Ui};
+use egui::Response;
 use exgrid::ExUi;
-use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
 /// Config structure for mutable view of Numerics
 #[derive(Default)]
@@ -62,9 +61,8 @@ pub(crate) mod combobox {
             self: &Self,
             ui: &mut ExUi,
             config: Self::ConfigTypeImut<'_>,
-            _id: impl Hash + Clone,
         ) -> Response {
-            self.0.to_string().show_primitive_imut(ui, config, ())
+            self.0.to_string().show_primitive_imut(ui, config)
         }
     }
     // impl<T: Clone + PartialEq> EguiStructResetable for Combobox<T> {
@@ -95,9 +93,8 @@ pub(crate) mod combobox {
             self: &mut Self,
             ui: &mut ExUi,
             config: Self::ConfigTypeMut<'_>,
-            id: impl Hash + Clone,
         ) -> Response {
-            show_combobox(&mut self.0, ui, config, ui.id())
+            show_combobox(&mut self.0, ui, config)
         }
     }
 
@@ -105,8 +102,8 @@ pub(crate) mod combobox {
         sel: &mut T,
         ui: &mut ExUi,
         config: Option<&'a mut dyn Iterator<Item = T>>,
-        id: impl Hash + Clone,
     ) -> Response {
+        let id = ui.id();
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
             let mut inner_response =
