@@ -474,6 +474,16 @@ fn handle_enum(
         }
     };
 
+    #[cfg(feature = "egui28")]
+    let egui_struct_mut_combobox = quote! {
+        ::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox"))
+            .wrap_mode(::egui::TextWrapMode::Extend)
+    };
+    #[cfg(not(feature = "egui28"))]
+    let egui_struct_mut_combobox = quote! {
+        ::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
+    };
+
     let egui_struct_mut = quote! {
         impl #impl_generics ::egui_struct::EguiStruct for #ty #ty_generics #where_clause {
             const SIMPLE: ::std::primitive::bool = #simple;//is c-like enum
@@ -507,13 +517,17 @@ fn handle_enum(
                 ui.horizontal(|ui|{
                     let defspacing=ui.spacing().item_spacing.clone();
                     ui.spacing_mut().item_spacing=::egui::vec2(0.0, 0.0);
-                    let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
-                    let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
-                    .selected_text(to_text(self))
-                    .show_ui(ui,|ui|{
-                        ui.spacing_mut().item_spacing=defspacing;
-                        #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
-                    }).response;
+
+                    let ::egui::InnerResponse{ inner, mut response}=
+                        #egui_struct_mut_combobox
+                        .selected_text(to_text(self))
+                        .show_ui(ui,|ui|{
+                            let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
+                            ui.spacing_mut().item_spacing=defspacing;
+                            #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
+                            inner_response
+                        });
+
                     ui.spacing_mut().item_spacing=defspacing;
                     match self{
                         #(#to_hint_arm)*
@@ -523,7 +537,12 @@ fn handle_enum(
                         #(#show_primitive_mut_arm)*
                         _=>(),
                     }
-                    response | inner_response
+                    if let Some(mut iresp) = inner{
+                        iresp.layer_id = response.layer_id;
+                        response | iresp
+                    }else{
+                        response
+                    }
                 }).inner
             }
             fn start_collapsed(&self) -> bool {

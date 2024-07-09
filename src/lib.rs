@@ -21,6 +21,8 @@ use egui25 as egui;
 use egui26 as egui;
 #[cfg(feature = "egui27")]
 use egui27 as egui;
+#[cfg(feature = "egui28")]
+use egui28 as egui;
 
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
@@ -309,6 +311,9 @@ macro_rules! impl_num_primitives {
                 fn show_primitive(&mut self, ui: &mut Ui, config: Self::ConfigType<'_>, id: impl Hash  + Clone) -> Response {
                     match config{
                         Self::ConfigType::NumDefault        =>  egui::DragValue::new(self).ui(ui),
+                        #[cfg(feature = "egui28")]
+                        Self::ConfigType::DragValue(min,max)=>  egui::DragValue::new(self).range(min..=max).ui(ui),
+                        #[cfg(not(feature = "egui28"))]
                         Self::ConfigType::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
                         Self::ConfigType::Slider(min,max)   =>  egui::Slider::new(self, min..=max).ui(ui),
                         Self::ConfigType::SliderStep(min,max,step)   =>  egui::Slider::new(self, min..=max).step_by(step as f64).ui(ui),
@@ -774,21 +779,28 @@ fn show_combobox<'a, T: Clone + ToString + PartialEq>(
 ) -> Response {
     let defspacing = ui.spacing().item_spacing.clone();
     ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-    let mut inner_response = ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
-    let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
-        .selected_text(sel.to_string())
-        .show_ui(ui, |ui| {
-            ui.spacing_mut().item_spacing = defspacing;
-            if let Some(config) = config {
-                for i in config {
-                    let s = i.to_string();
-                    inner_response |= ui.selectable_value(sel, i, s);
+    let egui::InnerResponse { inner, response } =
+        egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
+            .selected_text(sel.to_string())
+            .show_ui(ui, |ui| {
+                let mut inner_response =
+                    ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
+                ui.spacing_mut().item_spacing = defspacing;
+                if let Some(config) = config {
+                    for i in config {
+                        let s = i.to_string();
+                        inner_response |= ui.selectable_value(sel, i, s);
+                    }
                 }
-            }
-        })
-        .response;
+                inner_response
+            });
     ui.spacing_mut().item_spacing = defspacing;
-    ret | inner_response
+    if let Some(mut iresp) = inner {
+        iresp.layer_id = response.layer_id;
+        response | iresp
+    } else {
+        response
+    }
 }
 impl<T> Deref for Combobox<T> {
     type Target = T;
