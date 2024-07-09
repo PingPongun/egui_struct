@@ -1,86 +1,94 @@
-use crate::egui;
+use crate::{egui, labeled_primitive_imut, labeled_primitive_mut};
 use egui::{Response, RichText, ScrollArea, Ui};
 use exgrid::*;
 use std::ops::Deref;
 
 macro_rules! generate_show_collapsing {
-    ($show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
+    ($show_collapsing:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
          $typ:ty, $config:ident,$has_childs:ident) => {
-        #[doc(hidden)]
-        fn $show_collapsing_inner(
+        /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
+        type $config<'a>: Default;
+        /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
+        fn $show_collapsing(
             self: $typ,
             ui: &mut ExUi,
             label: impl Into<RichText> + Clone,
             hint: impl Into<RichText> + Clone,
-            indent_level: isize,
             config: Self::$config<'_>,
             reset2: Option<&Self>,
             start_collapsed: Option<bool>,
-        ) -> Response {
-            let has_childs = self.$has_childs();
-
-            if has_childs {
-                ui.collapsing_rows_initial_state(|| {
-                    start_collapsed.unwrap_or(self.$start_collapsed())
-                });
-            }
-            let header = |ui: &mut ExUi| {
-                let lab = ui.extext(label);
-                let hint = hint.into();
-                if !hint.is_empty() {
-                    lab.on_hover_text(hint);
-                }
-                // ui.horizontal(|ui| {
-                #[allow(unused_mut)]
-                let mut ret = self.$primitive_name(ui, config);
-                macro_rules! reset {
-                    (show_collapsing_inner_imut) => {
-                        ret
-                    };
-                    (show_collapsing_inner_mut) => {
-                        if let Some(reset2) = reset2 {
-                            if !reset2.eguis_eq(self) {
-                                let mut r = ui.button("⟲");
-                                if r.clicked() {
-                                    self.eguis_clone(reset2);
-                                    r.mark_changed();
-                                }
-                                ret |= r;
-                            }
-                        }
-                        ret
-                    };
-                }
-                // ret
-                reset! {$show_collapsing_inner}
-                // })
-                // .inner
-            };
-            if has_childs {
-                let header_resp = ui.collapsing_rows_header(header);
-                ui.collapsing_rows_body(|ui| self.$childs_name(ui, indent_level + 1, reset2))
-                    .map(|b| b | header_resp.clone())
-                    .unwrap_or(header_resp)
-            } else {
-                let ret = header(ui);
-                ui.end_row();
-                ret
-            }
-        }
+        ) -> Response;
     };
 }
 
-pub trait EguiStructMutInner: EguiStructMut {
-    generate_show_collapsing! { show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
+pub trait EguiStructMut {
+    generate_show_collapsing! { show_collapsing_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
     &mut Self, ConfigTypeMut, has_childs_mut }
 }
 /// Trait, that allows generating immutable view of data (takes `&data`)
-pub trait EguiStructImutInner: EguiStructImut {
-    generate_show_collapsing! { show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
+pub trait EguiStructImut {
+    generate_show_collapsing! { show_collapsing_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
     &Self, ConfigTypeImut, has_childs_imut }
 }
-impl<T: EguiStructMut + ?Sized> EguiStructMutInner for T {}
-impl<T: EguiStructImut + ?Sized> EguiStructImutInner for T {}
+impl<T: EguiStructSplitMut + ?Sized> EguiStructMut for T {
+    /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
+    type ConfigTypeMut<'a> = T::ConfigTypeSplitMut<'a>;
+
+    /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
+    fn show_collapsing_mut(
+        self: &mut Self,
+        ui: &mut ExUi,
+        label: impl Into<RichText> + Clone,
+        hint: impl Into<RichText> + Clone,
+        config: Self::ConfigTypeMut<'_>,
+        reset2: Option<&Self>,
+        start_collapsed: Option<bool>,
+    ) -> Response {
+        let has_childs = self.has_childs_mut();
+        // ui.maybe_collapsing_rows(has_childs, |ui| {
+        //     labeled_primitive_mut(self, ui, label, hint, config, reset2)
+        // })
+        // .initial_state(|| start_collapsed.unwrap_or(self.start_collapsed_mut()))
+        // .body_simple(|ui| self.show_childs_mut(ui, reset2))
+        if has_childs {
+            ui.start_collapsing()
+        }
+        // ui.maybe_collapsing_rows(has_childs, |ui| {
+        let mut ret = labeled_primitive_mut(self, ui, label, hint, config, reset2);
+        // })
+        // .initial_state(|| start_collapsed.unwrap_or(self.start_collapsed_mut()))
+        // .body_simple(|ui|
+        if has_childs {
+            ret |= self.show_childs_mut(ui, reset2);
+            // )
+            ui.stop_collapsing();
+        }
+        ret
+    }
+}
+
+impl<T: EguiStructSplitImut + ?Sized> EguiStructImut for T {
+    /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
+    type ConfigTypeImut<'a> = T::ConfigTypeSplitImut<'a>;
+
+    /// Use it when implementing [.show_childs_imut()](EguiStructImut::show_childs_imut) to display single nested element
+    fn show_collapsing_imut(
+        self: &Self,
+        ui: &mut ExUi,
+        label: impl Into<RichText> + Clone,
+        hint: impl Into<RichText> + Clone,
+        config: Self::ConfigTypeImut<'_>,
+        reset2: Option<&Self>,
+        start_collapsed: Option<bool>,
+    ) -> Response {
+        let has_childs = self.has_childs_imut();
+        ui.maybe_collapsing_rows(has_childs, |ui| {
+            labeled_primitive_imut(self, ui, label, hint, config)
+        })
+        .initial_state(|| start_collapsed.unwrap_or(self.start_collapsed_imut()))
+        .body_simple(|ui| self.show_childs_imut(ui, reset2))
+    }
+}
 
 macro_rules! generate_show {
     ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
@@ -101,36 +109,18 @@ macro_rules! generate_show {
             !self.$has_childs()
         }
 
-        /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
-        fn $collapsing_name(
-            self: $typ,
-            ui: &mut ExUi,
-            label: impl Into<RichText> + Clone,
-            hint: impl Into<RichText> + Clone,
-            indent_level: isize,
-            config: Self::$config<'_>,
-            reset2: Option<&Self>,
-        ) -> Response {
-            self.$show_collapsing_inner_mut(ui, label, hint, indent_level, config, reset2, None)
-        }
-
         /// UI elements shown in the same line as label
         ///
         /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive) with default impl
         fn $primitive_name(self: $typ, ui: &mut ExUi, _config: Self::$config<'_>) -> Response {
-            ui.label("")
+            ui.dummy_response()
         }
 
         /// UI elements related to nested data, that is show inside collapsible rows
         ///
         /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStructMut::has_childs) with default impl
-        fn $childs_name(
-            self: $typ,
-            _ui: &mut ExUi,
-            _indent_level: isize,
-            _reset2: Option<&Self>,
-        ) -> Response {
-            unreachable!()
+        fn $childs_name(self: $typ, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+            ui.dummy_response()
         }
 
         /// Controls if struct is initally collapsed/uncollapsed (if "show_childs_mut" is shown by default)
@@ -275,14 +265,15 @@ pub trait EguiStructEq {
 /// Trait, that allows generating mutable view of data (takes `&mut data`)
 ///
 ///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top_mut()`](Self::show_top_mut), which displays struct inside scroll area.
-pub trait EguiStructMut: EguiStructClone + EguiStructEq {
+pub trait EguiStructSplitMut: EguiStructClone + EguiStructEq {
     generate_show! { show_top_mut, show_collapsing_mut, show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
-    &mut Self, ConfigTypeMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
+    &mut Self, ConfigTypeSplitMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
 }
+
 /// Trait, that allows generating immutable view of data (takes `&data`)
-pub trait EguiStructImut {
+pub trait EguiStructSplitImut {
     generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
-    &Self, ConfigTypeImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
+    &Self, ConfigTypeSplitImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
 }
 macro_rules! generate_IntoEguiStruct {
     ($typ:ty, $cfg_name:ident, $trait:ident) => {
@@ -346,9 +337,9 @@ macro_rules! generate_EguiStruct_show {
                                     ui,
                                     self.label,
                                     "",
-                                    -1,
                                     Default::default(),
                                     self.reset2,
+                                    None,
                                 )
                             })
                             .inner

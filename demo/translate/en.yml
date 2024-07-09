@@ -33,6 +33,7 @@ Data.optional: Optional
 Data.optional.__hint.: This is Option<_>
 Data.optional_string: Optional string
 Data.optional_string.__hint.: This is also Option, but as inner value is simple it is presented inline
+Data.optional_optional: Optional Optional
 Data.primary_color: Primary color
 Data.secondary_color: Secondary color
 Data.static_combobox: Static combobox

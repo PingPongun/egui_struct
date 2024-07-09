@@ -54,13 +54,13 @@ pub(crate) mod combobox {
     use crate::types::*;
     pub struct Combobox<T>(pub T);
 
-    impl<T: ToString> EguiStructImut for Combobox<T> {
-        type ConfigTypeImut<'a> = ConfigStrImut;
+    impl<T: ToString> EguiStructSplitImut for Combobox<T> {
+        type ConfigTypeSplitImut<'a> = ConfigStrImut;
 
         fn show_primitive_imut(
             self: &Self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeImut<'_>,
+            config: Self::ConfigTypeSplitImut<'_>,
         ) -> Response {
             self.0.to_string().show_primitive_imut(ui, config)
         }
@@ -86,13 +86,13 @@ pub(crate) mod combobox {
             self.0.eq(&rhs.0)
         }
     }
-    impl<T: Clone + ToString + PartialEq + 'static> EguiStructMut for Combobox<T> {
-        type ConfigTypeMut<'a> = Option<&'a mut dyn Iterator<Item = T>>;
+    impl<T: Clone + ToString + PartialEq + 'static> EguiStructSplitMut for Combobox<T> {
+        type ConfigTypeSplitMut<'a> = Option<&'a mut dyn Iterator<Item = T>>;
 
         fn show_primitive_mut(
             self: &mut Self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeMut<'_>,
+            config: Self::ConfigTypeSplitMut<'_>,
         ) -> Response {
             show_combobox(&mut self.0, ui, config)
         }
@@ -103,25 +103,24 @@ pub(crate) mod combobox {
         ui: &mut ExUi,
         config: Option<&'a mut dyn Iterator<Item = T>>,
     ) -> Response {
+        if ui.collapsed() {
+            return ui.dummy_response();
+        }
         let id = ui.id();
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-            let mut inner_response =
-                ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
-            let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
-                .selected_text(sel.to_string())
-                .show_ui(ui, |ui| {
-                    if let Some(config) = config {
-                        for i in config {
-                            let s = i.to_string();
-                            inner_response |= ui.selectable_value(sel, i, s);
-                        }
+        ui.keep_cell_start();
+        let mut inner_response = ui.dummy_response();
+        let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
+            .selected_text(sel.to_string())
+            .show_ui(ui, |ui| {
+                if let Some(config) = config {
+                    for i in config {
+                        let s = i.to_string();
+                        inner_response |= ui.selectable_value(sel, i, s);
                     }
-                })
-                .response;
-            ret | inner_response
-        })
-        .inner
+                }
+            })
+            .response;
+        ret | inner_response
     }
     impl<T> Deref for Combobox<T> {
         type Target = T;

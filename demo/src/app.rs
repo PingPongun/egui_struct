@@ -80,9 +80,7 @@ pub struct Data {
 
     #[eguis(on_change = Language::set_locale)]
     app_language: Language,
-
     hashmap: std::collections::HashMap<String, String>,
-
     #[eguis(resetable(with_expr = "Resetable with expr".to_string()))]
     string: String,
 
@@ -153,13 +151,11 @@ pub struct Data {
     unnamed_struct: TupleStruct,
     primary_color: Color,
     secondary_color: Color,
-
     #[eguis(hint = "This is Option<_>", start_collapsed = true)]
     optional: Option<SubData>,
-
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
-
+    optional_optional: Option<Option<String>>,
     list: Vec<Color>,
 }
 
@@ -203,6 +199,7 @@ impl Default for Data {
             secondary_color: Color::default(),
             optional: Some(SubData::default()),
             optional_string: Some("<- hover label".to_string()),
+            optional_optional: Some(Some("..".to_string())),
             list: vec![
                 Color::Red,
                 Color::Green,
@@ -259,7 +256,7 @@ impl eframe::App for DemoApp {
             // data.show_top_mut(ui, RichText::new("Data").heading(), None);
             data.eguis_mut()
                 .label(RichText::new("Data").heading())
-                .view_mode(GridMode::Traditional)
+                // .view_mode(GridMode::Traditional)
                 .show(ui);
         });
     }

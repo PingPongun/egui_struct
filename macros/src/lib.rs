@@ -430,9 +430,9 @@ fn handle_enum(
         .unwrap_or(quote!(false));
 
     let egui_struct_imut = quote! {
-        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructImut for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructSplitImut for #ty #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple;//is c-like enum
-            type ConfigTypeImut<'a> = ();
+            type ConfigTypeSplitImut<'a> = ();
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                 match self{
                     #(#has_childs_arm)* //variant1=>false,
@@ -442,8 +442,8 @@ fn handle_enum(
             fn has_primitive_imut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -459,26 +459,25 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeSplitImut<'_>) -> ::egui::Response {
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
                         #(#to_name_arm)*
                         _=>"".to_string()}
                 }
-                ui.horizontal(|ui|{
-                    let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
-                    let ui = &mut ui;
-                    let mut response =ui.label(to_text(self));
-                    match self{
-                        #(#to_hint_arm)*
-                        _=>(),
-                    }
-                    match self{
-                        #(#show_primitive_arm)*
-                        _=>(),
-                    }
-                    response
-                }).inner
+                ui.keep_cell_start();
+                // let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
+                // let ui = &mut ui;
+                let mut response =ui.label(to_text(self));
+                match self{
+                    #(#to_hint_arm)*
+                    _=>(),
+                }
+                match self{
+                    #(#show_primitive_arm)*
+                    _=>(),
+                }
+                response
             }
             fn start_collapsed_imut(&self) -> bool {
                 #start_collapsed
@@ -487,9 +486,9 @@ fn handle_enum(
     };
 
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructMut for #ty #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructSplitMut for #ty #ty_generics #where_clause {
             const SIMPLE_MUT: ::std::primitive::bool = #simple;//is c-like enum
-            type ConfigTypeMut<'a> = ();
+            type ConfigTypeSplitMut<'a> = ();
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                 match self{
                     #(#has_childs_mut_arm)* //variant1=>false,
@@ -499,10 +498,10 @@ fn handle_enum(
             fn has_primitive_mut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 #![allow(unused)]
-                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructMut;
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -520,7 +519,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeSplitMut<'_>) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
@@ -528,29 +527,25 @@ fn handle_enum(
                         _=>"".to_string()}
                 }
                 let id = ui.id();
-                ui.horizontal(|ui|{
-                    let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
-                    let ui = &mut ui;
-                    let defspacing=ui.spacing().item_spacing.clone();
-                    ui.spacing_mut().item_spacing=::egui::vec2(0.0, 0.0);
-                    let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
-                    let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
+                ui.keep_cell_start();
+                // let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
+                // let ui = &mut ui;
+                let mut inner_response=ui.dummy_response();
+                let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
-                        ui.spacing_mut().item_spacing=defspacing;
                         #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
                     }).response;
-                    ui.spacing_mut().item_spacing=defspacing;
-                    match self{
-                        #(#to_hint_arm)*
-                        _=>(),
-                    }
-                    match self{
-                        #(#show_primitive_mut_arm)*
-                        _=>(),
-                    }
-                    response | inner_response
-                }).inner
+
+                match self{
+                    #(#to_hint_arm)*
+                    _=>(),
+                }
+                match self{
+                    #(#show_primitive_mut_arm)*
+                    _=>(),
+                }
+                response | inner_response
             }
             fn start_collapsed_mut(&self) -> bool {
                 #start_collapsed
@@ -732,8 +727,8 @@ fn handle_fields(
             quote!(None)
         };
 
-        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, #start_collapsed);};
-        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable, #start_collapsed);};
+        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, #config, #resetable, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -746,7 +741,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, #start_collapsed);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -755,7 +750,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
+                let r = mapped .show_collapsing_mut( ui, #lab, #hint, #config, #resetable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
                 response |= r.clone();
             };
 
@@ -853,8 +848,8 @@ fn handle_struct(
         quote! {}
     };
 
-    let mut show_primitive_mut = quote! { ui.label("") };
-    let mut show_primitive_imut = quote! { ui.label("") };
+    let mut show_primitive_mut = quote! { ui.dummy_response() };
+    let mut show_primitive_imut = quote! { ui.dummy_response() };
     let (mut simple_imut, mut simple) = (quote! {false}, quote! {false});
     if fields.style == ast::Style::Tuple && fields_code.len() == 1 {
         if let Some(single_field) = &single_field {
@@ -881,7 +876,7 @@ fn handle_struct(
                   if Self::SIMPLE_IMUT {
                     #map_ref (&self. #index).show_primitive_imut(ui,#config_imut)
                   }else {
-                    ui.label("")
+                    ui.dummy_response()
                   }
             };
             show_primitive_mut = quote! {
@@ -892,7 +887,7 @@ fn handle_struct(
                     {#on_change};
                     response
                 }else {
-                  ui.label("")
+                  ui.dummy_response()
                 }
             };
         }
@@ -905,14 +900,14 @@ fn handle_struct(
         .unwrap_or(quote!(false));
 
     let egui_struct_imut = quote! {
-        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructImut for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructSplitImut for #name #ty_generics #where_clause {
             const SIMPLE_IMUT: ::std::primitive::bool = #simple_imut;
-            type ConfigTypeImut<'a> = ();
+            type ConfigTypeSplitImut<'a> = ();
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -925,7 +920,7 @@ fn handle_struct(
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeSplitImut<'_>) -> ::egui::Response {
                 #show_primitive_imut
             }
             fn start_collapsed_imut(&self) -> bool {
@@ -934,15 +929,15 @@ fn handle_struct(
         }
     };
     let egui_struct_mut = quote! {
-        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructMut for #name #ty_generics #where_clause {
+        impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructSplitMut for #name #ty_generics #where_clause {
             const SIMPLE_MUT: ::std::primitive::bool = #simple;
-            type ConfigTypeMut<'a> = ();
+            type ConfigTypeSplitMut<'a> = ();
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_MUT
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructMut;
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -957,7 +952,7 @@ fn handle_struct(
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeSplitMut<'_>) -> ::egui::Response {
                 #show_primitive_mut
             }
             fn start_collapsed_mut(&self) -> bool {
@@ -1103,7 +1098,7 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///   - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
 /// - field level
 ///   - `rename`, `skip`, `hint`, `i18n`- see variant level
-///   - `imconfig`- pass format/config object([`EguiStructImut::ConfigTypeImut`) to customise how field is displayed
+///   - `imconfig`- pass format/config object([`EguiStructImut::ConfigTypeSplitImut`) to customise how field is displayed
 ///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `EguiStructImut::start_collapsed_imut()` return)
 ///   - `map_pre_ref`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
 ///     - this allows displaying fields that does not implement `EguiStructImut` or overiding how field is shown
