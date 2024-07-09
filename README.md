@@ -7,35 +7,36 @@
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
 
-Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
+Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-probe), [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
 
 ## EguiStruct vs similar crates
 
-|                            | EguiStruct                                                                   | enum2egui        | egui_inspect                 | egui-controls                     |
-| :------------------------- | :--------------------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
-| egui version               | 0.26 (0.21-0.27) ****                                                        | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
-| Layout*                    | Grid                                                                         | Group/nested     | Nested                       | Grid                              |
-| i18n support               | ✅ (rust-i18n**)                                                              | ❌                | ❌                            | ❌                                 |
-| Field description          | ✅ on hover hint (from attribute)                                             | ❌                | ❌                            | ✅ third column (from doc comment) |
-| Rename field/variant       | ✅                                                                            | ✅/❌ (enum only)  | ❌                            | ❌                                 |
-| Mass name case conversion  | ✅                                                                            | ❌                | ❌                            | ❌                                 |
-| Callback on-change         | ✅                                                                            | ❌                | ❌                            | ❌                                 |
-| Reset button               | ✅                                                                            | ❌                | ❌                            | ❌                                 |
-| Skip field                 | ✅                                                                            | ✅                | ✅                            | ❌                                 |
-|                            |                                                                              |                  |                              |
-| Numerics & strings support | ✅                                                                            | ✅                | ✅                            | ✅                                 |
-| Vec support                | ✅/❌ (does not support adding/removing elements)                              | ✅                | ✅                            | ❌                                 |
-| Other support              | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option   | ✅ bool, [T;N]                | ❌                                 |
-| HashMap/Set support        | ✅ std, indexmap                                                              | ✅ std, hashbrown | ❌                            | ❌                                 |
-| Map field/override impl    | ✅                                                                            | ❌                | ✅                            | ❌                                 |
-| Struct derive              | ✅                                                                            | ✅                | ✅                            | ✅                                 |
-| Enum derive                | ✅                                                                            | ✅                | ❌                            | ❌                                 |
-| Custom types in derive     | ✅                                                                            | ✅                | ✅                            | ❌                                 |
-|                            |                                                                              |                  |                              |
-| Configuration numerics     | ✅ Slider(min,max), Slider(min,max,step), DragValue(min,max), DragValue, List | ❌                | ✅ Slider(min,max), DragValue | ❌                                 |
-| Configuration string       | ✅ multi/singleline, List                                                     | ❌                | ✅ multi/singleline           | ❌                                 |
-| Configuration user types   | ✅                                                                            | ❌                | ❌                            | ❌                                 |
-| List/Combobox wrapper      | ✅ ***                                                                        | ❌                | ❌                            | ❌                                 |
+|                            | EguiStruct                                                                   | egui-probe                                                        | enum2egui        | egui_inspect                 | egui-controls                     |
+| :------------------------- | :--------------------------------------------------------------------------- | ----------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
+| egui version               | 0.26 (0.21-0.28) ****                                                        | 0.27/0.28                                                         | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
+| Layout*                    | Grid                                                                         | Grid                                                              | Group/nested     | Nested                       | Grid                              |
+| i18n support               | ✅ (rust-i18n**)                                                              | ❌                                                                 | ❌                | ❌                            | ❌                                 |
+| Field description          | ✅ on hover hint (from attribute)                                             | ❌                                                                 | ❌                | ❌                            | ✅ third column (from doc comment) |
+| Rename field/variant       | ✅                                                                            | ✅                                                                 | ✅/❌ (enum only)  | ❌                            | ❌                                 |
+| Mass name case conversion  | ✅                                                                            | ✅                                                                 | ❌                | ❌                            | ❌                                 |
+| Callback on-change         | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
+| Reset button               | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
+| Skip field                 | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ❌                                 |
+|                            |                                                                              |                                                                   |                  |                              |                                   |
+| Numerics & strings support | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ✅                                 |
+| Vec support                | ✅/❌ (does not support adding/removing elements)                              | ✅ std, smallvec1/2                                                | ✅                | ✅                            | ❌                                 |
+| Other support              | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option, [T;N], some of egui types                         | ✅ bool, Option   | ✅ bool, [T;N]                | ❌                                 |
+| HashMap/Set support        | ✅ std, indexmap                                                              | ✅ std, hashbrown                                                  | ✅ std, hashbrown | ❌                            | ❌                                 |
+| Map field/override impl    | ✅                                                                            | ✅                                                                 | ❌                | ✅                            | ❌                                 |
+| Struct derive              | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ✅                                 |
+| Enum derive                | ✅                                                                            | ✅                                                                 | ✅                | ❌                            | ❌                                 |
+| Custom types in derive     | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ❌                                 |
+|                            |                                                                              |                                                                   |                  |                              |                                   |
+| Configuration numerics     | ✅ Slider(min,max), Slider(min,max,step), DragValue(min,max), DragValue, List | ✅ DragValue(min,max), DragValue                                   | ❌                | ✅ Slider(min,max), DragValue | ❌                                 |
+| Configuration string       | ✅ multi/singleline, List                                                     | ✅ multi/singleline                                                | ❌                | ✅ multi/singleline           | ❌                                 |
+| Configuration user types   | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
+| Configuration others       | ❌                                                                            | ✅ Color32, bool, Enum(combobox or inline buttons), sets/vecs/maps | ❌                | ❌                            | ❌                                 |
+| List/Combobox wrapper      | ✅ ***                                                                        | ❌                                                                 | ❌                | ❌                            | ❌                                 |
 
 \* Everything is put inside scroll&grid layout (with collapsable rows)
 
@@ -47,7 +48,7 @@ Crate idea is similar to crates [enum2egui](https://github.com/matthewjberger/en
 
 *** Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
 
-**** See section `Usage >> egui version`
+**** See section `Usage >> egui version` (`EguiStruct` supports all versions of egui through features; other crates support only "newest" one, support for other is by using legacy version)
 
 ## Usage
 
@@ -86,10 +87,10 @@ See ./demo
 
 ### egui version
 
-`egui_struct 0.4` by default depends on `egui 0.26`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
+`egui_struct 0.4` by default depends on `egui 0.26`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.28:
 
 ```toml
-egui_struct = { version = "0.4", default-features = false, features = [ "egui25" ] }
+egui_struct = { version = "0.4", default-features = false, features = [ "egui28" ] }
 ```
 
 OR use `[patch]` section.
