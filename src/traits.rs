@@ -19,18 +19,12 @@ macro_rules! generate_show_collapsing {
         ) -> Response {
             let has_childs = self.$has_childs();
 
-            if has_childs {
-                ui.collapsing_rows_initial_state(|| {
-                    start_collapsed.unwrap_or(self.$start_collapsed())
-                });
-            }
             let header = |ui: &mut ExUi| {
                 let lab = ui.extext(label);
                 let hint = hint.into();
                 if !hint.is_empty() {
                     lab.on_hover_text(hint);
                 }
-                // ui.horizontal(|ui| {
                 #[allow(unused_mut)]
                 let mut ret = self.$primitive_name(ui, config);
                 macro_rules! reset {
@@ -51,21 +45,11 @@ macro_rules! generate_show_collapsing {
                         ret
                     };
                 }
-                // ret
                 reset! {$show_collapsing_inner}
-                // })
-                // .inner
             };
-            if has_childs {
-                let header_resp = ui.collapsing_rows_header(header);
-                ui.collapsing_rows_body(|ui| self.$childs_name(ui, indent_level + 1, reset2))
-                    .map(|b| b | header_resp.clone())
-                    .unwrap_or(header_resp)
-            } else {
-                let ret = header(ui);
-                ui.end_row();
-                ret
-            }
+            ui.maybe_collapsing_rows(has_childs, header)
+                .initial_state(|| start_collapsed.unwrap_or(self.$start_collapsed()))
+                .body_simple(|ui| self.$childs_name(ui, indent_level + 1, reset2))
         }
     };
 }
