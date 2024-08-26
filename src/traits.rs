@@ -3,74 +3,11 @@ use egui::{Response, RichText, ScrollArea, Ui};
 use exgrid::*;
 use std::ops::Deref;
 
-macro_rules! generate_show_collapsing {
-    ($show_collapsing_inner:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
-         $typ:ty, $config:ident,$has_childs:ident) => {
-        #[doc(hidden)]
-        fn $show_collapsing_inner(
-            self: $typ,
-            ui: &mut ExUi,
-            label: impl Into<RichText> + Clone,
-            hint: impl Into<RichText> + Clone,
-            indent_level: isize,
-            config: Self::$config<'_>,
-            reset2: Option<&Self>,
-            start_collapsed: Option<bool>,
-        ) -> Response {
-            let has_childs = self.$has_childs();
-
-            let header = |ui: &mut ExUi| {
-                let lab = ui.extext(label);
-                let hint = hint.into();
-                if !hint.is_empty() {
-                    lab.on_hover_text(hint);
-                }
-                #[allow(unused_mut)]
-                let mut ret = self.$primitive_name(ui, config);
-                macro_rules! reset {
-                    (show_collapsing_inner_imut) => {
-                        ret
-                    };
-                    (show_collapsing_inner_mut) => {
-                        if let Some(reset2) = reset2 {
-                            if !reset2.eguis_eq(self) {
-                                let mut r = ui.button("⟲");
-                                if r.clicked() {
-                                    self.eguis_clone(reset2);
-                                    r.mark_changed();
-                                }
-                                ret |= r;
-                            }
-                        }
-                        ret
-                    };
-                }
-                reset! {$show_collapsing_inner}
-            };
-            ui.maybe_collapsing_rows(has_childs, header)
-                .initial_state(|| start_collapsed.unwrap_or(self.$start_collapsed()))
-                .body_simple(|ui| self.$childs_name(ui, indent_level + 1, reset2))
-        }
-    };
-}
-
-pub trait EguiStructMutInner: EguiStructMut {
-    generate_show_collapsing! { show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
-    &mut Self, ConfigTypeMut, has_childs_mut }
-}
-/// Trait, that allows generating immutable view of data (takes `&data`)
-pub trait EguiStructImutInner: EguiStructImut {
-    generate_show_collapsing! { show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
-    &Self, ConfigTypeImut, has_childs_imut }
-}
-impl<T: EguiStructMut + ?Sized> EguiStructMutInner for T {}
-impl<T: EguiStructImut + ?Sized> EguiStructImutInner for T {}
-
 macro_rules! generate_show {
-    ($top_name:ident, $collapsing_name:ident, $show_collapsing_inner_mut:ident, $primitive_name:ident, $childs_name:ident, $start_collapsed:ident,
-         $typ:ty, $config:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident) => {
+    ($show_collapsing:ident, $show_primitive:ident, $show_childs:ident, $start_collapsed:ident,
+         $typ:ty, $ConfigType:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident, $preview_str:ident) => {
         /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
-        type $config<'a>: Default;
+        type $ConfigType<'a>: Default;
 
         /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
         const $SIMPLE: bool = true;
@@ -84,37 +21,45 @@ macro_rules! generate_show {
         fn $has_primitive(&self) -> bool {
             !self.$has_childs()
         }
-
         /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
-        fn $collapsing_name(
+        fn $show_collapsing(
             self: $typ,
             ui: &mut ExUi,
             label: impl Into<RichText> + Clone,
             hint: impl Into<RichText> + Clone,
-            indent_level: isize,
-            config: Self::$config<'_>,
+            config: Self::$ConfigType<'_>,
             reset2: Option<&Self>,
+            start_collapsed: Option<bool>,
         ) -> Response {
-            self.$show_collapsing_inner_mut(ui, label, hint, indent_level, config, reset2, None)
+            let has_childs = self.$has_childs();
+            let header = |ui: &mut ExUi| {
+                crate::trait_implementor_set::primitive_label(ui, label, hint);
+                macro_rules! primitive {
+                    (show_primitive_imut) => {
+                        self.show_primitive_imut(ui, config)
+                    };
+                    (show_primitive_mut) => {
+                        crate::trait_implementor_set::primitive_w_reset(self, ui, config, reset2)
+                    };
+                }
+                primitive!($show_primitive)
+            };
+            ui.maybe_collapsing_rows(has_childs, header)
+                .initial_state(|| start_collapsed.unwrap_or(self.$start_collapsed()))
+                .body_simple(|ui| self.$show_childs(ui, reset2))
         }
-
         /// UI elements shown in the same line as label
         ///
         /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive) with default impl
-        fn $primitive_name(self: $typ, ui: &mut ExUi, _config: Self::$config<'_>) -> Response {
-            ui.label("")
+        fn $show_primitive(self: $typ, ui: &mut ExUi, _config: Self::$ConfigType<'_>) -> Response {
+            ui.dummy_response()
         }
 
         /// UI elements related to nested data, that is show inside collapsible rows
         ///
         /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStructMut::has_childs) with default impl
-        fn $childs_name(
-            self: $typ,
-            _ui: &mut ExUi,
-            _indent_level: isize,
-            _reset2: Option<&Self>,
-        ) -> Response {
-            unreachable!()
+        fn $show_childs(self: $typ, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+            ui.dummy_response()
         }
 
         /// Controls if struct is initally collapsed/uncollapsed (if "show_childs_mut" is shown by default)
@@ -122,6 +67,14 @@ macro_rules! generate_show {
         /// eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
         fn $start_collapsed(&self) -> bool {
             false
+        }
+
+        /// String that may be used by parrent structs to hint its content
+        ///
+        /// eg. Vec<int> may display preview of its data as `[1,2,3,..]#100`
+        /// (impl of preview_str() for int returns its value as str)
+        fn $preview_str<'b>(&'b self) -> &'b str {
+            ""
         }
     };
 }
@@ -260,13 +213,13 @@ pub trait EguiStructEq {
 ///
 ///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top_mut()`](Self::show_top_mut), which displays struct inside scroll area.
 pub trait EguiStructMut: EguiStructClone + EguiStructEq {
-    generate_show! { show_top_mut, show_collapsing_mut, show_collapsing_inner_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
-    &mut Self, ConfigTypeMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut }
+    generate_show! { show_collapsing_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
+    &mut Self, ConfigTypeMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut, preview_str_mut }
 }
 /// Trait, that allows generating immutable view of data (takes `&data`)
 pub trait EguiStructImut {
-    generate_show! { show_top_imut, show_collapsing_imut, show_collapsing_inner_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
-    &Self, ConfigTypeImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut }
+    generate_show! { show_collapsing_imut, show_primitive_imut, show_childs_imut, start_collapsed_imut,
+    &Self, ConfigTypeImut, SIMPLE_IMUT, has_childs_imut, has_primitive_imut, preview_str_imut }
 }
 macro_rules! generate_IntoEguiStruct {
     ($typ:ty, $cfg_name:ident, $trait:ident) => {
@@ -306,7 +259,7 @@ pub struct EguiStructWrapper<'a, T: Deref> {
 }
 
 macro_rules! generate_EguiStruct_show {
-    ($collapsing_name:ident, $generic:ident, $typ:ty, $bound:ident) => {
+    ($show_collapsing:ident, $generic:ident, $typ:ty, $bound:ident) => {
         impl<'a, $generic: $bound + ?Sized> EguiStructWrapper<'a, $typ> {
             pub fn show(self, ui: &mut Ui) -> Response
             where
@@ -326,13 +279,13 @@ macro_rules! generate_EguiStruct_show {
                         }
                         grid.mode(self.view_mode)
                             .show(ui, |ui| {
-                                self.data.$collapsing_name(
+                                self.data.$show_collapsing(
                                     ui,
                                     self.label,
                                     "",
-                                    -1,
                                     Default::default(),
                                     self.reset2,
+                                    None,
                                 )
                             })
                             .inner

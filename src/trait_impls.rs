@@ -194,12 +194,7 @@ mod impl_option {
             })
             .inner
         }
-        fn show_childs_imut(
-            &self,
-            ui: &mut ExUi,
-            indent_level: isize,
-            _reset2: Option<&Self>,
-        ) -> Response {
+        fn show_childs_imut(&self, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
             let mut response = ui.interact(
                 egui::Rect::NOTHING,
                 "dummy".into(),
@@ -212,16 +207,10 @@ mod impl_option {
 
             if let Some(inner) = self {
                 if inner.has_primitive_imut() {
-                    response |= inner.show_collapsing_imut(
-                        ui,
-                        "[0]",
-                        "",
-                        indent_level,
-                        Default::default(),
-                        None,
-                    );
+                    response |=
+                        inner.show_collapsing_imut(ui, "[0]", "", Default::default(), None, None);
                 } else {
-                    response |= inner.show_childs_imut(ui, indent_level, None)
+                    response |= inner.show_childs_imut(ui, None)
                 }
             }
             response
@@ -257,12 +246,7 @@ mod impl_option {
             })
             .inner
         }
-        fn show_childs_mut(
-            &mut self,
-            ui: &mut ExUi,
-            indent_level: isize,
-            reset2: Option<&Self>,
-        ) -> Response {
+        fn show_childs_mut(&mut self, ui: &mut ExUi, reset2: Option<&Self>) -> Response {
             let mut response = ui.interact(
                 egui::Rect::NOTHING,
                 "dummy".into(),
@@ -279,13 +263,12 @@ mod impl_option {
                         ui,
                         "[0]",
                         "",
-                        indent_level,
                         Default::default(),
                         reset2.unwrap_or(&None).as_ref(),
+                        None,
                     );
                 } else {
-                    response |=
-                        inner.show_childs_mut(ui, indent_level, reset2.unwrap_or(&None).as_ref())
+                    response |= inner.show_childs_mut(ui, reset2.unwrap_or(&None).as_ref())
                 }
             }
             response
@@ -356,22 +339,20 @@ mod impl_option {
 mod impl_sets {
     use super::*;
     macro_rules! impl_vec {
-    ($Self:ty, $typ:ty, $iter:ident, $collapsing_name:ident, $childs_name:ident, $start_collapsed_mut:ident,
-        $trait:ident, $SIMPLE:ident, $ConfigTypeMut:ident, $has_childs_imut:ident, $has_primitive_mut:ident) => {
+    ($typ:ty, $impl:ident, $ConfigType:ty, [$( $Qbound:path),*]) => {
 
-        impl<T: $trait> $trait for $typ{
-            const $SIMPLE: bool = false;
-            type $ConfigTypeMut<'a> = ();
-            fn $has_childs_imut(&self) -> bool {
+        impl<T: EguiStructMut $(+ $Qbound)*> EguiStructMut for $typ{
+            const SIMPLE_MUT: bool = false;
+            type ConfigTypeMut<'a> = ();
+            fn has_childs_mut(&self) -> bool {
                 !self.is_empty()
             }
-            fn $has_primitive_mut(&self) -> bool {
+            fn has_primitive_mut(&self) -> bool {
                 false
             }
-            fn $childs_name(
-                self: $Self,
+            fn show_childs_mut(
+                &mut self,
                 ui: &mut ExUi,
-                indent_level: isize,
                 _reset2: Option<&Self>,
             ) -> Response {
                 let mut response = ui.interact(
@@ -383,23 +364,44 @@ mod impl_sets {
                         focusable: false,
                     },
                 );
+                macro_rules! show{
+                    (HASHSET)=>{
+                        self.iter().enumerate().for_each(|(idx, x)| {
+                            response |= x.show_collapsing_imut(ui, idx.to_string(), "", Default::default(), None, None)
+                        });
+                    };
+                    (INDEXSET)=>{
+                        // Below allows to mutate set elements, but:
+                        // - HashSet: at each frame element order is changed, which makes it unusable
+                        // - IndexSet: Set may deduplicate during editing
+                        *self = self
+                            .drain(..)
+                            .enumerate()
+                            .map(|(idx, mut x)| {
+                                response |= x.show_collapsing_mut(ui, idx.to_string(), "", Default::default(), None, None);
+                                x
+                            })
+                            .collect()
+                    };
+                    (VEC)=>{
+                        self.iter_mut().enumerate().for_each(|(idx, x)| {
+                            response |= x.show_collapsing_mut(ui, idx.to_string(), "", Default::default(), None, None)
+                        });
+                    };
+                }
+                show!($impl);
 
-                self.$iter().enumerate().for_each(|(idx, x)| {
-                    response |= x.$collapsing_name(ui, idx.to_string(), "", indent_level, Default::default(), None)
-                });
+                //TODO
+                // if let Some(add)=config{
+                //     response |= x.show_collapsing_mut(ui, "+", "", Default::default(), None)
+                // }
+
                 response
             }
-            fn $start_collapsed_mut(&self) -> bool {
+            fn start_collapsed_mut(&self) -> bool {
                 self.len() > 16
             }
         }
-    };
-    (IMUT, $($typ:ty)*) => { $(impl_vec! {&Self, $typ, iter, show_collapsing_imut, show_childs_imut, start_collapsed_imut,
-        EguiStructImut, SIMPLE_IMUT, ConfigTypeImut, has_childs_imut, has_primitive_imut})* };
-    ($typ:ty) => {
-        impl_vec! {IMUT, $typ}
-        impl_vec! {&mut Self, $typ, iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
-            EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
 
         // impl<T: EguiStructResetable> EguiStructResetable for $typ
         // where
@@ -416,12 +418,6 @@ mod impl_sets {
         //         ret
         //     }
         // }
-        impl<T: EguiStructClone> EguiStructClone for $typ {
-            fn eguis_clone(&mut self, source: &Self) {
-                //TODO update this if vector length can change
-                self.iter_mut().zip(source.iter()).for_each(|(s,r)|s.eguis_clone(r))
-            }
-        }
         impl<T: EguiStructEq> EguiStructEq for $typ  {
             fn eguis_eq(&self, rhs: &Self) -> bool {
                 let mut ret = self.len()==rhs.len();
@@ -431,14 +427,109 @@ mod impl_sets {
         }
     };
 }
+    macro_rules! impl_vec_imut {
+        ( $typ:ty ) => {
+            impl<T: EguiStructImut> EguiStructImut for $typ {
+                const SIMPLE_IMUT: bool = false;
+                type ConfigTypeImut<'a> = ();
+                fn has_childs_imut(&self) -> bool {
+                    !self.is_empty()
+                }
+                fn has_primitive_imut(&self) -> bool {
+                    false
+                }
+                fn show_childs_imut(&self, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+                    let mut response = ui.interact(
+                        egui::Rect::NOTHING,
+                        "dummy".into(),
+                        egui::Sense {
+                            click: false,
+                            drag: false,
+                            focusable: false,
+                        },
+                    );
+                    self.iter().enumerate().for_each(|(idx, x)| {
+                        response |= x.show_collapsing_imut(
+                            ui,
+                            idx.to_string(),
+                            "",
+                            Default::default(),
+                            None,
+                            None,
+                        )
+                    });
+                    response
+                }
+                fn start_collapsed_imut(&self) -> bool {
+                    self.len() > 16
+                }
+            }
+        };
+    }
+    struct VecWrapper1<T: EguiStructMut>(T); // Const length
+    struct VecWrapper2<T: EguiStructMut + 'static>(T, &'static dyn Fn() -> T); // Expandable/ reset after shrink
+    struct VecWrapper3<T: EguiStructMut + EguiStructImut + 'static>(T, &'static dyn Fn() -> T); // immutable inner
 
     // impl_vec! {[T], Box<[T::Reset2]>}
     // impl_vec! {Vec<T>, Vec<T::Reset2>}
-    impl_vec! {[T]}
-    impl_vec! {Vec<T>}
-    impl_vec! {IMUT, std::collections::HashSet<T> }
+    impl_vec! {[T], VEC, T::ConfigTypeMut, []}
+    impl_vec! {Vec<T>, VEC, ConfigSetMut<T>, [Clone] }
+    impl_vec! {std::collections::HashSet<T>, HASHSET, ConfigSetMut<T>,[Eq, std::hash::Hash, EguiStructImut] }
     #[cfg(feature = "indexmap")]
-    impl_vec! {IMUT, indexmap::IndexSet<T> }
+    impl_vec! {indexmap::IndexSet<T>, INDEXSET, ConfigSetMut<T>,[Eq, std::hash::Hash]}
+
+    impl_vec_imut! {[T]}
+    impl_vec_imut! {Vec<T> }
+    impl_vec_imut! {std::collections::HashSet<T>}
+    #[cfg(feature = "indexmap")]
+    impl_vec_imut! {indexmap::IndexSet<T> }
+
+    impl<T: EguiStructClone> EguiStructClone for [T] {
+        fn eguis_clone(&mut self, source: &Self) {
+            self.iter_mut()
+                .zip(source.iter())
+                .for_each(|(s, r)| s.eguis_clone(r))
+        }
+    }
+    impl<T: EguiStructClone + Clone> EguiStructClone for Vec<T> {
+        fn eguis_clone(&mut self, source: &Self) {
+            self.truncate(source.len());
+            self.iter_mut()
+                .zip(source.iter())
+                .for_each(|(s, r)| s.eguis_clone(r));
+            for i in self.len()..source.len() {
+                self.push(source[i - 1].clone())
+            }
+        }
+    }
+    impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for std::collections::HashSet<T> {
+        fn eguis_clone(&mut self, source: &Self) {
+            // if let Some(exp)=
+            //TODO restore previous length
+            *self = self
+                .drain()
+                .zip(source.iter())
+                .map(|(mut s, r)| {
+                    s.eguis_clone(r);
+                    s
+                })
+                .collect()
+        }
+    }
+    #[cfg(feature = "indexmap")]
+    impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for indexmap::IndexSet<T> {
+        fn eguis_clone(&mut self, source: &Self) {
+            //TODO restore previous length
+            *self = self
+                .drain(..)
+                .zip(source.iter())
+                .map(|(mut s, r)| {
+                    s.eguis_clone(r);
+                    s
+                })
+                .collect()
+        }
+    }
 }
 
 /////////////////////////////////////////////////
@@ -460,7 +551,6 @@ mod impl_maps {
             fn $childs_name(
                 self: $Self,
                 ui: &mut ExUi,
-                indent_level: isize,
                 _reset2: Option<&Self>,
             ) -> Response {
                 let mut response = ui.interact(
@@ -478,9 +568,8 @@ mod impl_maps {
                         ui,
                         q.to_string(),
                         "",
-                        indent_level,
                         Default::default(),
-                        None,
+                        None, None,
                     )
                 });
                 response
@@ -550,6 +639,6 @@ mod impl_maps {
     // impl_map! { std::collections::HashMap<Q,V>, std::collections::HashMap<Q,V::Reset2> }
     impl_map! { std::collections::HashMap<Q,V> }
     #[cfg(feature = "indexmap")]
-    impl_map! { indexmap::IndexMap<Q,V>> }
+    impl_map! { indexmap::IndexMap<Q,V> }
     // impl_map! { indexmap::IndexMap<Q,V>, indexmap::IndexMap<Q,V::Reset2> }
 }

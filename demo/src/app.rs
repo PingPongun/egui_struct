@@ -3,6 +3,7 @@ use egui::mutex::RwLock;
 use egui::RichText;
 use egui_struct::exgrid::GridMode;
 use egui_struct::prelude::*;
+use indexmap::IndexSet;
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
 use ConfigNum::*;
@@ -161,6 +162,7 @@ pub struct Data {
     optional_string: Option<String>,
 
     list: Vec<Color>,
+    set: IndexSet<i32>,
 }
 
 impl Default for Data {
@@ -216,6 +218,7 @@ impl Default for Data {
                     },
                 },
             ],
+            set: IndexSet::from([2, 4, 8]),
         }
     }
 }

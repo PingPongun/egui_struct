@@ -442,8 +442,8 @@ fn handle_enum(
             fn has_primitive_imut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -499,10 +499,10 @@ fn handle_enum(
             fn has_primitive_mut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 #![allow(unused)]
-                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
+                use ::egui_struct::trait_implementor_set::EguiStructMut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -732,8 +732,8 @@ fn handle_fields(
             quote!(None)
         };
 
-        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, #start_collapsed);};
-        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable, #start_collapsed);};
+        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, #config, #resetable, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -746,7 +746,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_inner_imut( ui, #lab, #hint, indent_level, #imconfig, ::std::option::Option::None, #start_collapsed);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -755,7 +755,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing_inner_mut( ui, #lab, #hint, indent_level, #config, #resetable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
+                let r = mapped .show_collapsing_mut( ui, #lab, #hint, #config, #resetable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
                 response |= r.clone();
             };
 
@@ -911,8 +911,8 @@ fn handle_struct(
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),
@@ -940,9 +940,9 @@ fn handle_struct(
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_MUT
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, indent_level: ::std::primitive::isize,  reset2: ::std::option::Option<&Self>) -> ::egui::Response {
-                use ::egui_struct::trait_implementor_set::EguiStructMutInner;
-                use ::egui_struct::trait_implementor_set::EguiStructImutInner;
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+                use ::egui_struct::trait_implementor_set::EguiStructMut;
+                use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
                     "dummy".into(),

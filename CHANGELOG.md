@@ -5,19 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - Unreleased ( changelog non exhaustive)
+## [0.5.0] - Major API update- Unreleased ( changelog non exhaustive)
 
 ### Changed
 
 - [Breaking] Default egui bumped to v0.27
+- [Breaking] New show API: `data.show_top(ui, ..)` -> `data.eguis_mut().show(ui)`
+- [Breaking] Library has been grouped into `prelude` (macro generation & showing) and `trait_implementor_set` (used when manually implementing traits)
 - [Breaking] Mutable EguiStruct trait&functions suffixed with mut
   - EguiStruct -> EguiStructMut
   - EguiStructMut::has_{childs, primitive} -> EguiStructMut::has_{$1}_mut
-  - EguiStructMut::show_{top, childs, collapsing, collapsing_inner, primitive} -> EguiStructMut::has_{$1}_mut
+  - EguiStructMut::show_{collapsing, childs, primitive} -> EguiStructMut::has_{$1}_mut
   - EguiStructMut::start_collapsed -> EguiStructMut::start_collapsed_mut
   - EguiStructMut::{SIMPLE, COLUMN_COUNT} -> EguiStructMut::{$1}_MUT
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
+- [Breaking] EguiStruct{Imut, Mut}::show_\* functions signatures have been simplified (indent_level, \*id are skipped, as they are handled by exgrid)
+- [Breaking] Sets&Maps impl updated:
+  - Supports adding/removing elements (Vec, HashMap, IndexMap)
+  - Mutable impl added for HashSet&IndexSet (with adding/removing elements too)
+  - `[T]::ConfigTypeMut` changed from `()` to `T::ConfigTypeMut`
+  - `{Vec<T>, HashSet<T>, IndexSet<T>}::ConfigTypeMut` changed from `()` to `ConfigSetMut<T>`
+  - `{HashMap<Q,V>, IndexMap<Q,V>}::ConfigTypeMut` changed from `()` to `ConfigMapMut<Q,V>`
+  - Bounds might have changed slightly
 - Removed empty first row when label passed in show_top is empty
+- `i18n` is no longer default feature
 
 ### Removed
 

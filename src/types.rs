@@ -1,4 +1,5 @@
 use crate::egui;
+use crate::traits::EguiStructMut;
 use egui::Response;
 use exgrid::ExUi;
 use std::ops::{Deref, DerefMut};
@@ -36,15 +37,66 @@ pub enum ConfigStr<'a> {
     ComboBox(&'a mut dyn Iterator<Item = String>),
 }
 
-///Config structure for immutable view of many simple types like str, String & numerics
+/// Config structure for immutable view of many simple types like str, String & numerics
 #[derive(Default)]
 pub enum ConfigStrImut {
-    ///`egui::Label`
+    /// `egui::Label`
     NonSelectable,
 
-    ///Default: imutable `egui::TextEdit`
+    /// Default: imutable `egui::TextEdit`
     #[default]
     Selectable,
+}
+
+/// Configuration options for adding new elements to set (Hashset, Vec, ..)
+// #[derive(Default)]
+// pub enum ConfigSetExpandable<T> {
+//     /// New elements can't be added to set
+//     #[default]
+//     No,
+
+//     /// New elements are added with predefined value (enum wraps this value)
+//     ConstAdd(T),
+
+//     /// New elements can be modified prior adding (enum wraps starting value)
+//     MutAdd(T),
+// }
+
+pub struct ConfigSetExpandable<T: 'static> {
+    default: &'static dyn Fn() -> T,
+    mutable: bool,
+}
+/// Configuration options for mutable sets (Hashset, Vec, ..)
+pub struct ConfigSetMut<'a, T: EguiStructMut + 'static> {
+    /// Can new elements be added to set
+    // expandable: ConfigSetExpandable<T>,
+    expandable: Option<ConfigSetExpandable<T>>,
+
+    /// Can elements be removed from set
+    shrinkable: bool,
+
+    /// Can elements be changed after adding
+    mutable_data: bool,
+
+    /// Maximum number of elements in set
+    max_len: Option<usize>,
+
+    /// Config how elements are shown
+    inner_config: T::ConfigTypeMut<'a>,
+    // reorderable: bool,
+}
+
+impl<'a, T: EguiStructMut> Default for ConfigSetMut<'a, T> {
+    fn default() -> Self {
+        Self {
+            // expandable: ConfigSetExpandable::No,
+            expandable: None,
+            shrinkable: true,
+            mutable_data: true,
+            max_len: None,
+            inner_config: Default::default(),
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////
