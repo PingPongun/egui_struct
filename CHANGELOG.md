@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::{SIMPLE, COLUMN_COUNT} -> EguiStructMut::{$1}_MUT
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
 - [Breaking] EguiStruct{Imut, Mut}::show_\* functions signatures have been simplified (indent_level, \*id are skipped, as they are handled by exgrid)
+- [Breaking] fix attribute name `resetable`->`resettable`
 - [Breaking] Sets&Maps impl updated:
   - Supports adding/removing elements (Vec, HashMap, IndexMap)
   - Mutable impl added for HashSet&IndexSet (with adding/removing elements too)
@@ -41,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added feature with egui 0.27 support
 - `start_collapsed(..)`/`start_collapsed_imut(..)` functions to `EguiStruct`/`EguiStructImut` traits
 - struct-level attribute (`start_collapsed`) that sets `start_collapsed()` implementation
-- field-level attribute (`start_collapsed`) that field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
+- field-level attribute (`start_collapsed`) that field always starts collapsed/uncollapsed (overrides fields `start_collapsed()` return)
 
 ### Changed
 

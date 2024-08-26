@@ -3,7 +3,7 @@ use crate::types::combobox::show_combobox;
 use crate::types::*;
 use crate::*;
 use egui::Response;
-use exgrid::{ExUi, ExWidgetConvinence};
+use exgrid::{ExUi, ExWidgetConvenience};
 
 pub mod macros {
     #[macro_export]
@@ -274,9 +274,9 @@ mod impl_option {
             response
         }
     }
-    // impl<T: EguiStructResetable + Default> EguiStructResetable for Option<T>
+    // impl<T: EguiStructResettable + Default> EguiStructResettable for Option<T>
     // where
-    //     <T as EguiStructResetable>::Reset2: Sized,
+    //     <T as EguiStructResettable>::Reset2: Sized,
     // {
     //     type Reset2 = Option<T::Reset2>;
 
@@ -339,9 +339,9 @@ mod impl_option {
 mod impl_sets {
     use super::*;
     macro_rules! impl_vec {
-    ($typ:ty, $impl:ident, $ConfigType:ty, [$( $Qbound:path),*]) => {
+    ($typ:ty, $impl:ident, $ConfigType:ty, [$( $bound:path),*]) => {
 
-        impl<T: EguiStructMut $(+ $Qbound)*> EguiStructMut for $typ{
+        impl<T: EguiStructMut $(+ $bound)*> EguiStructMut for $typ{
             const SIMPLE_MUT: bool = false;
             type ConfigTypeMut<'a> = ();
             fn has_childs_mut(&self) -> bool {
@@ -403,9 +403,9 @@ mod impl_sets {
             }
         }
 
-        // impl<T: EguiStructResetable> EguiStructResetable for $typ
+        // impl<T: EguiStructResettable> EguiStructResettable for $typ
         // where
-        //     <T as EguiStructResetable>::Reset2: Sized,
+        //     <T as EguiStructResettable>::Reset2: Sized,
         // {
         //     type Reset2= $restyp;
         //     fn reset2(&mut self, source: &Self::Reset2) {
@@ -585,13 +585,13 @@ mod impl_maps {
         impl_map! {&mut Self, $typ, [Eq, std::hash::Hash], iter_mut, show_collapsing_mut, show_childs_mut, start_collapsed_mut,
             EguiStructMut, SIMPLE_MUT, ConfigTypeMut, has_childs_mut, has_primitive_mut}
 
-            // impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructResetable> EguiStructResetable for $typ
+            // impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructResettable> EguiStructResettable for $typ
             // where
-            //     <V as EguiStructResetable>::Reset2: Sized,
+            //     <V as EguiStructResettable>::Reset2: Sized,
             // {
             //     type Reset2= $restyp;
             //     fn reset2(&mut self, source: &Self::Reset2) {
-            //         //this is very simplified implementation, that assumes that lenghts & keys are the same
+            //         //this is very simplified implementation, that assumes that lengths & keys are the same
             //         self.iter_mut().for_each(|(q, v)| {
             //             if let Some(r) = source.get(q) {
             //                 v.reset2(r)
@@ -612,7 +612,7 @@ mod impl_maps {
             // }
         impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructClone> EguiStructClone for $typ {
             fn eguis_clone(&mut self, source: &Self) {
-                //this is very simplified implementation, that assumes that lenghts & keys are the same
+                //this is very simplified implementation, that assumes that lengths & keys are the same
                 self.iter_mut().for_each(|(q, v)| {
                     if let Some(r) = source.get(q) {
                         v.eguis_clone(r)

@@ -7,22 +7,22 @@ use syn::{DeriveInput, Expr, Index};
 use syn::{Ident, Type};
 
 #[derive(Debug, Default, Clone, FromMeta, PartialEq)]
-enum Resetable {
+enum Resettable {
     #[default]
-    ///Field will be resetable to $r if called with reset2 == Some($r)
+    ///Field will be resettable to $r if called with reset2 == Some($r)
     FollowArg,
-    ///Marked field will not be resetable
-    NotResetable,
+    ///Marked field will not be resettable
+    NotResettable,
     ///Whole struct needs to implement Default
     StructDefault,
-    ///all fields that will be resetable need to implement Default
+    ///all fields that will be resettable need to implement Default
     FieldDefault,
     ///reset button will reset to contained custom value (value of field)
     WithExpr(Expr),
     ///INTERNAL USE ONLY! reset button will reset to value stored by oncelock named by contained ident
     WithStructExpr(Ident),
 }
-impl Resetable {
+impl Resettable {
     fn mask(&self, mask: &Option<Self>) -> Self {
         if let Some(mask) = mask {
             mask.clone()
@@ -55,25 +55,25 @@ struct EField {
     on_change: Option<Expr>,
     /// Use function callback (when value has been changed; signature: fn(&mut self) )
     on_change_struct: Option<Expr>,
-    /// pass format/config object to customise how field is displayed
+    /// pass format/config object to customize how field is displayed
     imconfig: Option<String>,
-    /// pass format/config object to customise how field is displayed (when mutable)
+    /// pass format/config object to customize how field is displayed (when mutable)
     config: Option<String>,
-    /// add reset(to default) button (what is called default depends on selected Resetable::*; overrides resetable setting for parrent struct)
-    resetable: Option<Resetable>,
-    /// Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
-    /// - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
+    /// add reset(to default) button (what is called default depends on selected Resettable::*; overrides resettable setting for parrent struct)
+    resettable: Option<Resettable>,
+    /// Expression (closure surrounded by `()` OR function path) called to map field to another type before displaying
+    /// - this allows displaying fields that does not implement EguiStruct or overriding how field is shown
     /// - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type
-    /// - ! beware, becouse(if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
+    /// - ! beware, because(if `map_pre_ref` is not set) this will make field work only with resettable values: {NonResettable, WithExpr, FieldDefault}
     /// - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
     map_pre: Option<Expr>,
     /// similar to `map_pre`, but takes immutable reference (signature:` fn(&field_type)->mapped` ),
     /// - used for EguiStructImut, converting default/reset2 and inside eguis_eq (if eeq not specified)
     map_pre_ref: Option<Expr>,
-    /// Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
+    /// Expression (closure surrounded by `()` OR function path) called to map mapped field back to field_type after displaying
     /// - only used if `map_pre` is set AND not for EguiStructImut
     /// - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
-    /// - expresion should assign new value to `&mut field_type`
+    /// - expression should assign new value to `&mut field_type`
     map_post: Option<Expr>,
     /// override `eguis_eq` function for field (signature fn(&field_type, &field_type))
     /// - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
@@ -98,13 +98,13 @@ struct EVariant {
     ///hint to be displayed on hover
     #[darling(default)]
     hint: String,
-    ///variant is always imutable
+    ///variant is always immutable
     #[darling(default)]
     imut: bool,
     /// Override i18n key (key will not contain prefix)
     i18n: Option<String>,
-    ///add reset(to default) button to all inner fields (overrides resetable enum-level setting)
-    resetable: Option<Resetable>,
+    ///add reset(to default) button to all inner fields (overrides resettable enum-level setting)
+    resettable: Option<Resettable>,
 }
 
 #[derive(Debug, FromDeriveInput)]
@@ -132,7 +132,7 @@ struct EStruct {
     no_eeq: bool,
     ///add reset(to default) button to all fields (same as marking all fields with same attribute)
     #[darling(default)]
-    resetable: Resetable,
+    resettable: Resettable,
     /// Set `start_collapsed()` implementation (if not specified fn return `false`)
     #[darling(default)]
     start_collapsed: Option<Expr>,
@@ -160,10 +160,10 @@ fn handle_enum(
     let mut eclone_arm = Vec::new();
     let mut eeq_arm = Vec::new();
 
-    let mut resetable = input.resetable.clone();
+    let mut resettable = input.resettable.clone();
     let mut reset_to_struct_expr = Vec::new();
-    if let Resetable::WithExpr(expr) = &input.resetable {
-        resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
+    if let Resettable::WithExpr(expr) = &input.resettable {
+        resettable = Resettable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
         reset_to_struct_expr.push(quote! {
             static STRUCT_DEFAULT_EXPR: ::std::sync::OnceLock<#ty> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
@@ -206,10 +206,10 @@ fn handle_enum(
             quote! { #vname_str .to_string() }
         };
 
-        let mut vresetable = resetable.mask(&variant.resetable);
-        if let Resetable::WithExpr(expr) = &vresetable.clone() {
+        let mut vresettable = resettable.mask(&variant.resettable);
+        if let Resettable::WithExpr(expr) = &vresettable.clone() {
             let static_name = format_ident!("VARIANT_{}_DEFAULT_EXPR", vident);
-            vresetable = Resetable::WithStructExpr(static_name.clone());
+            vresettable = Resettable::WithStructExpr(static_name.clone());
             reset_to_struct_expr.push(quote! {
                 #[allow(nonstandard_style)]
                 static #static_name: ::std::sync::OnceLock<#ty> = ::std::sync::OnceLock::new();
@@ -248,7 +248,7 @@ fn handle_enum(
                     "_field_",
                     quote! {},
                     "_2_field_",
-                    vresetable,
+                    vresettable,
                     Some(vident_w_inner.clone()),
                 );
                 reset_to_struct_default |= _reset_to_struct_default;
@@ -349,7 +349,7 @@ fn handle_enum(
                     "",
                     quote! {},
                     "_2_",
-                    vresetable,
+                    vresettable,
                     Some(vident_w_inner.clone()),
                 );
                 reset_to_struct_default |= _reset_to_struct_default;
@@ -604,7 +604,7 @@ fn handle_fields(
     prefix_ident: &str,
     prefix_code2: TokenStream,
     prefix_ident2: &str,
-    resetable: Resetable,
+    resettable: Resettable,
     variant: Option<TokenStream>,
 ) -> (
     bool,
@@ -699,26 +699,26 @@ fn handle_fields(
             };
         }
 
-        let mut bresetable = resetable.mask(&field.resetable);
-        if bresetable == Resetable::StructDefault {
+        let mut bresettable = resettable.mask(&field.resettable);
+        if bresettable == Resettable::StructDefault {
             reset_to_struct_default = true;
-            bresetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT"))
+            bresettable = Resettable::WithStructExpr(format_ident!("STRUCT_DEFAULT"))
         };
-        let resetable = match &bresetable {
-            Resetable::FollowArg => {
+        let resettable = match &bresettable {
+            Resettable::FollowArg => {
                 if let Some(variant) = &variant {
                     quote! { reset2.and_then(|f| if let #variant=f{ ::std::option::Option::Some(#whole_ident) }else{ ::std::option::Option::None } ) }
                 } else {
                     quote! { reset2.map(|f|&f.#name_tt) }
                 }
             }
-            Resetable::NotResetable => quote! { ::std::option::Option::None},
-            Resetable::StructDefault => unreachable!(),
-            Resetable::FieldDefault => {
+            Resettable::NotResettable => quote! { ::std::option::Option::None},
+            Resettable::StructDefault => unreachable!(),
+            Resettable::FieldDefault => {
                 quote! { ::std::option::Option::Some(&::std::default::Default::default())}
             }
-            Resetable::WithExpr(expr) => quote! { ::std::option::Option::Some(&#expr)},
-            Resetable::WithStructExpr(expr) => {
+            Resettable::WithExpr(expr) => quote! { ::std::option::Option::Some(&#expr)},
+            Resettable::WithStructExpr(expr) => {
                 if let Some(variant) = &variant {
                     quote! {if let #variant=&#expr.get().unwrap(){ ::std::option::Option::Some(#whole_ident) }else{ ::std::option::Option::None }  }
                 } else {
@@ -733,7 +733,7 @@ fn handle_fields(
         };
 
         let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);};
-        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, #config, #resetable, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, #config, #resettable, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -755,7 +755,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing_mut( ui, #lab, #hint, #config, #resetable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
+                let r = mapped .show_collapsing_mut( ui, #lab, #hint, #config, #resettable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
                 response |= r.clone();
             };
 
@@ -812,9 +812,9 @@ fn handle_struct(
 ) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let name = input.ident.clone();
-    let mut resetable = input.resetable.clone();
-    let reset_to_struct_expr = if let Resetable::WithExpr(expr) = &input.resetable {
-        resetable = Resetable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
+    let mut resettable = input.resettable.clone();
+    let reset_to_struct_expr = if let Resettable::WithExpr(expr) = &input.resettable {
+        resettable = Resettable::WithStructExpr(format_ident!("STRUCT_DEFAULT_EXPR"));
         quote! {
             static STRUCT_DEFAULT_EXPR: ::std::sync::OnceLock<#name> = ::std::sync::OnceLock::new();
             _=STRUCT_DEFAULT_EXPR.get_or_init(#expr);
@@ -840,7 +840,7 @@ fn handle_struct(
         "",
         quote! {rhs.},
         "",
-        resetable,
+        resettable,
         None,
     );
 
@@ -1028,7 +1028,7 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 /// }
 /// ```
 ///
-/// Atributtes `eguis` & `eguisM` are supported on either enum/struct, field or variant level
+/// Attributes `eguis` & `eguisM` are supported on either enum/struct, field or variant level
 /// to configure trait implementation and may take following values:
 ///
 /// - enum/struct level:
@@ -1038,32 +1038,32 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///   - `no_eclone` - do not generate `EguiStructClone` implementation
 ///   - `no_eeq` - do not generate `EguiStructEq` implementation
 ///   - `start_collapsed = "Expr"` - sets `start_collapsed()` implementation (should return `bool`; can use `self`)
-///   - `resetable = "val"` OR `resetable(with_expr = Expr)` - all fields/variants will be resetable according to provieded value (val: `"not_resetable"`, `"field_default"`, `"struct_default"`, `"follow_arg"`(use value passed on runtime through reset2 arg))
+///   - `resettable = "val"` OR `resettable(with_expr = Expr)` - all fields/variants will be resettable according to provided value (val: `"not_resettable"`, `"field_default"`, `"struct_default"`, `"follow_arg"`(use value passed on runtime through reset2 arg))
 /// - variant level:
 ///   - `rename ="str"`- Name of the field to be displayed on UI labels or variantName in i18n key
 ///   - `skip` - Don't generate code for the given variant
 ///   - `hint ="str"` - add on hover hint
 ///   - `imut` - variant will be shown as immutable
 ///   - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
-///   - `resetable`- overides enum/struct level resetable
+///   - `resettable`- overrides enum/struct level resettable
 /// - field level
 ///   - `rename`, `skip`, `hint`, `imut`, `i18n`- see variant level
-///   - `resetable`- overides enum/struct & variant level resetable
-///   - `on_change = "expr"`- Use function (`expr`: closure surounded by `()` OR function path) callback (when value has been changed; signature: `fn(&mut field_type)`)
+///   - `resettable`- overrides enum/struct & variant level resettable
+///   - `on_change = "expr"`- Use function (`expr`: closure surrounded by `()` OR function path) callback (when value has been changed; signature: `fn(&mut field_type)`)
 ///   - `on_change_struct = "expr"`- Similar to `on_change` but takes whole struct: signature: `fn(&mut self)`
-///   - `config`- pass format/config object to customise how field is displayed
-///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `start_collapsed()` return)
-///   - `map_pre`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
-///     - this allows displaying fields that does not implement EguiStruct or overiding how field is shown
+///   - `config`- pass format/config object to customize how field is displayed
+///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overrides fields `start_collapsed()` return)
+///   - `map_pre`- Expression (closure surrounded by `()` OR function path) called to map field to another type before displaying
+///     - this allows displaying fields that does not implement EguiStruct or overriding how field is shown
 ///     - function shall take `& field_type` or `&mut field_type` AND return either mutable reference or owned value of selected type (that implements `EguiStruct`)
-///     - ! beware, because (if `map_pre_ref` is not set) this will make field work only with resetable values: {NonResetable, WithExpr, FieldDefault}
+///     - ! beware, because (if `map_pre_ref` is not set) this will make field work only with resettable values: {NonResettable, WithExpr, FieldDefault}
 ///     - defaults to `map_pre_ref` (so if `&mut` is not needed for map, can be left unused)
 ///   - `map_pre_ref`- similar to `map_pre`, but takes immutable reference (signature: `fn(&field_type)->mapped`),
 ///     - used to convert default/reset2 and inside eguis_eq (if eeq not specified)
-///   - `map_post`- Expression (closure surounded by `()` OR function path) called to map mapped field back to field_type after displaying
+///   - `map_post`- Expression (closure surrounded by `()` OR function path) called to map mapped field back to field_type after displaying
 ///     - only used if `map_pre` is set
 ///     - signature: `fn(&mut field_type, &mapped)` (with `mapped` type matching return from `map_pre`)
-///     - expresion should assign new value to `&mut field_type`
+///     - expression should assign new value to `&mut field_type`
 ///   - `eeq`- override `eguis_eq` function for field (signature fn(&field_type, &field_type))
 ///     - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
 ///   - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
@@ -1089,7 +1089,7 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// }
 /// ```
 ///
-/// Atributtes `eguis` & `eguisI` are supported on either enum/struct, field or variant level
+/// Attributes `eguis` & `eguisI` are supported on either enum/struct, field or variant level
 /// to configure trait implementation and may take following values:
 ///
 /// - enum/struct level:
@@ -1103,10 +1103,10 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///   - `i18n ="i18n_key"`- normally i18n keys are in format "prefix.enumName.variantName", override this with "i18n_key"
 /// - field level
 ///   - `rename`, `skip`, `hint`, `i18n`- see variant level
-///   - `imconfig`- pass format/config object([`EguiStructImut::ConfigTypeImut`) to customise how field is displayed
-///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overides fields `EguiStructImut::start_collapsed_imut()` return)
-///   - `map_pre_ref`- Expression (closure surounded by `()` OR function path) called to map field to another type before displaying
-///     - this allows displaying fields that does not implement `EguiStructImut` or overiding how field is shown
+///   - `imconfig`- pass format/config object([`EguiStructImut::ConfigTypeImut`) to customize how field is displayed
+///   - `start_collapsed = true/false` - field always starts collapsed/uncollapsed (overrides fields `EguiStructImut::start_collapsed_imut()` return)
+///   - `map_pre_ref`- Expression (closure surrounded by `()` OR function path) called to map field to another type before displaying
+///     - this allows displaying fields that does not implement `EguiStructImut` or overriding how field is shown
 ///     - function shall take `&field_type` AND return either reference or owned value of selected type (that implements `EguiStructImut`)
 #[proc_macro_derive(EguiStructImut, attributes(eguis, eguisI))]
 pub fn egui_struct_imut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

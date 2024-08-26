@@ -43,12 +43,12 @@ pub enum ConfigStrImut {
     /// `egui::Label`
     NonSelectable,
 
-    /// Default: imutable `egui::TextEdit`
+    /// Default: immutable `egui::TextEdit`
     #[default]
     Selectable,
 }
 
-/// Configuration options for adding new elements to set (Hashset, Vec, ..)
+/// Configuration options for adding new elements to set (HashSet, Vec, ..)
 // #[derive(Default)]
 // pub enum ConfigSetExpandable<T> {
 //     /// New elements can't be added to set
@@ -66,7 +66,7 @@ pub struct ConfigSetExpandable<T: 'static> {
     default: &'static dyn Fn() -> T,
     mutable: bool,
 }
-/// Configuration options for mutable sets (Hashset, Vec, ..)
+/// Configuration options for mutable sets (HashSet, Vec, ..)
 pub struct ConfigSetMut<'a, T: EguiStructMut + 'static> {
     /// Can new elements be added to set
     // expandable: ConfigSetExpandable<T>,
@@ -117,7 +117,7 @@ pub(crate) mod combobox {
             self.0.to_string().show_primitive_imut(ui, config)
         }
     }
-    // impl<T: Clone + PartialEq> EguiStructResetable for Combobox<T> {
+    // impl<T: Clone + PartialEq> EguiStructResettable for Combobox<T> {
     //     type Reset2 = T;
 
     //     fn reset2(&mut self, source: &Self::Reset2) {

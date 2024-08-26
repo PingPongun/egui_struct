@@ -28,7 +28,7 @@ Data.limited_isize: Limited isize
 Data.limited_isize.__hint.: This is also isize but limited to range <5,11>
 Data.list: List
 Data.nested_struct: Nested struct
-Data.not_resetable_string: Not resetable string
+Data.not_resettable_string: Not resettable string
 Data.optional: Optional
 Data.optional.__hint.: This is Option<_>
 Data.optional_string: Optional string

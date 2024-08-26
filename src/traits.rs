@@ -6,7 +6,7 @@ use std::ops::Deref;
 macro_rules! generate_show {
     ($show_collapsing:ident, $show_primitive:ident, $show_childs:ident, $start_collapsed:ident,
          $typ:ty, $ConfigType:ident, $SIMPLE:ident, $has_childs:ident, $has_primitive:ident, $preview_str:ident) => {
-        /// Type that will pass some data to customise how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
+        /// Type that will pass some data to customize how data is shown, in most cases this will be () (eg. for numerics this is [ConfigNum])
         type $ConfigType<'a>: Default;
 
         /// Flag that indicates that data can be shown in the same line as parent (set to true if data is shown as single&simple widget)
@@ -22,6 +22,7 @@ macro_rules! generate_show {
             !self.$has_childs()
         }
         /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
+        /// !!! WARNING: This function is not intended for manual implementation !!!
         fn $show_collapsing(
             self: $typ,
             ui: &mut ExUi,
@@ -62,14 +63,14 @@ macro_rules! generate_show {
             ui.dummy_response()
         }
 
-        /// Controls if struct is initally collapsed/uncollapsed (if "show_childs_mut" is shown by default)
+        /// Controls if struct is initially collapsed/uncollapsed (if "show_childs_mut" is shown by default)
         ///
         /// eg. Collections (vecs, slices, hashmaps, ..) are initially collapsed if they have more than 16 elements
         fn $start_collapsed(&self) -> bool {
             false
         }
 
-        /// String that may be used by parrent structs to hint its content
+        /// String that may be used by parent structs to hint its content
         ///
         /// eg. Vec<int> may display preview of its data as `[1,2,3,..]#100`
         /// (impl of preview_str() for int returns its value as str)
@@ -98,7 +99,7 @@ pub trait EguiStructEq {
         true
     }
 }
-// pub trait EguiStructResetable {
+// pub trait EguiStructResettable {
 //     type Reset2;
 //     fn reset_possible(&self, _rhs: &Self::Reset2) -> bool {
 //         //default implementation can be used if reset button is not required
@@ -108,10 +109,10 @@ pub trait EguiStructEq {
 // }
 
 // #[macro_export]
-// macro_rules! impl_egui_struct_resetable {
+// macro_rules! impl_egui_struct_resettable {
 //     ($($type:ty)*) => {
 //         $(
-//             impl EguiStructResetable for $type {
+//             impl EguiStructResettable for $type {
 //                 type Reset2 = $type;
 
 //                 fn reset2(&mut self, source: &Self::Reset2) {
@@ -126,8 +127,8 @@ pub trait EguiStructEq {
 //         )*
 //     };
 // }
-// impl_egui_struct_resetable! {i8 i16 i32 i64 u8 u16 u32 u64 isize f32 f64 bool u128 i128 String}
-// impl EguiStructResetable for usize {
+// impl_egui_struct_resettable! {i8 i16 i32 i64 u8 u16 u32 u64 isize f32 f64 bool u128 i128 String}
+// impl EguiStructResettable for usize {
 //     type Reset2 = EguiStructConfig<ConfigNum<'static, usize>, usize>;
 //     fn reset2(&mut self, source: &Self::Reset2) {
 //         *self = source.reset.clone().unwrap()
@@ -166,12 +167,12 @@ pub trait EguiStructEq {
 // }
 
 // #[allow(nonstandard_style)]
-// struct _Test___EguiStructResetable {
+// struct _Test___EguiStructResettable {
 //     eguis: EguiStructConfig<ConfigStr<'static>, ()>,
-//     a: <usize as EguiStructResetable>::Reset2,
-//     b: <usize as EguiStructResetable>::Reset2,
+//     a: <usize as EguiStructResettable>::Reset2,
+//     b: <usize as EguiStructResettable>::Reset2,
 // }
-// impl Default for _Test___EguiStructResetable {
+// impl Default for _Test___EguiStructResettable {
 //     fn default() -> Self {
 //         Self {
 //             a: EguiStructConfig {
@@ -196,8 +197,8 @@ pub trait EguiStructEq {
 //         }
 //     }
 // }
-// impl EguiStructResetable for Test {
-//     type Reset2 = _Test___EguiStructResetable;
+// impl EguiStructResettable for Test {
+//     type Reset2 = _Test___EguiStructResettable;
 
 //     fn reset2(&mut self, source: &Self::Reset2) {
 //         self.a.reset2(&source.a);
@@ -210,8 +211,6 @@ pub trait EguiStructEq {
 // }
 
 /// Trait, that allows generating mutable view of data (takes `&mut data`)
-///
-///  For end user (if you implement trait with macro & not manualy) ofers one function [`.show_top_mut()`](Self::show_top_mut), which displays struct inside scroll area.
 pub trait EguiStructMut: EguiStructClone + EguiStructEq {
     generate_show! { show_collapsing_mut, show_primitive_mut, show_childs_mut, start_collapsed_mut,
     &mut Self, ConfigTypeMut, SIMPLE_MUT, has_childs_mut, has_primitive_mut, preview_str_mut }

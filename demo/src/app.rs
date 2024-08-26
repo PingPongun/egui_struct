@@ -37,10 +37,10 @@ pub enum Color {
         name: String,
     },
 
-    #[eguis(resetable(with_expr = ||Color::Custom(255,13,17) ))]
+    #[eguis(resettable(with_expr = ||Color::Custom(255,13,17) ))]
     Custom(
         #[eguis(
-        resetable = "not_resetable",
+        resettable = "not_resettable",
         map_pre = (|field: &mut u8| field.to_string()),
         map_post = (|field: &mut u8, mapped: String| { use std::str::FromStr; if let Ok(new_val)=u8::from_str(mapped.as_str()) {*field=new_val;} })
     )]
@@ -74,7 +74,7 @@ lazy_static::lazy_static! {
     );
 }
 #[derive(EguiStructMut)]
-#[eguis(rename_all = "Sentence", resetable = "struct_default")]
+#[eguis(rename_all = "Sentence", resettable = "struct_default")]
 pub struct Data {
     #[eguis(skip)]
     skipped_data: u32,
@@ -84,16 +84,16 @@ pub struct Data {
 
     hashmap: std::collections::HashMap<String, String>,
 
-    #[eguis(resetable(with_expr = "Resetable with expr".to_string()))]
+    #[eguis(resettable(with_expr = "Resettable with expr".to_string()))]
     string: String,
 
-    #[eguis(resetable = "not_resetable")]
-    not_resetable_string: String,
+    #[eguis(resettable = "not_resettable")]
+    not_resettable_string: String,
 
-    #[eguis(resetable = "field_default")]
+    #[eguis(resettable = "field_default")]
     i8: i8,
 
-    #[eguisM(resetable = "field_default")]
+    #[eguisM(resettable = "field_default")]
     i16: i16,
 
     i32: i32,
@@ -124,8 +124,8 @@ pub struct Data {
     u32: u32,
 
     #[eguis(
-        resetable = "not_resetable",
-        map_pre = RwLock::write, //more eleagent would be to use sth like: map_pre_ref = RwLock::read, map_post= (|field, mapped|*field.write()=mapped;),
+        resettable = "not_resettable",
+        map_pre = RwLock::write, //more elegant would be to use sth like: map_pre_ref = RwLock::read, map_post= (|field, mapped|*field.write()=mapped;),
         eeq = (|field: &RwLock<u32>, rhs: &RwLock<u32>| field.read().eguis_eq(&*rhs.read()) ),
         eclone = (|field: &mut RwLock<u32>, rhs: &RwLock<u32>| field.write().eguis_clone(&*rhs.read()) )
     )]
@@ -176,7 +176,7 @@ impl Default for Data {
             },
             skipped_data: 0,
             string: "Hello!".to_string(),
-            not_resetable_string: "Hello!".to_string(),
+            not_resettable_string: "Hello!".to_string(),
             i8: 42,
             i16: 1555,
             i32: -242522,
@@ -225,7 +225,7 @@ impl Default for Data {
 
 #[derive(EguiStructMut)]
 pub struct TupleStruct(
-    #[eguis(resetable = "struct_default")] u8,
+    #[eguis(resettable = "struct_default")] u8,
     #[eguis(on_change_struct = (|s: &mut TupleStruct|s.2=format!("Wololo!: {}", s.1)))] u32,
     String,
     SubData,
@@ -243,7 +243,7 @@ pub struct Metadata {
 }
 
 #[derive(EguiStructMut, Default)]
-#[eguis(resetable = "struct_default")]
+#[eguis(resettable = "struct_default")]
 pub struct SubData {
     value: String,
     number: u32,
@@ -262,7 +262,7 @@ impl eframe::App for DemoApp {
             // data.show_top_mut(ui, RichText::new("Data").heading(), None);
             data.eguis_mut()
                 .label(RichText::new("Data").heading())
-                .view_mode(GridMode::Traditional)
+                // .view_mode(GridMode::Traditional)
                 .show(ui);
         });
     }
