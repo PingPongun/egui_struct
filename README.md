@@ -11,44 +11,60 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 
 ## EguiStruct vs similar crates
 
-|                            | EguiStruct                                                                   | egui-probe                                                        | enum2egui        | egui_inspect                 | egui-controls                     |
-| :------------------------- | :--------------------------------------------------------------------------- | ----------------------------------------------------------------- | :--------------- | :--------------------------- | :-------------------------------- |
-| egui version               | 0.26 (0.21-0.28) ****                                                        | 0.27/0.28                                                         | 0.23/0.24.1/0.26 | 0.20                         | N/A                               |
-| Layout*                    | Grid                                                                         | Grid                                                              | Group/nested     | Nested                       | Grid                              |
-| i18n support               | ✅ (rust-i18n**)                                                              | ❌                                                                 | ❌                | ❌                            | ❌                                 |
-| Field description          | ✅ on hover hint (from attribute)                                             | ❌                                                                 | ❌                | ❌                            | ✅ third column (from doc comment) |
-| Rename field/variant       | ✅                                                                            | ✅                                                                 | ✅/❌ (enum only)  | ❌                            | ❌                                 |
-| Mass name case conversion  | ✅                                                                            | ✅                                                                 | ❌                | ❌                            | ❌                                 |
-| Callback on-change         | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
-| Reset button               | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
-| Skip field                 | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ❌                                 |
-|                            |                                                                              |                                                                   |                  |                              |                                   |
-| Numerics & strings support | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ✅                                 |
-| Vec support                | ✅/❌ (does not support adding/removing elements)                              | ✅ std, smallvec1/2                                                | ✅                | ✅                            | ❌                                 |
-| Other support              | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option, [T;N], some of egui types                         | ✅ bool, Option   | ✅ bool, [T;N]                | ❌                                 |
-| HashMap/Set support        | ✅ std, indexmap                                                              | ✅ std, hashbrown                                                  | ✅ std, hashbrown | ❌                            | ❌                                 |
-| Map field/override impl    | ✅                                                                            | ✅                                                                 | ❌                | ✅                            | ❌                                 |
-| Struct derive              | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ✅                                 |
-| Enum derive                | ✅                                                                            | ✅                                                                 | ✅                | ❌                            | ❌                                 |
-| Custom types in derive     | ✅                                                                            | ✅                                                                 | ✅                | ✅                            | ❌                                 |
-|                            |                                                                              |                                                                   |                  |                              |                                   |
-| Configuration numerics     | ✅ Slider(min,max), Slider(min,max,step), DragValue(min,max), DragValue, List | ✅ DragValue(min,max), DragValue                                   | ❌                | ✅ Slider(min,max), DragValue | ❌                                 |
-| Configuration string       | ✅ multi/singleline, List                                                     | ✅ multi/singleline                                                | ❌                | ✅ multi/singleline           | ❌                                 |
-| Configuration user types   | ✅                                                                            | ❌                                                                 | ❌                | ❌                            | ❌                                 |
-| Configuration others       | ❌                                                                            | ✅ Color32, bool, Enum(combobox or inline buttons), sets/vecs/maps | ❌                | ❌                            | ❌                                 |
-| List/Combobox wrapper      | ✅ ***                                                                        | ❌                                                                 | ❌                | ❌                            | ❌                                 |
+|                                   | EguiStruct                                                                   | egui-probe                                        | enum2egui             | egui_inspect                 | egui-controls                     |
+| :-------------------------------- | :--------------------------------------------------------------------------- | ------------------------------------------------- | :-------------------- | :--------------------------- | :-------------------------------- |
+| egui version[[1]](#ref1)          | 0.28 (0.23-0.28)                                                             | 0.27/0.28                                         | 0.23/0.24.1/0.26/0.28 | 0.20                         | N/A                               |
+| Adheres to SemVer                 | ✅                                                                            | ✅                                                 | ❌                     | ✅                            | ✅                                 |
+| Layout[[2]](#ref2)                | [ExGrid](https://crates.io/crates/exgrid)                                    | Grid                                              | Group/nested          | Nested                       | Grid                              |
+| i18n support                      | ✅ (rust-i18n[[3]](#ref3))                                                    | ❌                                                 | ❌                     | ❌                            | ❌                                 |
+| Field description                 | ✅ on hover hint (from attribute)                                             | ❌                                                 | ❌                     | ❌                            | ✅ third column (from doc comment) |
+| Rename field/variant              | ✅                                                                            | ✅                                                 | ✅/❌ (enum only)       | ❌                            | ❌                                 |
+| Mass name case conversion         | ✅                                                                            | ✅                                                 | ❌                     | ❌                            | ❌                                 |
+| Callback on-change                | ✅                                                                            | ❌                                                 | ❌                     | ❌                            | ❌                                 |
+| Reset button                      | ✅                                                                            | ❌                                                 | ❌                     | ❌                            | ❌                                 |
+| Skip field                        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ❌                                 |
+|                                   |                                                                              |                                                   |                       |                              |                                   |
+| Numerics & strings support        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
+| Vec support                       | ✅/❌ (does not support adding/removing elements)                              | ✅ std, smallvec1/2                                | ✅                     | ✅                            | ❌                                 |
+| Other support                     | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option        | ✅ bool, [T;N]                | ❌                                 |
+| HashMap/Set support               | ✅ std, indexmap                                                              | ✅ std, hashbrown                                  | ✅ std, hashbrown      | ❌                            | ❌                                 |
+| Map field/override impl           | ✅                                                                            | ✅                                                 | ❌                     | ✅                            | ❌                                 |
+| Struct derive                     | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
+| Enum derive                       | ✅                                                                            | ✅                                                 | ✅                     | ❌                            | ❌                                 |
+| Custom types in derive            | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ❌                                 |
+| Support foreign types[[4]](#ref4) | ✅                                                                            | ✅                                                 | ❌                     | ❌                            | ❌                                 |
+|                                   |                                                                              |                                                   |                       |                              |                                   |
+| Configuration numerics            | ✅ Slider(min,max), Slider(min,max,step), DragValue(min,max), DragValue, List | ✅ DragValue(min,max), DragValue                   | ❌                     | ✅ Slider(min,max), DragValue | ❌                                 |
+| Configuration string              | ✅ multi/singleline, List                                                     | ✅ multi/singleline                                | ❌                     | ✅ multi/singleline           | ❌                                 |
+| Configuration user types          | ✅                                                                            | ❌                                                 | ❌                     | ❌                            | ❌                                 |
+| Configuration set/vec/map         | ✅ Enable add/remove/modify(both key&value)/reorder/pre-add-modify elements   | ✅ Enable add/remove elements                      | ❌                     | ❌                            | ❌                                 |
+| Configuration others              | ❌                                                                            | ✅ Color32, bool, Enum(combobox or inline buttons) | ❌                     | ❌                            | ❌                                 |
+| List/Combobox wrapper             | ✅ [[5]](#ref5)                                                               | ❌                                                 | ❌                     | ❌                            | ❌                                 |
 
-\* Everything is put inside scroll&grid layout (with collapsable rows)
+[<a id="ref1">1</a>] : See section `Usage >> egui version` (`EguiStruct` supports all versions of egui through features; other crates support only "newest" one, support for other is by using legacy version)
 
+[<a id="ref2">2</a>] : Layout
+
+Grid benefits:
+
+- Everything is put inside scroll&grid layout (with collapsible rows)
 - Gui is less chaotic,
 - all values are aligned,
-- Gui is comact in width
+- Gui is compact in width
 
-** integrated/with i18n in mind (with [rust-i18n](https://github.com/longbridgeapp/rust-i18n) crate (or if using extractor [modified rust-i18n](https://github.com/PingPongun/rust-i18n.git)))
+[ExGrid](https://crates.io/crates/exgrid) benefits:
 
-*** Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
+- Drop-in replacement for egui::Grid
+- Benefits of Grid
+- Handles collapsible/nested rows + few other things, simplifying implementation/function signatures
+- Offers alternative view mode, dedicated for narrow displays (eg. smartphones)
 
-**** See section `Usage >> egui version` (`EguiStruct` supports all versions of egui through features; other crates support only "newest" one, support for other is by using legacy version)
+[<a id="ref3">3</a>] : Integrated/with i18n in mind (with [rust-i18n](https://github.com/longbridgeapp/rust-i18n) crate (or if using extractor [modified rust-i18n](https://github.com/PingPongun/rust-i18n.git)))
+
+[<a id="ref4">4</a>] : Foreign types are supported without need to create local wrappers (egui-probe: attribute `with`; egui-struct: attributes `map_*` or `wrapper_*` and `show_*`), this enables also overriding trait implementation
+
+[<a id="ref5">5</a>] : Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
+
 
 ## Usage
 
@@ -83,7 +99,7 @@ See [docs](https://docs.rs/egui_struct/latest/egui_struct/index.html).
 
 See ./demo
 
-![obraz](https://github.com/PingPongun/egui_struct/assets/46752179/5c7281f7-4fba-4fc5-8a4d-de36000155f6)
+![demo- grid mode](https://github.com/PingPongun/egui_struct/assets/46752179/5c7281f7-4fba-4fc5-8a4d-de36000155f6)
 
 ### egui version
 
@@ -93,9 +109,9 @@ See ./demo
 egui_struct = { version = "0.5", default-features = false, features = [ "egui25" ] }
 ```
 
-OR use `[patch]` section.
+OR use `[patch]` section. Currently `egui_struct` supports `egui 0.23-0.28`.
 
-Default egui version feature will be updated to newest egui on semver minor release(0.5).  
+Default egui version feature will be updated to newest egui on semver minor release(0.6).
 
 ## TODO
 
