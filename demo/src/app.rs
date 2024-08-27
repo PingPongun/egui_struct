@@ -262,7 +262,8 @@ impl eframe::App for DemoApp {
             // data.show_top_mut(ui, RichText::new("Data").heading(), None);
             data.eguis_mut()
                 .label(RichText::new("Data").heading())
-                // .view_mode(GridMode::Traditional)
+                .view_mode(GridMode::Traditional)
+                // .view_mode(GridMode::CompactWidth)
                 .show(ui);
         });
     }

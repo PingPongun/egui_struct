@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- [Breaking] Default egui bumped to v0.27
+- [Breaking] Default egui bumped to v0.28 (was v0.26)
+- [Breaking] Minimal egui bumped to v0.23 (was v0.21)
 - [Breaking] New show API: `data.show_top(ui, ..)` -> `data.eguis_mut().show(ui)`
 - [Breaking] Library has been grouped into `prelude` (macro generation & showing) and `trait_implementor_set` (used when manually implementing traits)
 - [Breaking] Mutable EguiStruct trait&functions suffixed with mut
@@ -34,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - EguiStruct{Mut, Imut}::COLUMN_COUNT_{MUT, IMUT} (it was used only internally, highly unlikely anyone will notice difference)
+
+## [0.4.2] - 2024-07-09
+
+### Added
+
+- added feature with egui 0.28 support
 
 ## [0.4.1] - 2024-04-02
 

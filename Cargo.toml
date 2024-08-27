@@ -26,12 +26,14 @@ egui24 = { version = "0.24", package = "egui", default-features = false, optiona
 egui25 = { version = "0.25", package = "egui", default-features = false, optional = true }
 egui26 = { version = "0.26", package = "egui", default-features = false, optional = true }
 egui27 = { version = "0.27", package = "egui", default-features = false, optional = true }
+egui28 = { version = "0.28", package = "egui", default-features = false, optional = true }
 
 indexmap = { version = "2.0", optional = true }
 
 [features]
+egui28 = ["dep:egui28", "egui_struct_macros/egui28"]
 indexmap = ["dep:indexmap"]
-default = ["egui27", "i18n"]
+default = ["egui28"]
 i18n = ["egui_struct_macros/i18n"]
 
 [workspace]

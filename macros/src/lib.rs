@@ -486,6 +486,16 @@ fn handle_enum(
         }
     };
 
+    #[cfg(feature = "egui28")]
+    let egui_struct_mut_combobox = quote! {
+        ::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox"))
+            .wrap_mode(::egui::TextWrapMode::Extend)
+    };
+    #[cfg(not(feature = "egui28"))]
+    let egui_struct_mut_combobox = quote! {
+        ::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
+    };
+
     let egui_struct_mut = quote! {
         impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructMut for #ty #ty_generics #where_clause {
             const SIMPLE_MUT: ::std::primitive::bool = #simple;//is c-like enum
@@ -528,29 +538,24 @@ fn handle_enum(
                         _=>"".to_string()}
                 }
                 let id = ui.id();
-                ui.horizontal(|ui|{
-                    let mut ui: ::egui_struct::exgrid::ExUi= ui.into();
-                    let ui = &mut ui;
-                    let defspacing=ui.spacing().item_spacing.clone();
-                    ui.spacing_mut().item_spacing=::egui::vec2(0.0, 0.0);
-                    let mut inner_response=ui.allocate_response(::egui::vec2(0.0,0.0), ::egui::Sense::hover());
-                    let mut response=::egui::ComboBox::from_id_source((id.clone(), "__EguiStruct_enum_combobox")).wrap(false)
+                let mut inner_response=ui.dummy_response();
+                let mut response=
+                    #egui_struct_mut_combobox
                     .selected_text(to_text(self))
                     .show_ui(ui,|ui|{
-                        ui.spacing_mut().item_spacing=defspacing;
+                        inner_response.layer_id = ui.layer_id();
                         #(#show_combobox)* //ui.selectable_value(&mut selected, Enum::First, "First").on_hover_text("hint");
                     }).response;
-                    ui.spacing_mut().item_spacing=defspacing;
-                    match self{
-                        #(#to_hint_arm)*
-                        _=>(),
-                    }
-                    match self{
-                        #(#show_primitive_mut_arm)*
-                        _=>(),
-                    }
-                    response | inner_response
-                }).inner
+                match self{
+                    #(#to_hint_arm)*
+                    _=>(),
+                }
+                match self{
+                    #(#show_primitive_mut_arm)*
+                    _=>(),
+                }
+                inner_response.layer_id = ui.layer_id();
+                response | inner_response
             }
             fn start_collapsed_mut(&self) -> bool {
                 #start_collapsed

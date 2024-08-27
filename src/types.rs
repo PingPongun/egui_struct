@@ -156,24 +156,21 @@ pub(crate) mod combobox {
         config: Option<&'a mut dyn Iterator<Item = T>>,
     ) -> Response {
         let id = ui.id();
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-            let mut inner_response =
-                ui.allocate_response(egui::vec2(0.0, 0.0), egui::Sense::hover());
-            let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
-                .selected_text(sel.to_string())
-                .show_ui(ui, |ui| {
-                    if let Some(config) = config {
-                        for i in config {
-                            let s = i.to_string();
-                            inner_response |= ui.selectable_value(sel, i, s);
-                        }
+        let mut inner_response = ui.dummy_response();
+        let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
+            .selected_text(sel.to_string())
+            .show_ui(ui, |ui| {
+                inner_response.layer_id = ui.layer_id();
+                if let Some(config) = config {
+                    for i in config {
+                        let s = i.to_string();
+                        inner_response |= ui.selectable_value(sel, i, s);
                     }
-                })
-                .response;
-            ret | inner_response
-        })
-        .inner
+                }
+            })
+            .response;
+        inner_response.layer_id = ui.layer_id();
+        ret | inner_response
     }
     impl<T> Deref for Combobox<T> {
         type Target = T;

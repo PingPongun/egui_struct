@@ -5,12 +5,12 @@ authors = ["PingPongun"]
 edition = "2021"
 
 [dependencies]
-egui = "0.27"
-eframe = { version = "0.27", default-features = false, features = [
+egui = "0.28"
+eframe = { version = "0.28", default-features = false, features = [
     "default_fonts",
     "glow",
 ] }
-egui_struct = { path = "../", features = ["indexmap"] }
+egui_struct = { path = "../", features = ["indexmap", "i18n"] }
 rust-i18n = { git = "https://github.com/PingPongun/rust-i18n.git" }
 # rust-i18n = "2.2.1" # crates version also works correctly, but modified has some advantages, mostly optimized & more recent deps
 lazy_static = "1.4.0"

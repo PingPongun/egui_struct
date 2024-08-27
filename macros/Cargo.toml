@@ -21,3 +21,4 @@ darling = "0.20.3"
 
 [features]
 i18n = []
+egui28 = []

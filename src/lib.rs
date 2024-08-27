@@ -65,3 +65,5 @@ use egui25 as egui;
 use egui26 as egui;
 #[cfg(feature = "egui27")]
 use egui27 as egui;
+#[cfg(feature = "egui28")]
+use egui28 as egui;

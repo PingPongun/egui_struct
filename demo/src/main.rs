@@ -10,6 +10,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "egui_struct demo",
         native_options,
-        Box::new(|_creation_context| Box::<DemoApp>::default()),
+        Box::new(|_creation_context| Ok(Box::<DemoApp>::default())),
     )
 }
