@@ -32,7 +32,7 @@ pub mod trait_implementor_set {
     pub fn primitive_w_reset<T: EguiStructMut + ?Sized>(
         data: &mut T,
         ui: &mut ExUi,
-        config: T::ConfigTypeMut<'_>,
+        config: &mut T::ConfigTypeMut<'_>,
         reset2: Option<&T>,
     ) -> Response {
         ui.keep_cell_start();

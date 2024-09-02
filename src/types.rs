@@ -62,27 +62,27 @@ pub enum ConfigStrImut {
 //     MutAdd(T),
 // }
 
-pub struct ConfigSetExpandable<T: 'static> {
-    default: &'static dyn Fn() -> T,
-    mutable: bool,
+pub struct ConfigSetExpandable<'a, T: 'a> {
+    pub default: &'a dyn Fn() -> T,
+    pub mutable: bool,
 }
 /// Configuration options for mutable sets (HashSet, Vec, ..)
-pub struct ConfigSetMut<'a, T: EguiStructMut + 'static> {
+pub struct ConfigSetMut<'a, T: EguiStructMut + 'a> {
     /// Can new elements be added to set
     // expandable: ConfigSetExpandable<T>,
-    expandable: Option<ConfigSetExpandable<T>>,
+    pub expandable: Option<ConfigSetExpandable<'a, T>>,
 
     /// Can elements be removed from set
-    shrinkable: bool,
+    pub shrinkable: bool,
 
     /// Can elements be changed after adding
-    mutable_data: bool,
+    pub mutable_data: bool,
 
     /// Maximum number of elements in set
-    max_len: Option<usize>,
+    pub max_len: Option<usize>,
 
     /// Config how elements are shown
-    inner_config: T::ConfigTypeMut<'a>,
+    pub inner_config: T::ConfigTypeMut<'a>,
     // reorderable: bool,
 }
 
@@ -112,7 +112,7 @@ pub(crate) mod combobox {
         fn show_primitive_imut(
             self: &Self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeImut<'_>,
+            config: &mut Self::ConfigTypeImut<'_>,
         ) -> Response {
             self.0.to_string().show_primitive_imut(ui, config)
         }
@@ -144,7 +144,7 @@ pub(crate) mod combobox {
         fn show_primitive_mut(
             self: &mut Self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeMut<'_>,
+            config: &mut Self::ConfigTypeMut<'_>,
         ) -> Response {
             show_combobox(&mut self.0, ui, config)
         }
@@ -153,7 +153,7 @@ pub(crate) mod combobox {
     pub(crate) fn show_combobox<'a, T: Clone + ToString + PartialEq>(
         sel: &mut T,
         ui: &mut ExUi,
-        config: Option<&'a mut dyn Iterator<Item = T>>,
+        config: &mut Option<&'a mut dyn Iterator<Item = T>>,
     ) -> Response {
         let id = ui.id();
         let mut inner_response = ui.dummy_response();

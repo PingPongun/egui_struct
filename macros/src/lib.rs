@@ -267,8 +267,8 @@ fn handle_enum(
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
                     has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_MUT,});
-                    let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,#imconfig),};
-                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive_mut(ui,#config);  #map_post; {#on_change}; response |=r;},};
+                    let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,&mut #imconfig),};
+                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive_mut(ui,&mut #config);  #map_post; {#on_change}; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -442,7 +442,7 @@ fn handle_enum(
             fn has_primitive_imut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeImut<'_>, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
@@ -459,7 +459,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeImut<'_>) -> ::egui::Response {
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
                         #(#to_name_arm)*
@@ -509,7 +509,7 @@ fn handle_enum(
             fn has_primitive_mut(&self) -> ::std::primitive::bool {
                 true
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeMut<'_>, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 #![allow(unused)]
                 use ::egui_struct::trait_implementor_set::EguiStructImut;
                 use ::egui_struct::trait_implementor_set::EguiStructMut;
@@ -530,7 +530,7 @@ fn handle_enum(
                 }
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeMut<'_>) -> ::egui::Response {
                 #![allow(unused)]
                 fn to_text(s:& #ty)-> ::std::string::String{
                     match s{
@@ -737,8 +737,8 @@ fn handle_fields(
             quote!(None)
         };
 
-        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);};
-        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, #config, #resettable, #start_collapsed);};
+        let mut field_code_imut = quote! { response |= #whole_ident.show_collapsing_imut( ui, #lab, #hint, &mut #imconfig, ::std::option::Option::None, #start_collapsed);};
+        let mut field_code_mut = quote! { response |= #whole_ident.show_collapsing_mut( ui, #lab, #hint, &mut #config, #resettable, #start_collapsed);};
         let (_ref, _ref_mut) = if variant.is_some() {
             (quote! {}, quote! {})
         } else {
@@ -751,7 +751,7 @@ fn handle_fields(
             field_code_imut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre_ref(#_ref #whole_ident);
-                response |=mapped .show_collapsing_imut( ui, #lab, #hint, #imconfig, ::std::option::Option::None, #start_collapsed);
+                response |=mapped .show_collapsing_imut( ui, #lab, #hint, &mut #imconfig, ::std::option::Option::None, #start_collapsed);
             };
             map_reset = quote! {#map_pre_ref};
         }
@@ -760,7 +760,7 @@ fn handle_fields(
             field_code_mut = quote! {
                 #[allow(unused_mut)]
                 let mut mapped = #map_pre(#_ref_mut #whole_ident);
-                let r = mapped .show_collapsing_mut( ui, #lab, #hint, #config, #resettable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
+                let r = mapped .show_collapsing_mut( ui, #lab, #hint, &mut #config, #resettable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
                 response |= r.clone();
             };
 
@@ -884,7 +884,7 @@ fn handle_struct(
             );
             show_primitive_imut = quote! {
                   if Self::SIMPLE_IMUT {
-                    #map_ref (&self. #index).show_primitive_imut(ui,#config_imut)
+                    #map_ref (&self. #index).show_primitive_imut(ui,&mut #config_imut)
                   }else {
                     ui.label("")
                   }
@@ -892,7 +892,7 @@ fn handle_struct(
             show_primitive_mut = quote! {
                 if Self::SIMPLE_MUT {
                     let mut mapped=#map (&mut self. #index);
-                    let response=mapped.show_primitive_mut(ui, #config);
+                    let response=mapped.show_primitive_mut(ui, &mut #config);
                     #map_post
                     {#on_change};
                     response
@@ -916,7 +916,7 @@ fn handle_struct(
             fn has_childs_imut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_IMUT
             }
-            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeImut<'_>, _reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
                     egui::Rect::NOTHING,
@@ -930,7 +930,7 @@ fn handle_struct(
                 #(#fields_code)*
                 response
             }
-            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeImut<'_>) -> ::egui::Response {
+            fn show_primitive_imut(&self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeImut<'_>) -> ::egui::Response {
                 #show_primitive_imut
             }
             fn start_collapsed_imut(&self) -> bool {
@@ -945,7 +945,7 @@ fn handle_struct(
             fn has_childs_mut(&self) -> ::std::primitive::bool {
                !Self::SIMPLE_MUT
             }
-            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
+            fn show_childs_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeMut<'_>, reset2: ::std::option::Option<&Self>) -> ::egui::Response {
                 use ::egui_struct::trait_implementor_set::EguiStructMut;
                 use ::egui_struct::trait_implementor_set::EguiStructImut;
                 let mut response = ui.interact(
@@ -962,7 +962,7 @@ fn handle_struct(
                 #(#fields_code_mut)*
                 response
             }
-            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: Self::ConfigTypeMut<'_>) -> ::egui::Response {
+            fn show_primitive_mut(&mut self, ui: &mut ::egui_struct::exgrid::ExUi, _config: &mut Self::ConfigTypeMut<'_>) -> ::egui::Response {
                 #show_primitive_mut
             }
             fn start_collapsed_mut(&self) -> bool {

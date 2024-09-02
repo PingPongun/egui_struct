@@ -23,7 +23,7 @@ impl Language {
         }
     }
 }
-#[derive(EguiStructMut, Default)]
+#[derive(EguiStructMut, EguiStructImut, Default)]
 #[eguis(start_collapsed = "if let Self::NamedCustom{..} = self {true} else {false}")]
 pub enum Color {
     #[default]
@@ -161,6 +161,13 @@ pub struct Data {
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
 
+    #[eguis(config = " ConfigSetMut{
+            expandable: Some(ConfigSetExpandable{default: &Default::default, mutable:false}),
+            shrinkable: true,
+            mutable_data: false,
+            max_len: Some(5),
+            inner_config: Default::default(),
+        }")]
     list: Vec<Color>,
     set: IndexSet<i32>,
 }
@@ -237,7 +244,7 @@ impl Default for TupleStruct {
     }
 }
 
-#[derive(EguiStructMut, Default)]
+#[derive(EguiStructMut, EguiStructImut, Default)]
 pub struct Metadata {
     message: String,
 }

@@ -28,7 +28,7 @@ macro_rules! generate_show {
             ui: &mut ExUi,
             label: impl Into<RichText> + Clone,
             hint: impl Into<RichText> + Clone,
-            config: Self::$ConfigType<'_>,
+            config: &mut Self::$ConfigType<'_>,
             reset2: Option<&Self>,
             start_collapsed: Option<bool>,
         ) -> Response {
@@ -47,19 +47,28 @@ macro_rules! generate_show {
             };
             ui.maybe_collapsing_rows(has_childs, header)
                 .initial_state(|| start_collapsed.unwrap_or(self.$start_collapsed()))
-                .body_simple(|ui| self.$show_childs(ui, reset2))
+                .body_simple(|ui| self.$show_childs(ui, config, reset2))
         }
         /// UI elements shown in the same line as label
         ///
         /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive) with default impl
-        fn $show_primitive(self: $typ, ui: &mut ExUi, _config: Self::$ConfigType<'_>) -> Response {
+        fn $show_primitive(
+            self: $typ,
+            ui: &mut ExUi,
+            _config: &mut Self::$ConfigType<'_>,
+        ) -> Response {
             ui.dummy_response()
         }
 
         /// UI elements related to nested data, that is show inside collapsible rows
         ///
         /// If data element view is simple & can fully be contained in primitive section, leave this & [.has_childs()](EguiStructMut::has_childs) with default impl
-        fn $show_childs(self: $typ, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+        fn $show_childs(
+            self: $typ,
+            ui: &mut ExUi,
+            _config: &mut Self::$ConfigType<'_>,
+            _reset2: Option<&Self>,
+        ) -> Response {
             ui.dummy_response()
         }
 
@@ -282,7 +291,7 @@ macro_rules! generate_EguiStruct_show {
                                     ui,
                                     self.label,
                                     "",
-                                    Default::default(),
+                                    &mut Default::default(),
                                     self.reset2,
                                     None,
                                 )

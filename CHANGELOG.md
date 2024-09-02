@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::{SIMPLE, COLUMN_COUNT} -> EguiStructMut::{$1}_MUT
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
 - [Breaking] EguiStruct{Imut, Mut}::show_\* functions signatures have been simplified (indent_level, \*id are skipped, as they are handled by exgrid)
+- [Breaking] `EguiStruct*::show_childs*` now takes `config: &mut Self::ConfigType*` argument
 - [Breaking] fix attribute name `resetable`->`resettable`
 - [Breaking] Sets&Maps impl updated:
   - Supports adding/removing elements (Vec, HashMap, IndexMap)
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `{Vec<T>, HashSet<T>, IndexSet<T>}::ConfigTypeMut` changed from `()` to `ConfigSetMut<T>`
   - `{HashMap<Q,V>, IndexMap<Q,V>}::ConfigTypeMut` changed from `()` to `ConfigMapMut<Q,V>`
   - Bounds might have changed slightly
+- [Breaking] `Option<T>::ConfigType*` changed from `()` to `T::ConfigType*`
 - Removed empty first row when label passed in show_top is empty
 - `i18n` is no longer default feature
 

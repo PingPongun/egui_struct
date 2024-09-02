@@ -56,22 +56,22 @@ mod impl_numerics {
         $(
             impl EguiStructMut for $typ {
                 type ConfigTypeMut<'a> = ConfigNum<'a, $typ>;
-                fn show_primitive_mut(&mut self, ui: &mut ExUi, config: Self::ConfigTypeMut<'_>) -> Response {
+                fn show_primitive_mut(&mut self, ui: &mut ExUi, config: &mut Self::ConfigTypeMut<'_>) -> Response {
                     match config{
                         Self::ConfigTypeMut::NumDefault        =>  egui::DragValue::new(self).ui(ui),
                         #[cfg(feature = "egui28")]
-                        Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).range(min..=max).ui(ui),
+                        Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).range(*min..=*max).ui(ui),
                         #[cfg(not(feature = "egui28"))]
-                        Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(min..=max).ui(ui),
-                        Self::ConfigTypeMut::Slider(min,max)   =>  egui::Slider::new(self, min..=max).ui(ui),
-                        Self::ConfigTypeMut::SliderStep(min,max,step)   =>  egui::Slider::new(self, min..=max).step_by(step as f64).ui(ui),
-                        Self::ConfigTypeMut::ComboBox(iter) => show_combobox(self, ui, Some(iter)),
+                        Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(*min..=*max).ui(ui),
+                        Self::ConfigTypeMut::Slider(min,max)   =>  egui::Slider::new(self, *min..=*max).ui(ui),
+                        Self::ConfigTypeMut::SliderStep(min,max,step)   =>  egui::Slider::new(self, *min..=*max).step_by(*step as f64).ui(ui),
+                        Self::ConfigTypeMut::ComboBox(iter) => show_combobox(self, ui, &mut Some(*iter)),
                     }
                 }
             }
             impl EguiStructImut for $typ {
                 type ConfigTypeImut<'a> = ConfigStrImut;
-                fn show_primitive_imut(&self, ui: &mut ExUi, config: Self::ConfigTypeImut<'_>) -> Response {
+                fn show_primitive_imut(&self, ui: &mut ExUi, config: &mut Self::ConfigTypeImut<'_>) -> Response {
                     self.to_string().as_str().show_primitive_imut(ui, config)
                 }
             }
@@ -86,13 +86,13 @@ mod impl_numerics {
     ($($t:ty)*) => ($(
         impl EguiStructImut for $t {
             type ConfigTypeImut<'a> = ();
-            fn show_primitive_imut(&self, ui: &mut ExUi, _config: Self::ConfigTypeImut<'_>) -> Response {
+            fn show_primitive_imut(&self, ui: &mut ExUi, _config: &mut Self::ConfigTypeImut<'_>) -> Response {
                 ui.label(self.to_string())
             }
         }
         impl EguiStructMut for $t {
             type ConfigTypeMut<'a> = ();
-            fn show_primitive_mut(&mut self, ui: &mut ExUi, _config: Self::ConfigTypeMut<'_>)-> Response  {
+            fn show_primitive_mut(&mut self, ui: &mut ExUi, _config: &mut Self::ConfigTypeMut<'_>)-> Response  {
                 let mut text = self.to_string();
                 let ret=ui.text_edit_singleline(&mut text);
                 if let Ok(value) = text.parse() {
@@ -111,7 +111,7 @@ mod impl_numerics {
         fn show_primitive_mut(
             &mut self,
             ui: &mut ExUi,
-            _config: Self::ConfigTypeMut<'_>,
+            _config: &mut Self::ConfigTypeMut<'_>,
         ) -> Response {
             egui::Checkbox::without_text(self).ui(ui)
         }
@@ -121,7 +121,7 @@ mod impl_numerics {
         fn show_primitive_imut(
             &self,
             ui: &mut ExUi,
-            _config: Self::ConfigTypeImut<'_>,
+            _config: &mut Self::ConfigTypeImut<'_>,
         ) -> Response {
             ui.add_enabled(false, egui::Checkbox::without_text(&mut self.clone()))
         }
@@ -136,18 +136,22 @@ mod impl_str {
         fn show_primitive_mut(
             &mut self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeMut<'_>,
+            config: &mut Self::ConfigTypeMut<'_>,
         ) -> Response {
             match config {
                 ConfigStr::SingleLine => ui.text_edit_singleline(self),
                 ConfigStr::MultiLine => ui.text_edit_multiline(self),
-                ConfigStr::ComboBox(iter) => show_combobox(self, ui, Some(iter)),
+                ConfigStr::ComboBox(iter) => show_combobox(self, ui, &mut Some(*iter)),
             }
         }
     }
     impl EguiStructImut for String {
         type ConfigTypeImut<'a> = ConfigStrImut;
-        fn show_primitive_imut(&self, ui: &mut ExUi, config: Self::ConfigTypeImut<'_>) -> Response {
+        fn show_primitive_imut(
+            &self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeImut<'_>,
+        ) -> Response {
             self.as_str().show_primitive_imut(ui, config)
         }
     }
@@ -158,7 +162,7 @@ mod impl_str {
         fn show_primitive_imut(
             mut self: &Self,
             ui: &mut ExUi,
-            config: Self::ConfigTypeImut<'_>,
+            config: &mut Self::ConfigTypeImut<'_>,
         ) -> Response {
             match config {
                 ConfigStrImut::NonSelectable => ui.label(self),
@@ -172,7 +176,7 @@ mod impl_option {
     use super::*;
     impl<T: EguiStructImut + Default> EguiStructImut for Option<T> {
         const SIMPLE_IMUT: bool = false;
-        type ConfigTypeImut<'a> = ();
+        type ConfigTypeImut<'a> = T::ConfigTypeImut<'a>;
         fn has_childs_imut(&self) -> bool {
             !T::SIMPLE_IMUT && self.is_some()
         }
@@ -182,13 +186,13 @@ mod impl_option {
         fn show_primitive_imut(
             &self,
             ui: &mut ExUi,
-            _config: Self::ConfigTypeImut<'_>,
+            _config: &mut Self::ConfigTypeImut<'_>,
         ) -> Response {
             ui.horizontal(|ui| {
-                let mut ret = self.is_some().show_primitive_imut(&mut ui.into(), ());
+                let mut ret = self.is_some().show_primitive_imut(&mut ui.into(), &mut ());
                 match (T::SIMPLE_IMUT, self) {
                     (true, Some(value)) => {
-                        ret |= value.show_primitive_imut(&mut ui.into(), Default::default())
+                        ret |= value.show_primitive_imut(&mut ui.into(), &mut Default::default())
                     }
                     (true, None) => (),
                     (false, _) => (),
@@ -197,7 +201,12 @@ mod impl_option {
             })
             .inner
         }
-        fn show_childs_imut(&self, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+        fn show_childs_imut(
+            &self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeImut<'_>,
+            _reset2: Option<&Self>,
+        ) -> Response {
             let mut response = ui.interact(
                 egui::Rect::NOTHING,
                 "dummy".into(),
@@ -210,10 +219,9 @@ mod impl_option {
 
             if let Some(inner) = self {
                 if inner.has_primitive_imut() {
-                    response |=
-                        inner.show_collapsing_imut(ui, "[0]", "", Default::default(), None, None);
+                    response |= inner.show_collapsing_imut(ui, "[0]", "", config, None, None);
                 } else {
-                    response |= inner.show_childs_imut(ui, None)
+                    response |= inner.show_childs_imut(ui, config, None)
                 }
             }
             response
@@ -221,7 +229,7 @@ mod impl_option {
     }
     impl<T: EguiStructMut + Default> EguiStructMut for Option<T> {
         const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = ();
+        type ConfigTypeMut<'a> = T::ConfigTypeMut<'a>;
         fn has_childs_mut(&self) -> bool {
             !T::SIMPLE_MUT && self.is_some()
         }
@@ -231,15 +239,15 @@ mod impl_option {
         fn show_primitive_mut(
             &mut self,
             ui: &mut ExUi,
-            _config: Self::ConfigTypeMut<'_>,
+            _config: &mut Self::ConfigTypeMut<'_>,
         ) -> Response {
             ui.horizontal(|ui| {
                 let mut checked = self.is_some();
-                let mut ret = checked.show_primitive_mut(&mut ui.into(), ());
+                let mut ret = checked.show_primitive_mut(&mut ui.into(), &mut ());
 
                 match (checked, T::SIMPLE_MUT, self.as_mut()) {
                     (true, true, Some(value)) => {
-                        ret |= value.show_primitive_mut(&mut ui.into(), Default::default())
+                        ret |= value.show_primitive_mut(&mut ui.into(), &mut Default::default())
                     }
                     (true, false, Some(_)) => (), //if inner is not simple, it will be shown below
                     (true, _, None) => *self = Some(T::default()),
@@ -249,7 +257,12 @@ mod impl_option {
             })
             .inner
         }
-        fn show_childs_mut(&mut self, ui: &mut ExUi, reset2: Option<&Self>) -> Response {
+        fn show_childs_mut(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeMut<'_>,
+            reset2: Option<&Self>,
+        ) -> Response {
             let mut response = ui.interact(
                 egui::Rect::NOTHING,
                 "dummy".into(),
@@ -266,12 +279,12 @@ mod impl_option {
                         ui,
                         "[0]",
                         "",
-                        Default::default(),
+                        config,
                         reset2.unwrap_or(&None).as_ref(),
                         None,
                     );
                 } else {
-                    response |= inner.show_childs_mut(ui, reset2.unwrap_or(&None).as_ref())
+                    response |= inner.show_childs_mut(ui, config, reset2.unwrap_or(&None).as_ref())
                 }
             }
             response
@@ -341,12 +354,12 @@ mod impl_option {
 ///////////////////////////////////////////////////
 mod impl_sets {
     use super::*;
-    macro_rules! impl_vec {
+    macro_rules! impl_set {
     ($typ:ty, $impl:ident, $ConfigType:ty, [$( $bound:path),*]) => {
 
-        impl<T: EguiStructMut $(+ $bound)*> EguiStructMut for $typ{
+        impl<T: 'static+EguiStructMut $(+ $bound)*> EguiStructMut for $typ{
             const SIMPLE_MUT: bool = false;
-            type ConfigTypeMut<'a> = ();
+            type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
             fn has_childs_mut(&self) -> bool {
                 !self.is_empty()
             }
@@ -356,21 +369,14 @@ mod impl_sets {
             fn show_childs_mut(
                 &mut self,
                 ui: &mut ExUi,
-                _reset2: Option<&Self>,
+                config: &mut Self::ConfigTypeMut<'_>,
+                reset2: Option<&Self>,
             ) -> Response {
-                let mut response = ui.interact(
-                    egui::Rect::NOTHING,
-                    "dummy".into(),
-                    egui::Sense {
-                        click: false,
-                        drag: false,
-                        focusable: false,
-                    },
-                );
+                let mut response = ui.dummy_response();
                 macro_rules! show{
                     (HASHSET)=>{
                         self.iter().enumerate().for_each(|(idx, x)| {
-                            response |= x.show_collapsing_imut(ui, idx.to_string(), "", Default::default(), None, None)
+                            response |= x.show_collapsing_imut(ui, idx.to_string(), "", &mut Default::default(), None, None)
                         });
                     };
                     (INDEXSET)=>{
@@ -381,22 +387,32 @@ mod impl_sets {
                             .drain(..)
                             .enumerate()
                             .map(|(idx, mut x)| {
-                                response |= x.show_collapsing_mut(ui, idx.to_string(), "", Default::default(), None, None);
+                                response |= x.show_collapsing_mut(ui, idx.to_string(), "", &mut config.inner_config, None, None);
                                 x
                             })
                             .collect()
                     };
                     (VEC)=>{
                         self.iter_mut().enumerate().for_each(|(idx, x)| {
-                            response |= x.show_collapsing_mut(ui, idx.to_string(), "", Default::default(), None, None)
+                            response |= x.show_collapsing_mut(ui, idx.to_string(), "", &mut config.inner_config, None, None)
                         });
                     };
                 }
                 show!($impl);
 
-                //TODO
-                // if let Some(add)=config{
-                //     response |= x.show_collapsing_mut(ui, "+", "", Default::default(), None)
+                // if let Some(add)=config.expandable{
+                //     let mut new_val=(add.default)();
+                //     let has_childs = new_val.has_childs_mut();
+                //     let header = |ui: &mut ExUi| {
+                //         let bresp=ui.button("+");
+                //         response|=bresp;
+                //         if bresp.clicked(){
+                //             self.insert(new_val);
+                //         }
+                //         crate::trait_implementor_set::primitive_w_reset(&mut new_val, ui, &mut config.inner_config, todo)
+                //     };
+                //     response|=ui.maybe_collapsing_rows(has_childs, header)
+                //         .body_simple(|ui| new_val.show_childs_mut(ui, &mut config.inner_config, todo));
                 // }
 
                 response
@@ -430,18 +446,23 @@ mod impl_sets {
         }
     };
 }
-    macro_rules! impl_vec_imut {
+    macro_rules! impl_set_imut {
         ( $typ:ty ) => {
             impl<T: EguiStructImut> EguiStructImut for $typ {
                 const SIMPLE_IMUT: bool = false;
-                type ConfigTypeImut<'a> = ();
+                type ConfigTypeImut<'a> = T::ConfigTypeImut<'a>;
                 fn has_childs_imut(&self) -> bool {
                     !self.is_empty()
                 }
                 fn has_primitive_imut(&self) -> bool {
                     false
                 }
-                fn show_childs_imut(&self, ui: &mut ExUi, _reset2: Option<&Self>) -> Response {
+                fn show_childs_imut(
+                    &self,
+                    ui: &mut ExUi,
+                    config: &mut Self::ConfigTypeImut<'_>,
+                    _reset2: Option<&Self>,
+                ) -> Response {
                     let mut response = ui.interact(
                         egui::Rect::NOTHING,
                         "dummy".into(),
@@ -452,14 +473,8 @@ mod impl_sets {
                         },
                     );
                     self.iter().enumerate().for_each(|(idx, x)| {
-                        response |= x.show_collapsing_imut(
-                            ui,
-                            idx.to_string(),
-                            "",
-                            Default::default(),
-                            None,
-                            None,
-                        )
+                        response |=
+                            x.show_collapsing_imut(ui, idx.to_string(), "", config, None, None)
                     });
                     response
                 }
@@ -473,36 +488,119 @@ mod impl_sets {
     struct VecWrapper2<T: EguiStructMut + 'static>(T, &'static dyn Fn() -> T); // Expandable/ reset after shrink
     struct VecWrapper3<T: EguiStructMut + EguiStructImut + 'static>(T, &'static dyn Fn() -> T); // immutable inner
 
-    // impl_vec! {[T], Box<[T::Reset2]>}
-    // impl_vec! {Vec<T>, Vec<T::Reset2>}
-    impl_vec! {[T], VEC, T::ConfigTypeMut, []}
-    impl_vec! {Vec<T>, VEC, ConfigSetMut<T>, [Clone] }
-    impl_vec! {std::collections::HashSet<T>, HASHSET, ConfigSetMut<T>,[Eq, std::hash::Hash, EguiStructImut] }
-    #[cfg(feature = "indexmap")]
-    impl_vec! {indexmap::IndexSet<T>, INDEXSET, ConfigSetMut<T>,[Eq, std::hash::Hash]}
-
-    impl_vec_imut! {[T]}
-    impl_vec_imut! {Vec<T> }
-    impl_vec_imut! {std::collections::HashSet<T>}
-    #[cfg(feature = "indexmap")]
-    impl_vec_imut! {indexmap::IndexSet<T> }
-
-    impl<T: EguiStructClone> EguiStructClone for [T] {
-        fn eguis_clone(&mut self, source: &Self) {
-            self.iter_mut()
-                .zip(source.iter())
-                .for_each(|(s, r)| s.eguis_clone(r))
+    impl<T: 'static + EguiStructMut + EguiStructImut> EguiStructMut for Vec<T> {
+        const SIMPLE_MUT: bool = false;
+        type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
+        fn has_childs_mut(&self) -> bool {
+            !self.is_empty()
+        }
+        fn has_primitive_mut(&self) -> bool {
+            false
+        }
+        fn show_childs_mut(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeMut<'_>,
+            reset2: Option<&Self>,
+        ) -> Response {
+            let mut response = ui.dummy_response();
+            let mut idx2remove = None;
+            self.iter_mut().enumerate().for_each(|(idx, x)| {
+                let reset = reset2.map(|x| x.get(idx)).flatten();
+                let has_childs = x.has_childs_mut();
+                let header = |ui: &mut ExUi| {
+                    ui.keep_cell_start();
+                    ui.extext(idx.to_string());
+                    let mut response = ui.dummy_response();
+                    if config.shrinkable {
+                        let bresp = ui.button("-");
+                        response |= bresp.clone();
+                        if bresp.clicked() {
+                            idx2remove = Some(idx);
+                        }
+                    }
+                    ui.keep_cell_stop();
+                    if config.mutable_data {
+                        crate::trait_implementor_set::primitive_w_reset(
+                            x,
+                            ui,
+                            &mut config.inner_config,
+                            reset,
+                        )
+                    } else {
+                        x.show_primitive_imut(ui, &mut Default::default())
+                    }
+                };
+                response |=
+                    ui.maybe_collapsing_rows(has_childs, header)
+                        .body_simple(|ui: &mut ExUi| {
+                            if config.mutable_data {
+                                x.show_childs_mut(ui, &mut config.inner_config, reset)
+                            } else {
+                                x.show_childs_imut(ui, &mut Default::default(), None)
+                            }
+                        });
+            });
+            if let Some(idx) = idx2remove {
+                self.remove(idx);
+            }
+            if let Some(add) = &config.expandable {
+                // let has_childs = new_val.has_childs_mut();
+                // let header = |ui: &mut ExUi| {
+                if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
+                    let bresp = ui.button("+");
+                    ui.end_row();
+                    response |= bresp.clone();
+                    if bresp.clicked() {
+                        let new_val = (add.default)();
+                        self.push(new_val);
+                    }
+                }
+                // crate::trait_implementor_set::primitive_w_reset(
+                //     &mut new_val,
+                //     ui,
+                //     &mut config.inner_config,
+                //     todo,
+                // )
+                // };
+                // response |= ui
+                //     .maybe_collapsing_rows(has_childs, header)
+                //     .body_simple(|ui| new_val.show_childs_mut(ui, &mut config.inner_config, todo));
+            }
+            response
+        }
+        fn start_collapsed_mut(&self) -> bool {
+            self.len() > 16
         }
     }
-    impl<T: EguiStructClone + Clone> EguiStructClone for Vec<T> {
+    impl<T: EguiStructEq> EguiStructEq for Vec<T> {
+        fn eguis_eq(&self, rhs: &Self) -> bool {
+            let mut ret = self.len() == rhs.len();
+            self.iter()
+                .zip(rhs.iter())
+                .for_each(|(s, r)| ret &= s.eguis_eq(r));
+            ret
+        }
+    }
+
+    impl_set! {std::collections::HashSet<T>, HASHSET, ConfigSetMut<T>,[Eq, std::hash::Hash, EguiStructImut] }
+    #[cfg(feature = "indexmap")]
+    impl_set! {indexmap::IndexSet<T>, INDEXSET, ConfigSetMut<T>,[Eq, std::hash::Hash]}
+
+    impl_set_imut! {Vec<T> }
+    impl_set_imut! {std::collections::HashSet<T>}
+    #[cfg(feature = "indexmap")]
+    impl_set_imut! {indexmap::IndexSet<T> }
+
+    impl<T: EguiStructClone> EguiStructClone for Vec<T> {
         fn eguis_clone(&mut self, source: &Self) {
             self.truncate(source.len());
             self.iter_mut()
                 .zip(source.iter())
                 .for_each(|(s, r)| s.eguis_clone(r));
-            for i in self.len()..source.len() {
-                self.push(source[i - 1].clone())
-            }
+            // for i in self.len()..source.len() {
+            //     self.push(source[i - 1].clone())
+            // }
         }
     }
     impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for std::collections::HashSet<T> {
@@ -533,6 +631,51 @@ mod impl_sets {
                 .collect()
         }
     }
+
+    //##### SLICE #####
+    impl_set_imut! {[T]}
+
+    impl<T: EguiStructMut> EguiStructMut for [T] {
+        const SIMPLE_MUT: bool = false;
+        type ConfigTypeMut<'a> = T::ConfigTypeMut<'a>;
+        fn has_childs_mut(&self) -> bool {
+            !self.is_empty()
+        }
+        fn has_primitive_mut(&self) -> bool {
+            false
+        }
+        fn show_childs_mut(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeMut<'_>,
+            reset2: Option<&Self>,
+        ) -> Response {
+            let mut response = ui.dummy_response();
+            self.iter_mut().enumerate().for_each(|(idx, x)| {
+                response |= x.show_collapsing_mut(ui, idx.to_string(), "", config, None, None)
+            });
+            response
+        }
+        fn start_collapsed_mut(&self) -> bool {
+            self.len() > 16
+        }
+    }
+    impl<T: EguiStructEq> EguiStructEq for [T] {
+        fn eguis_eq(&self, rhs: &Self) -> bool {
+            let mut ret = self.len() == rhs.len();
+            self.iter()
+                .zip(rhs.iter())
+                .for_each(|(s, r)| ret &= s.eguis_eq(r));
+            ret
+        }
+    }
+    impl<T: EguiStructClone> EguiStructClone for [T] {
+        fn eguis_clone(&mut self, source: &Self) {
+            self.iter_mut()
+                .zip(source.iter())
+                .for_each(|(s, r)| s.eguis_clone(r))
+        }
+    }
 }
 
 /////////////////////////////////////////////////
@@ -554,6 +697,7 @@ mod impl_maps {
             fn $childs_name(
                 self: $Self,
                 ui: &mut ExUi,
+                config: &mut Self::$ConfigTypeMut<'_>,
                 _reset2: Option<&Self>,
             ) -> Response {
                 let mut response = ui.interact(
@@ -571,7 +715,7 @@ mod impl_maps {
                         ui,
                         q.to_string(),
                         "",
-                        Default::default(),
+                        &mut Default::default(),
                         None, None,
                     )
                 });
@@ -645,3 +789,30 @@ mod impl_maps {
     impl_map! { indexmap::IndexMap<Q,V> }
     // impl_map! { indexmap::IndexMap<Q,V>, indexmap::IndexMap<Q,V::Reset2> }
 }
+
+impl EguiStructMut for exgrid::GridMode {
+    type ConfigTypeMut<'a> = ();
+
+    fn show_primitive_mut(
+        self: &mut Self,
+        ui: &mut ExUi,
+        _config: &mut Self::ConfigTypeMut<'_>,
+    ) -> Response {
+        let isgrid = *self == Self::Traditional;
+        ui.keep_cell_start();
+        let grs = ui.selectable_label(isgrid, "Grid");
+        let crs = ui.selectable_label(!isgrid, "Compact");
+        ui.keep_cell_stop();
+        if grs.clicked() {
+            *self = Self::Traditional
+        }
+        if crs.clicked() {
+            *self = Self::CompactWidth
+        }
+        grs | crs
+    }
+    fn preview_str_mut<'b>(&'b self) -> &'b str {
+        ""
+    }
+}
+impl_eeqclone! {exgrid::GridMode}
