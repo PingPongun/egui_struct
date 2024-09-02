@@ -83,7 +83,9 @@ pub struct ConfigSetMut<'a, T: EguiStructMut + 'a> {
 
     /// Config how elements are shown
     pub inner_config: T::ConfigTypeMut<'a>,
-    // reorderable: bool,
+
+    /// Can elements be reordered?
+    pub reorder: bool,
 }
 
 impl<'a, T: EguiStructMut> Default for ConfigSetMut<'a, T> {
@@ -95,6 +97,7 @@ impl<'a, T: EguiStructMut> Default for ConfigSetMut<'a, T> {
             mutable_data: true,
             max_len: None,
             inner_config: Default::default(),
+            reorder: true,
         }
     }
 }

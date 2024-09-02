@@ -166,7 +166,7 @@ pub struct Data {
             shrinkable: true,
             mutable_data: false,
             max_len: Some(5),
-            inner_config: Default::default(),
+            ..Default::default()
         }")]
     list: Vec<Color>,
     set: IndexSet<i32>,

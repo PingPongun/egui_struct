@@ -505,6 +505,8 @@ mod impl_sets {
         ) -> Response {
             let mut response = ui.dummy_response();
             let mut idx2remove = None;
+            let mut idx2swap = None;
+            let len = self.len();
             self.iter_mut().enumerate().for_each(|(idx, x)| {
                 let reset = reset2.map(|x| x.get(idx)).flatten();
                 let has_childs = x.has_childs_mut();
@@ -517,6 +519,22 @@ mod impl_sets {
                         response |= bresp.clone();
                         if bresp.clicked() {
                             idx2remove = Some(idx);
+                        }
+                    }
+                    if config.reorder {
+                        if idx != 0 {
+                            let bresp = ui.button("⬆");
+                            response |= bresp.clone();
+                            if bresp.clicked() {
+                                idx2swap = Some((idx - 1, idx));
+                            }
+                        }
+                        if idx != len - 1 {
+                            let bresp = ui.button("⬇");
+                            response |= bresp.clone();
+                            if bresp.clicked() {
+                                idx2swap = Some((idx, idx + 1));
+                            }
                         }
                     }
                     ui.keep_cell_stop();
@@ -543,6 +561,9 @@ mod impl_sets {
             });
             if let Some(idx) = idx2remove {
                 self.remove(idx);
+            }
+            if let Some(idx) = idx2swap {
+                self.swap(idx.0, idx.1);
             }
             if let Some(add) = &config.expandable {
                 // let has_childs = new_val.has_childs_mut();
