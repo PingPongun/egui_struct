@@ -35,6 +35,7 @@ pub mod trait_implementor_set {
         config: T::ConfigTypeMut<'_>,
         reset2: Option<&T>,
     ) -> Response {
+        ui.keep_cell_start();
         let mut ret = data.show_primitive_mut(ui, config);
         if let Some(reset2) = reset2 {
             if !reset2.eguis_eq(data) {
@@ -46,15 +47,12 @@ pub mod trait_implementor_set {
                 ret |= r;
             }
         }
+        ui.keep_cell_stop();
         ret
     }
 }
 pub use exgrid;
 
-#[cfg(feature = "egui21")]
-use egui21 as egui;
-#[cfg(feature = "egui22")]
-use egui22 as egui;
 #[cfg(feature = "egui23")]
 use egui23 as egui;
 #[cfg(feature = "egui24")]

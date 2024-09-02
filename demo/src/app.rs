@@ -252,18 +252,18 @@ pub struct SubData {
 #[derive(Default)]
 pub struct DemoApp {
     data: Data,
+    exgrid_mode: GridMode,
 }
 
 impl eframe::App for DemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { data } = self;
+        let Self { data, exgrid_mode } = self;
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.style_mut().visuals.striped = true;
-            // data.show_top_mut(ui, RichText::new("Data").heading(), None);
+            exgrid_mode.eguis_mut().label("ExGrid Mode").show(ui);
             data.eguis_mut()
                 .label(RichText::new("Data").heading())
-                .view_mode(GridMode::Traditional)
-                // .view_mode(GridMode::CompactWidth)
+                .view_mode(exgrid_mode.clone())
                 .show(ui);
         });
     }

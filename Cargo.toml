@@ -14,13 +14,11 @@ rust-version = "1.70"
 
 [dependencies]
 egui_struct_macros = { path = "./macros/", version = "0.5.0" }
-exgrid = { path = "../ExGrid", version = "0.1.0" }
+exgrid = { path = "../ExGrid", version = "0.2.0", default-features = false }
 
 # egui dep is handled through feature to overcome cargo resolver not be able to select same egui version as used in rest of the app.
 # this allows egui_struct to work with newer egui through semver patch update
 # breaking-change updates (0.4, 0.5, 1., 2., ...) will update default egui version feature to newest one.
-egui21 = { version = "0.21", package = "egui", default-features = false, optional = true }
-egui22 = { version = "0.22", package = "egui", default-features = false, optional = true }
 egui23 = { version = "0.23", package = "egui", default-features = false, optional = true }
 egui24 = { version = "0.24", package = "egui", default-features = false, optional = true }
 egui25 = { version = "0.25", package = "egui", default-features = false, optional = true }
@@ -31,7 +29,12 @@ egui28 = { version = "0.28", package = "egui", default-features = false, optiona
 indexmap = { version = "2.0", optional = true }
 
 [features]
-egui28 = ["dep:egui28", "egui_struct_macros/egui28"]
+egui23 = ["dep:egui23", "exgrid/egui23"]
+egui24 = ["dep:egui24", "exgrid/egui24"]
+egui25 = ["dep:egui25", "exgrid/egui25"]
+egui26 = ["dep:egui26", "exgrid/egui26"]
+egui27 = ["dep:egui27", "exgrid/egui27"]
+egui28 = ["dep:egui28", "egui_struct_macros/egui28", "exgrid/egui28"]
 indexmap = ["dep:indexmap"]
 default = ["egui28"]
 i18n = ["egui_struct_macros/i18n"]
