@@ -488,7 +488,7 @@ mod impl_sets {
     struct VecWrapper2<T: EguiStructMut + 'static>(T, &'static dyn Fn() -> T); // Expandable/ reset after shrink
     struct VecWrapper3<T: EguiStructMut + EguiStructImut + 'static>(T, &'static dyn Fn() -> T); // immutable inner
 
-    impl<T: 'static + EguiStructMut + EguiStructImut> EguiStructMut for Vec<T> {
+    impl<T: 'static + EguiStructMut + EguiStructImut + Clone + Send + Sync> EguiStructMut for Vec<T> {
         const SIMPLE_MUT: bool = false;
         type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
         fn has_childs_mut(&self) -> bool {
@@ -569,13 +569,37 @@ mod impl_sets {
                 // let has_childs = new_val.has_childs_mut();
                 // let header = |ui: &mut ExUi| {
                 if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
-                    let bresp = ui.button("+");
-                    ui.end_row();
-                    response |= bresp.clone();
-                    if bresp.clicked() {
-                        let new_val = (add.default)();
-                        self.push(new_val);
-                    }
+                    if add.mutable {
+                        let id = ui.id();
+                        let mut val = ui.data_mut(|map| {
+                            map.get_temp_mut_or_insert_with(id, add.default).clone()
+                        });
+                        let mut add_elem = false;
+                        let resp = ui
+                            .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
+                                let bresp = ui.button("+");
+                                let presp = val.show_primitive_mut(ui, &mut config.inner_config);
+                                add_elem = bresp.clicked();
+                                bresp | presp
+                            })
+                            .body_simple(|ui| {
+                                val.show_childs_mut(ui, &mut config.inner_config, None)
+                            });
+                        response |= resp.clone();
+                        if add_elem {
+                            self.push(val);
+                        } else if resp.changed() {
+                            ui.data_mut(|map| map.insert_temp(id, val));
+                        }
+                    } else {
+                        let bresp = ui.button("+");
+                        ui.end_row();
+                        response |= bresp.clone();
+                        if bresp.clicked() {
+                            let new_val = (add.default)();
+                            self.push(new_val);
+                        }
+                    };
                 }
                 // crate::trait_implementor_set::primitive_w_reset(
                 //     &mut new_val,

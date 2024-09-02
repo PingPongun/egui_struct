@@ -23,7 +23,7 @@ impl Language {
         }
     }
 }
-#[derive(EguiStructMut, EguiStructImut, Default)]
+#[derive(EguiStructMut, EguiStructImut, Default, Clone)]
 #[eguis(start_collapsed = "if let Self::NamedCustom{..} = self {true} else {false}")]
 pub enum Color {
     #[default]
@@ -162,7 +162,7 @@ pub struct Data {
     optional_string: Option<String>,
 
     #[eguis(config = " ConfigSetMut{
-            expandable: Some(ConfigSetExpandable{default: &Default::default, mutable:false}),
+            expandable: Some(ConfigSetExpandable{default: &Default::default, mutable:true}),
             shrinkable: true,
             mutable_data: false,
             max_len: Some(5),
@@ -244,7 +244,7 @@ impl Default for TupleStruct {
     }
 }
 
-#[derive(EguiStructMut, EguiStructImut, Default)]
+#[derive(EguiStructMut, EguiStructImut, Default, Clone)]
 pub struct Metadata {
     message: String,
 }
