@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use convert_case::{Case, Converter, Pattern};
 use darling::{ast, FromDeriveInput, FromVariant};
 use darling::{FromField, FromMeta};
@@ -158,6 +160,7 @@ fn handle_enum(
     let mut show_primitive_arm = Vec::new();
     let mut show_primitive_mut_arm = Vec::new();
     let mut eclone_arm = Vec::new();
+    let mut eclone_full_arm = Vec::new();
     let mut eeq_arm = Vec::new();
 
     let mut resettable = input.resettable.clone();
@@ -236,6 +239,7 @@ fn handle_enum(
                     fields_code,
                     mut fields_code_mut,
                     fields_map_eclone,
+                    fields_map_eclone_full,
                     fields_map_eeq,
                     single_field,
                     on_change,
@@ -317,6 +321,20 @@ fn handle_enum(
                         }
                     },
                 });
+                if let Some((def, check, struc)) = fields_map_eclone_full {
+                    eclone_full_arm.push(quote! {
+                        #vident_w_inner=>{
+                            #def
+                            if #check {
+                                Some(Self:: #vident(#struc))
+                            } else {
+                                None
+                            }
+                        }
+                    });
+                } else {
+                    eclone_full_arm.push(quote! { #vident_w_inner=>{ None } });
+                }
             }
             ast::Style::Struct => {
                 simple = false;
@@ -337,6 +355,7 @@ fn handle_enum(
                     fields_code,
                     mut fields_code_mut,
                     fields_map_eclone,
+                    fields_map_eclone_full,
                     fields_map_eeq,
                     _,
                     _,
@@ -393,6 +412,20 @@ fn handle_enum(
                         }
                     },
                 });
+                if let Some((def, check, struc)) = fields_map_eclone_full {
+                    eclone_full_arm.push(quote! {
+                        #vident_w_inner=>{
+                            #def
+                            if #check {
+                                Some(Self:: #vident{#struc})
+                            } else {
+                                None
+                            }
+                        }
+                    });
+                } else {
+                    eclone_full_arm.push(quote! { #vident_w_inner=>{ None } });
+                }
             }
             ast::Style::Unit => {
                 to_name_arm.push(quote! { #ty :: #vident => #vlabel,});
@@ -410,6 +443,11 @@ fn handle_enum(
                     Self::#vident=>{
                         *self=Self::#vident;
                     },
+                });
+                eclone_full_arm.push(quote! {
+                    Self::#vident=>{
+                        Some(Self::#vident)
+                    }
                 });
             }
         }
@@ -571,6 +609,12 @@ fn handle_enum(
                     _=>(),
                 }
             }
+            fn eguis_clone_full(&self) -> Option<Self> {
+                match self{
+                    #(#eclone_full_arm),*
+                    _=> None,
+                }
+            }
         }
     };
     let eeq = quote! {
@@ -616,6 +660,7 @@ fn handle_fields(
     Vec<TokenStream>,
     Vec<TokenStream>,
     Vec<TokenStream>,
+    Option<(TokenStream, TokenStream, TokenStream)>,
     Vec<TokenStream>,
     Option<EField>,
     TokenStream,
@@ -624,6 +669,7 @@ fn handle_fields(
     let mut fields_code = Vec::new();
     let mut fields_code_mut = Vec::new();
     let mut fields_map_eclone = Vec::new();
+    let mut fields_map_eclone_full = Vec::new();
     let mut fields_map_eeq = Vec::new();
     let mut index = syn::Index::from(0);
     let mut single_field = None;
@@ -635,10 +681,12 @@ fn handle_fields(
         }
         let lab;
         let field_name;
+        let field_construct;
         let name_tt;
 
         if let Some(field_ident) = &field.ident {
             field_name = field_ident.to_string();
+            field_construct = TokenStream::from_str(&(field_name.clone() + ":")).unwrap();
             name_tt = field_ident.to_token_stream();
             let label;
             if let Some(rename) = &field.rename {
@@ -661,6 +709,7 @@ fn handle_fields(
             }
         } else {
             index = syn::Index::from(idx);
+            field_construct = TokenStream::from_str("").unwrap();
             name_tt = index.to_token_stream();
             field_name = idx.to_string();
             let label = "[".to_string() + &field_name + "]";
@@ -683,6 +732,7 @@ fn handle_fields(
         };
         whole_ident = quote! {#prefix_code #whole_ident};
         whole_ident2 = quote! {#prefix_code2 #whole_ident2};
+        let ident3 = format_ident!("_{}_option", field_name).into_token_stream();
 
         let imconfig = get_config(field.imconfig.clone());
         let config = get_config(field.config.clone());
@@ -780,6 +830,15 @@ fn handle_fields(
             }
         }
 
+        if let Some(_) = &field.eclone {
+            fields_map_eclone_full.push(None);
+        } else {
+            fields_map_eclone_full.push(Some((
+                quote! { let #ident3 = #whole_ident.eguis_clone_full(); },
+                quote! { #ident3.is_some() },
+                quote! { #field_construct #ident3.unwrap() },
+            )));
+        }
         if variant.is_some() {
             (whole_ident, whole_ident2) = (whole_ident2, whole_ident); //in enum eclone self is destructed to whole_ident2
         }
@@ -797,11 +856,28 @@ fn handle_fields(
         }
         single_field = Some(sfield);
     }
+    let eclone_full = if fields_map_eclone_full.iter().any(|x| x.is_none()) {
+        None
+    } else {
+        let (def, (check, struc)): (Vec<_>, (Vec<_>, Vec<_>)) = fields_map_eclone_full
+            .into_iter()
+            .map(|x| {
+                let x = x.unwrap();
+                (x.0, (x.1, x.2))
+            })
+            .unzip();
+        Some((
+            quote! {#(#def)*},
+            quote! {true #(&& #check)*},
+            quote! {#(#struc),*},
+        ))
+    };
     (
         reset_to_struct_default,
         fields_code,
         fields_code_mut,
         fields_map_eclone,
+        eclone_full,
         fields_map_eeq,
         single_field,
         on_change,
@@ -833,6 +909,7 @@ fn handle_struct(
         fields_code,
         fields_code_mut,
         fields_map_eclone,
+        fields_map_eclone_full,
         fields_map_eeq,
         single_field,
         on_change,
@@ -970,11 +1047,36 @@ fn handle_struct(
             }
         }
     };
-
+    let eclone_full = if let Some((def, check, struc)) = fields_map_eclone_full {
+        if fields.style == ast::Style::Tuple {
+            quote! {
+                #def
+                if #check {
+                    Some(Self(#struc))
+                } else {
+                    None
+                }
+            }
+        } else {
+            quote! {
+                #def
+                if #check {
+                    Some(Self{#struc})
+                } else {
+                    None
+                }
+            }
+        }
+    } else {
+        quote! {None}
+    };
     let eclone = quote! {
         impl #impl_generics ::egui_struct::trait_implementor_set::EguiStructClone for #name #ty_generics #where_clause {
             fn eguis_clone(&mut self, rhs: &Self) {
                 #(#fields_map_eclone)*
+            }
+            fn eguis_clone_full(&self) -> Option<Self> {
+                #eclone_full
             }
         }
     };

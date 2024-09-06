@@ -14,6 +14,9 @@ pub mod macros {
             fn eguis_clone(&mut self, source: &Self) {
                 self.clone_from(source);
             }
+            fn eguis_clone_full(&self)->Option<Self> {
+                Some(self.clone())
+            }
         }
     };
 }
@@ -328,12 +331,21 @@ mod impl_option {
                 if let Some(s) = self {
                     s.eguis_clone(source);
                 } else {
+                    //TODO ? use eguis_clone_full here?
                     let mut v: T = Default::default();
                     v.eguis_clone(source);
                     *self = Some(v);
                 }
             } else {
                 *self = None;
+            }
+        }
+
+        fn eguis_clone_full(&self) -> Option<Self> {
+            if let Some(s) = self {
+                s.eguis_clone_full().map(|x| Some(x))
+            } else {
+                Some(None)
             }
         }
     }
@@ -422,23 +434,9 @@ mod impl_sets {
             }
         }
 
-        // impl<T: EguiStructResettable> EguiStructResettable for $typ
-        // where
-        //     <T as EguiStructResettable>::Reset2: Sized,
-        // {
-        //     type Reset2= $restyp;
-        //     fn reset2(&mut self, source: &Self::Reset2) {
-        //         //TODO update this if vector length can change
-        //         self.iter_mut().zip(source.iter()).for_each(|(s,r)|s.reset2(r))
-        //     }
-        //     fn reset_possible(&self, rhs: &Self::Reset2) -> bool {
-        //         let mut ret = self.len()==rhs.len();
-        //         self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.reset_possible(r));
-        //         ret
-        //     }
-        // }
         impl<T: EguiStructEq> EguiStructEq for $typ  {
             fn eguis_eq(&self, rhs: &Self) -> bool {
+                //TODOallow mismatched order for std::HashMap
                 let mut ret = self.len()==rhs.len();
                 self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
                 ret
@@ -566,8 +564,6 @@ mod impl_sets {
                 self.swap(idx.0, idx.1);
             }
             if let Some(add) = &config.expandable {
-                // let has_childs = new_val.has_childs_mut();
-                // let header = |ui: &mut ExUi| {
                 if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
                     if add.mutable {
                         let id = ui.id();
@@ -601,16 +597,6 @@ mod impl_sets {
                         }
                     };
                 }
-                // crate::trait_implementor_set::primitive_w_reset(
-                //     &mut new_val,
-                //     ui,
-                //     &mut config.inner_config,
-                //     todo,
-                // )
-                // };
-                // response |= ui
-                //     .maybe_collapsing_rows(has_childs, header)
-                //     .body_simple(|ui| new_val.show_childs_mut(ui, &mut config.inner_config, todo));
             }
             response
         }
@@ -643,29 +629,59 @@ mod impl_sets {
             self.iter_mut()
                 .zip(source.iter())
                 .for_each(|(s, r)| s.eguis_clone(r));
-            // for i in self.len()..source.len() {
-            //     self.push(source[i - 1].clone())
-            // }
+            for i in self.len()..source.len() {
+                if let Some(val) = source[i - 1].eguis_clone_full() {
+                    self.push(val)
+                }
+            }
+        }
+
+        fn eguis_clone_full(&self) -> Option<Self> {
+            if self.len() == 0 {
+                return Some(Vec::new());
+            }
+            let mut cloned: Vec<_> = self.iter().map(|s| s.eguis_clone_full()).collect();
+            cloned.retain(|x| x.is_some());
+            if cloned.len() == 0 {
+                None
+            } else {
+                Some(cloned.into_iter().map(|x| x.unwrap()).collect())
+            }
         }
     }
     impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for std::collections::HashSet<T> {
         fn eguis_clone(&mut self, source: &Self) {
-            // if let Some(exp)=
-            //TODO restore previous length
+            let src: Vec<_> = source.iter().collect();
             *self = self
                 .drain()
-                .zip(source.iter())
+                .zip(src.iter())
                 .map(|(mut s, r)| {
                     s.eguis_clone(r);
                     s
                 })
-                .collect()
+                .collect();
+            for i in self.len()..source.len() {
+                if let Some(val) = src[i - 1].eguis_clone_full() {
+                    self.insert(val);
+                }
+            }
+        }
+        fn eguis_clone_full(&self) -> Option<Self> {
+            if self.len() == 0 {
+                return Some(Self::new());
+            }
+            let mut cloned: Vec<_> = self.iter().map(|s| s.eguis_clone_full()).collect();
+            cloned.retain(|x| x.is_some());
+            if cloned.len() == 0 {
+                None
+            } else {
+                Some(cloned.into_iter().map(|x| x.unwrap()).collect())
+            }
         }
     }
     #[cfg(feature = "indexmap")]
     impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for indexmap::IndexSet<T> {
         fn eguis_clone(&mut self, source: &Self) {
-            //TODO restore previous length
             *self = self
                 .drain(..)
                 .zip(source.iter())
@@ -673,14 +689,32 @@ mod impl_sets {
                     s.eguis_clone(r);
                     s
                 })
-                .collect()
+                .collect();
+            for i in self.len()..source.len() {
+                if let Some(val) = source[i - 1].eguis_clone_full() {
+                    self.insert(val);
+                }
+            }
+        }
+        fn eguis_clone_full(&self) -> Option<Self> {
+            if self.len() == 0 {
+                return Some(Self::new());
+            }
+            let mut cloned: Vec<_> = self.iter().map(|s| s.eguis_clone_full()).collect();
+            cloned.retain(|x| x.is_some());
+            if cloned.len() == 0 {
+                None
+            } else {
+                Some(cloned.into_iter().map(|x| x.unwrap()).collect())
+            }
         }
     }
 
     //##### SLICE #####
     impl_set_imut! {[T]}
+    //TODO add impl for [T;N]
 
-    impl<T: EguiStructMut> EguiStructMut for [T] {
+    impl<T: EguiStructMut> EguiStructMut for &mut [T] {
         const SIMPLE_MUT: bool = false;
         type ConfigTypeMut<'a> = T::ConfigTypeMut<'a>;
         fn has_childs_mut(&self) -> bool {
@@ -697,7 +731,14 @@ mod impl_sets {
         ) -> Response {
             let mut response = ui.dummy_response();
             self.iter_mut().enumerate().for_each(|(idx, x)| {
-                response |= x.show_collapsing_mut(ui, idx.to_string(), "", config, None, None)
+                response |= x.show_collapsing_mut(
+                    ui,
+                    idx.to_string(),
+                    "",
+                    config,
+                    reset2.map(|x| x.get(idx)).flatten(),
+                    None,
+                )
             });
             response
         }
@@ -705,7 +746,7 @@ mod impl_sets {
             self.len() > 16
         }
     }
-    impl<T: EguiStructEq> EguiStructEq for [T] {
+    impl<T: EguiStructEq> EguiStructEq for &mut [T] {
         fn eguis_eq(&self, rhs: &Self) -> bool {
             let mut ret = self.len() == rhs.len();
             self.iter()
@@ -714,11 +755,29 @@ mod impl_sets {
             ret
         }
     }
-    impl<T: EguiStructClone> EguiStructClone for [T] {
+    impl<T: EguiStructClone> EguiStructClone for &mut [T] {
         fn eguis_clone(&mut self, source: &Self) {
             self.iter_mut()
                 .zip(source.iter())
                 .for_each(|(s, r)| s.eguis_clone(r))
+        }
+        fn eguis_clone_full(&self) -> Option<Self> {
+            if self.len() == 0 {
+                Some(&mut [])
+            } else {
+                // let s: Vec<_> = self
+                //     .iter()
+                //     .map(|s| s.eguis_clone_full())
+                //     .filter(|x| x.is_some())
+                //     .collect();
+                // if s.len() == 0 {
+                //     None
+                // } else {
+                //     Some(&mut s.into_iter().map(|x| x.unwrap()).collect::<Box<[T]>>())
+                // }
+                //TODO ? better implementation possible?
+                None
+            }
         }
     }
 }
@@ -811,6 +870,7 @@ mod impl_maps {
                     }
                 })
             }
+            //TODO
         }
         impl<Q: ToString + Eq + std::hash::Hash, V: EguiStructEq> EguiStructEq for $typ {
             fn eguis_eq(&self, rhs: &Self) -> bool {

@@ -135,6 +135,10 @@ pub(crate) mod combobox {
         fn eguis_clone(&mut self, source: &Self) {
             self.0.clone_from(&source.0)
         }
+
+        fn eguis_clone_full(&self) -> Option<Self> {
+            Some(Combobox(self.0.clone()))
+        }
     }
     impl<T: PartialEq> EguiStructEq for Combobox<T> {
         fn eguis_eq(&self, rhs: &Self) -> bool {

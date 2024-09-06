@@ -25,9 +25,11 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 | Skip field                        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ❌                                 |
 |                                   |                                                                              |                                                   |                       |                              |                                   |
 | Numerics & strings support        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
-| Vec support                       | ✅/❌ (does not support adding/removing elements)                              | ✅ std, smallvec1/2                                | ✅                     | ✅                            | ❌                                 |
-| Other support                     | ✅ bool, Option, [T;N]                                                        | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option        | ✅ bool, [T;N]                | ❌                                 |
-| HashMap/Set support               | ✅ std, indexmap                                                              | ✅ std, hashbrown                                  | ✅ std, hashbrown      | ❌                            | ❌                                 |
+| Vec support                       | ✅                                                                            | ✅ std, smallvec1/2                                | ✅                     | ✅                            | ❌                                 |
+| Other support                     | ✅ bool, Option, [T], tuple(#TODO)                                            | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option, tuple | ✅ bool, [T;N]                | ❌                                 |
+| HashSet support                   | ✅ std, indexmap                                                              | ❌                                                 | ❌                     | ❌                            | ❌                                 |
+| HashMap support                   | ✅ std, indexmap                                                              | ✅ std, hashbrown                                  | ✅ std, hashbrown      | ❌                            | ❌                                 |
+|                                   |                                                                              |                                                   |                       |                              |                                   |
 | Map field/override impl           | ✅                                                                            | ✅                                                 | ❌                     | ✅                            | ❌                                 |
 | Struct derive                     | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
 | Enum derive                       | ✅                                                                            | ✅                                                 | ✅                     | ❌                            | ❌                                 |
@@ -65,6 +67,18 @@ Grid benefits:
 
 [<a id="ref5">5</a>] : Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
 
+### Set/Map features
+
+| type          | add | remove | mut value | mut prior add | reorder | limit length | mut key |
+| ------------- | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
+| `[T]`         | ❌   | ❌      | ✅         | ∅             | ✅       | ∅            | ∅       |
+| `Vec<T>`      | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashSet<T>`  | ✅   | ✅      | ❌         | ✅             | ❌       | ✅            | ∅       |
+| `IndexSet<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashMap<T>`  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
+| `IndexMap<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
+
+//TODO add info how to use loosen trait bounds
 
 ## Usage
 
@@ -115,9 +129,9 @@ Default egui version feature will be updated to newest egui on semver minor rele
 
 ## TODO
 
+- rethink reset2 & field config passing
 - elegant error/invalid input handling & helpful messages (macro)
   - add bounds
 - tests
 - code cleanup & simplify
-- support adding/removing elements for Vec&Hashmap's
 - (requires specialization) EguiStructEq/EguiStructClone default impl

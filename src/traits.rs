@@ -93,8 +93,20 @@ macro_rules! generate_show {
 /// Necessary to implement [`EguiStructMut`]. Used to provide reset functionality.
 ///
 /// If type is [`Clone`] can be implemented with [`impl_eclone!`]/[`impl_eeqclone!`].
-pub trait EguiStructClone {
+pub trait EguiStructClone
+where
+    Self: Sized,
+{
+    /// Similar to std [`Clone::clone_from`], but respects `#[eguis(skip)]` (may not clone all data)
     fn eguis_clone(&mut self, source: &Self);
+
+    /// If type is [`Clone`] same as [`Clone::clone`], otherwise it should return instance of
+    /// `Self` that matches `self` on significant fields(not marked with `#[eguis(skip)]`),
+    /// Can return eg. `Self::default().eguis_clone(self)`
+    /// If new instance of `Self` can not be created should return `None`
+    fn eguis_clone_full(&self) -> Option<Self> {
+        None
+    }
 }
 
 /// Similar to std [`PartialEq`] trait, but they respect `#[eguis(skip)]`.
@@ -240,7 +252,6 @@ macro_rules! generate_IntoEguiStruct {
                 label: Default::default(),
                 reset2: None,
                 scroll_area_auto_shrink: [true; 2],
-                #[cfg(not(feature = "egui21"))]
                 scroll_bar_visibility: Default::default(),
                 striped: None,
                 view_mode: Default::default(),
@@ -260,7 +271,6 @@ pub struct EguiStructWrapper<'a, T: Deref> {
     pub label: RichText,
     pub reset2: Option<&'a T::Target>,
     pub scroll_area_auto_shrink: [bool; 2],
-    #[cfg(not(feature = "egui21"))]
     pub scroll_bar_visibility: egui::scroll_area::ScrollBarVisibility,
     pub striped: Option<bool>,
     pub view_mode: exgrid::GridMode,
