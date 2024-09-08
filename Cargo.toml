@@ -26,7 +26,7 @@ egui26 = { version = "0.26", package = "egui", default-features = false, optiona
 egui27 = { version = "0.27", package = "egui", default-features = false, optional = true }
 egui28 = { version = "0.28", package = "egui", default-features = false, optional = true }
 
-indexmap = { version = "2.0", optional = true }
+indexmap = { version = "2", optional = true }
 
 [features]
 egui23 = ["dep:egui23", "exgrid/egui23"]

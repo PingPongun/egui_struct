@@ -3,7 +3,9 @@ use crate::types::combobox::show_combobox;
 use crate::types::*;
 use crate::*;
 use egui::Response;
-use exgrid::{ExUi, ExWidgetConvenience};
+use egui::Widget;
+use exgrid::ExUi;
+use std::any::Any;
 
 pub mod macros {
     #[macro_export]
@@ -485,8 +487,7 @@ mod impl_sets {
     struct VecWrapper1<T: EguiStructMut>(T); // Const length
     struct VecWrapper2<T: EguiStructMut + 'static>(T, &'static dyn Fn() -> T); // Expandable/ reset after shrink
     struct VecWrapper3<T: EguiStructMut + EguiStructImut + 'static>(T, &'static dyn Fn() -> T); // immutable inner
-
-    impl<T: 'static + EguiStructMut + EguiStructImut + Clone + Send + Sync> EguiStructMut for Vec<T> {
+    impl<T: EguiStructMut + EguiStructImut + Default + Any + Send> EguiStructMut for Vec<T> {
         const SIMPLE_MUT: bool = false;
         type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
         fn has_childs_mut(&self) -> bool {
@@ -567,9 +568,9 @@ mod impl_sets {
                 if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
                     if add.mutable {
                         let id = ui.id();
-                        let mut val = ui.data_mut(|map| {
-                            map.get_temp_mut_or_insert_with(id, add.default).clone()
-                        });
+                        let mut val: Box<T> = ui
+                            .data_remove(id)
+                            .unwrap_or_else(|| Box::new((add.default)()));
                         let mut add_elem = false;
                         let resp = ui
                             .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
@@ -583,9 +584,9 @@ mod impl_sets {
                             });
                         response |= resp.clone();
                         if add_elem {
-                            self.push(val);
+                            self.push(*val);
                         } else if resp.changed() {
-                            ui.data_mut(|map| map.insert_temp(id, val));
+                            ui.data_store(id, val);
                         }
                     } else {
                         let bresp = ui.button("+");

@@ -2,6 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/egui_struct.svg)](https://crates.io/crates/egui_struct)
 [![Documentation](https://docs.rs/egui_struct/badge.svg)](https://docs.rs/egui_struct)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE-MIT)
 [![APACHE 2.0](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE-APACHE)
 

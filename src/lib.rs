@@ -1,6 +1,7 @@
 //! Crate consists of 4 traits ([`EguiStructImut`] & [`EguiStructMut`]: [`EguiStructEq`]+[`EguiStructClone`]) and two derive macros ([`macro@EguiStructImut`] to derive [`EguiStructImut`] & [`macro@EguiStructMut`] to derive the other three).
 //!
 //! See [demo](https://github.com/PingPongun/egui_struct/tree/master/demo)
+#![forbid(unsafe_code)]
 #[macro_use]
 mod trait_impls;
 mod traits;

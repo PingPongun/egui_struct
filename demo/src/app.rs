@@ -32,7 +32,6 @@ pub enum Color {
     Green,
 
     Named(String),
-
     Named2 {
         name: String,
     },
@@ -48,7 +47,6 @@ pub enum Color {
         u8,
         #[eguis(config = "DragValue(1,111)")] u8,
     ),
-
     #[eguis(skip, rename = "Skipped Custom")]
     SkippedCustom(u8, u8, u8),
 

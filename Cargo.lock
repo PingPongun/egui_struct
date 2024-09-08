@@ -849,6 +849,7 @@ dependencies = [
  "egui 0.27.2",
  "egui 0.28.1",
  "maybe-owned",
+ "once_cell",
 ]
 
 [[package]]
