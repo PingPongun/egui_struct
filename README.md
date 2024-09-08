@@ -2,7 +2,8 @@
 
 [![crates.io](https://img.shields.io/crates/v/egui_struct.svg)](https://crates.io/crates/egui_struct)
 [![Documentation](https://docs.rs/egui_struct/badge.svg)](https://docs.rs/egui_struct)
-[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE-MIT)
+[![APACHE 2.0](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/PingPongun/egui_struct/blob/master/LICENSE-APACHE)
 
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
@@ -18,7 +19,7 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 | Layout[[2]](#ref2)                | [ExGrid](https://crates.io/crates/exgrid)                                    | Grid                                              | Group/nested          | Nested                       | Grid                              |
 | i18n support                      | ✅ (rust-i18n[[3]](#ref3))                                                    | ❌                                                 | ❌                     | ❌                            | ❌                                 |
 | Field description                 | ✅ on hover hint (from attribute)                                             | ❌                                                 | ❌                     | ❌                            | ✅ third column (from doc comment) |
-| Rename field/variant              | ✅                                                                            | ✅                                                 | ✅/❌ (enum only)       | ❌                            | ❌                                 |
+| Rename field/variant              | ✅                                                                            | ✅                                                 | ✅                     | ❌                            | ❌                                 |
 | Mass name case conversion         | ✅                                                                            | ✅                                                 | ❌                     | ❌                            | ❌                                 |
 | Callback on-change                | ✅                                                                            | ❌                                                 | ❌                     | ❌                            | ❌                                 |
 | Reset button                      | ✅                                                                            | ❌                                                 | ❌                     | ❌                            | ❌                                 |
@@ -26,7 +27,7 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 |                                   |                                                                              |                                                   |                       |                              |                                   |
 | Numerics & strings support        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
 | Vec support                       | ✅                                                                            | ✅ std, smallvec1/2                                | ✅                     | ✅                            | ❌                                 |
-| Other support                     | ✅ bool, Option, [T], tuple(#TODO)                                            | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option, tuple | ✅ bool, [T;N]                | ❌                                 |
+| Other support                     | ✅ bool, Option, [T], [T;N]\(#TODO), tuple(#TODO)                             | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option, tuple | ✅ bool, [T;N]                | ❌                                 |
 | HashSet support                   | ✅ std, indexmap                                                              | ❌                                                 | ❌                     | ❌                            | ❌                                 |
 | HashMap support                   | ✅ std, indexmap                                                              | ✅ std, hashbrown                                  | ✅ std, hashbrown      | ❌                            | ❌                                 |
 |                                   |                                                                              |                                                   |                       |                              |                                   |
@@ -135,3 +136,7 @@ Default egui version feature will be updated to newest egui on semver minor rele
 - tests
 - code cleanup & simplify
 - (requires specialization) EguiStructEq/EguiStructClone default impl
+
+## License
+
+`egui_struct` is licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE).
