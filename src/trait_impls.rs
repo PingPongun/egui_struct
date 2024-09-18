@@ -5,7 +5,6 @@ use crate::*;
 use egui::Response;
 use egui::Widget;
 use exgrid::ExUi;
-use std::any::Any;
 
 pub mod macros {
     #[macro_export]
@@ -367,13 +366,18 @@ mod impl_option {
 }
 ///////////////////////////////////////////////////
 mod impl_sets {
+    use std::any::Any;
+
     use super::*;
+
+    use set::*;
+
     macro_rules! impl_set {
     ($typ:ty, $impl:ident, $ConfigType:ty, [$( $bound:path),*]) => {
 
         impl<T: 'static+EguiStructMut $(+ $bound)*> EguiStructMut for $typ{
             const SIMPLE_MUT: bool = false;
-            type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
+            type ConfigTypeMut<'a> = ConfigSetMut<'a, T, bool>;
             fn has_childs_mut(&self) -> bool {
                 !self.is_empty()
             }
@@ -438,7 +442,7 @@ mod impl_sets {
 
         impl<T: EguiStructEq> EguiStructEq for $typ  {
             fn eguis_eq(&self, rhs: &Self) -> bool {
-                //TODOallow mismatched order for std::HashMap
+                //TODO allow mismatched order for std::HashMap
                 let mut ret = self.len()==rhs.len();
                 self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
                 ret
@@ -484,14 +488,65 @@ mod impl_sets {
             }
         };
     }
-    struct VecWrapper1<T: EguiStructMut>(T); // Const length
-    struct VecWrapper2<T: EguiStructMut + 'static>(T, &'static dyn Fn() -> T); // Expandable/ reset after shrink
-    struct VecWrapper3<T: EguiStructMut + EguiStructImut + 'static>(T, &'static dyn Fn() -> T); // immutable inner
-    impl<T: EguiStructMut + EguiStructImut + Default + Any + Send> EguiStructMut for Vec<T> {
+    impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructMut for Vec<T> {
+        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, ConfigSetExpandable<'a, T>>;
+
         const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = ConfigSetMut<'a, T>;
+
         fn has_childs_mut(&self) -> bool {
-            !self.is_empty()
+            true
+        }
+
+        fn has_primitive_mut(&self) -> bool {
+            false
+        }
+
+        fn show_childs_mut(
+            self: &mut Self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeMut<'_>,
+            reset2: Option<&Self>,
+        ) -> Response {
+            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_mut(self)
+                .show_childs_mut(ui, config, reset2.map(|x| VecWrapper::new_ref(x)).as_ref())
+        }
+
+        fn start_collapsed_mut(&self) -> bool {
+            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
+                .start_collapsed_mut()
+        }
+
+        fn preview_str_mut<'b>(&'b self) -> &'b str {
+            "TODO"
+        }
+    }
+    impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructClone for Vec<T> {
+        fn eguis_clone(&mut self, source: &Self) {
+            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_mut(self)
+                .eguis_clone(&VecWrapper::new_ref(source))
+        }
+
+        fn eguis_clone_full(&self) -> Option<Self> {
+            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
+                .eguis_clone_full()
+                .map(|x| x.0.owned())
+        }
+    }
+    impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructEq for Vec<T> {
+        fn eguis_eq(&self, rhs: &Self) -> bool {
+            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
+                .eguis_eq(&VecWrapper::new_ref(rhs))
+        }
+    }
+    impl<'b, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> EguiStructMut
+        for VecWrapper<'b, T, E, I>
+    where
+        Self: ConfigSetT<T, E>,
+    {
+        const SIMPLE_MUT: bool = false;
+        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, E>;
+        fn has_childs_mut(&self) -> bool {
+            true
         }
         fn has_primitive_mut(&self) -> bool {
             false
@@ -537,7 +592,7 @@ mod impl_sets {
                         }
                     }
                     ui.keep_cell_stop();
-                    if config.mutable_data {
+                    if config.mutable_value {
                         crate::trait_implementor_set::primitive_w_reset(
                             x,
                             ui,
@@ -545,16 +600,16 @@ mod impl_sets {
                             reset,
                         )
                     } else {
-                        x.show_primitive_imut(ui, &mut Default::default())
+                        I::_show_primitive_imut(x, ui)
                     }
                 };
                 response |=
                     ui.maybe_collapsing_rows(has_childs, header)
                         .body_simple(|ui: &mut ExUi| {
-                            if config.mutable_data {
+                            if config.mutable_value {
                                 x.show_childs_mut(ui, &mut config.inner_config, reset)
                             } else {
-                                x.show_childs_imut(ui, &mut Default::default(), None)
+                                I::_show_childs_imut(x, ui)
                             }
                         });
             });
@@ -564,48 +619,16 @@ mod impl_sets {
             if let Some(idx) = idx2swap {
                 self.swap(idx.0, idx.1);
             }
-            if let Some(add) = &config.expandable {
-                if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
-                    if add.mutable {
-                        let id = ui.id();
-                        let mut val: Box<T> = ui
-                            .data_remove(id)
-                            .unwrap_or_else(|| Box::new((add.default)()));
-                        let mut add_elem = false;
-                        let resp = ui
-                            .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
-                                let bresp = ui.button("+");
-                                let presp = val.show_primitive_mut(ui, &mut config.inner_config);
-                                add_elem = bresp.clicked();
-                                bresp | presp
-                            })
-                            .body_simple(|ui| {
-                                val.show_childs_mut(ui, &mut config.inner_config, None)
-                            });
-                        response |= resp.clone();
-                        if add_elem {
-                            self.push(*val);
-                        } else if resp.changed() {
-                            ui.data_store(id, val);
-                        }
-                    } else {
-                        let bresp = ui.button("+");
-                        ui.end_row();
-                        response |= bresp.clone();
-                        if bresp.clicked() {
-                            let new_val = (add.default)();
-                            self.push(new_val);
-                        }
-                    };
-                }
-            }
+            self._add_elements(ui, config);
             response
         }
         fn start_collapsed_mut(&self) -> bool {
             self.len() > 16
         }
     }
-    impl<T: EguiStructEq> EguiStructEq for Vec<T> {
+    impl<T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> EguiStructEq
+        for VecWrapper<'_, T, E, I>
+    {
         fn eguis_eq(&self, rhs: &Self) -> bool {
             let mut ret = self.len() == rhs.len();
             self.iter()
@@ -624,14 +647,16 @@ mod impl_sets {
     #[cfg(feature = "indexmap")]
     impl_set_imut! {indexmap::IndexSet<T> }
 
-    impl<T: EguiStructClone> EguiStructClone for Vec<T> {
+    impl<T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> EguiStructClone
+        for VecWrapper<'_, T, E, I>
+    {
         fn eguis_clone(&mut self, source: &Self) {
             self.truncate(source.len());
             self.iter_mut()
                 .zip(source.iter())
                 .for_each(|(s, r)| s.eguis_clone(r));
             for i in self.len()..source.len() {
-                if let Some(val) = source[i - 1].eguis_clone_full() {
+                if let Some(val) = source[i].eguis_clone_full() {
                     self.push(val)
                 }
             }
@@ -639,14 +664,16 @@ mod impl_sets {
 
         fn eguis_clone_full(&self) -> Option<Self> {
             if self.len() == 0 {
-                return Some(Vec::new());
+                return Some(VecWrapper::new(Vec::new()));
             }
             let mut cloned: Vec<_> = self.iter().map(|s| s.eguis_clone_full()).collect();
             cloned.retain(|x| x.is_some());
             if cloned.len() == 0 {
                 None
             } else {
-                Some(cloned.into_iter().map(|x| x.unwrap()).collect())
+                Some(VecWrapper::new(
+                    cloned.into_iter().map(|x| x.unwrap()).collect(),
+                ))
             }
         }
     }

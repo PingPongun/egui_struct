@@ -162,7 +162,7 @@ pub struct Data {
     #[eguis(config = " ConfigSetMut{
             expandable: Some(ConfigSetExpandable{default: &Default::default, mutable:true}),
             shrinkable: true,
-            mutable_data: false,
+            mutable_value: false,
             max_len: Some(5),
             ..Default::default()
         }")]
