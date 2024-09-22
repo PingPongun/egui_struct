@@ -7,6 +7,8 @@ use egui::Widget;
 use exgrid::ExUi;
 
 pub mod macros {
+    pub use super::*;
+
     #[macro_export]
     /// Generate [EguiStructClone] implementation based on [Clone]
     macro_rules! impl_eclone {
@@ -489,7 +491,7 @@ mod impl_sets {
         };
     }
     impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructMut for Vec<T> {
-        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, ConfigSetExpandable<'a, T>>;
+        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, bool>;
 
         const SIMPLE_MUT: bool = false;
 
@@ -507,13 +509,15 @@ mod impl_sets {
             config: &mut Self::ConfigTypeMut<'_>,
             reset2: Option<&Self>,
         ) -> Response {
-            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_mut(self)
-                .show_childs_mut(ui, config, reset2.map(|x| VecWrapper::new_ref(x)).as_ref())
+            VecWrapperFull::new_mut(self).show_childs_mut(
+                ui,
+                config,
+                reset2.map(|x| VecWrapper::new_ref(x)).as_ref(),
+            )
         }
 
         fn start_collapsed_mut(&self) -> bool {
-            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
-                .start_collapsed_mut()
+            VecWrapperFull::new_ref(self).start_collapsed_mut()
         }
 
         fn preview_str_mut<'b>(&'b self) -> &'b str {
@@ -522,20 +526,18 @@ mod impl_sets {
     }
     impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructClone for Vec<T> {
         fn eguis_clone(&mut self, source: &Self) {
-            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_mut(self)
-                .eguis_clone(&VecWrapper::new_ref(source))
+            VecWrapperFull::new_mut(self).eguis_clone(&VecWrapper::new_ref(source))
         }
 
         fn eguis_clone_full(&self) -> Option<Self> {
-            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
+            VecWrapperFull::new_ref(self)
                 .eguis_clone_full()
                 .map(|x| x.0.owned())
         }
     }
     impl<T: EguiStructMut + EguiStructImut + Default + Send + Any> EguiStructEq for Vec<T> {
         fn eguis_eq(&self, rhs: &Self) -> bool {
-            VecWrapper::<T, ConfigSetExpandable<'_, T>, ConfigSetMutTrueImut<T>>::new_ref(self)
-                .eguis_eq(&VecWrapper::new_ref(rhs))
+            VecWrapperFull::new_ref(self).eguis_eq(&VecWrapper::new_ref(rhs))
         }
     }
     impl<'b, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> EguiStructMut

@@ -55,16 +55,15 @@ pub mod set {
     /// Configuration options for mutable sets (HashSet, Vec, ..)
     pub struct ConfigSetMut<'a, T: EguiStructMut, E> {
         /// Can new elements be added to set
-        // expandable: ConfigSetExpandable<T>,
         pub expandable: Option<E>,
 
         /// Can elements be removed from set
         pub shrinkable: bool,
 
-        /// Can element value be changed after adding (ignored for std::HashSet)
+        /// Can element value be changed after adding (ignored for [std::collections::HashSet])
         pub mutable_value: bool,
 
-        /// Can element key be changed after adding (Applicable only for IndexMap)
+        /// Can element key be changed after adding (Applicable only for [indexmap::IndexMap])
         pub mutable_key: bool,
 
         /// Maximum number of elements in set
@@ -73,7 +72,7 @@ pub mod set {
         /// Config how elements are shown
         pub inner_config: T::ConfigTypeMut<'a>,
 
-        /// Can elements be reordered? (ignored for std::HashSet/HashMap)
+        /// Can elements be reordered? (ignored for [std::collections::HashSet]/[std::collections::HashMap])
         pub reorder: bool,
     }
 
@@ -91,7 +90,7 @@ pub mod set {
         }
     }
 
-    pub use config_set_imut_t::*;
+    pub(crate) use config_set_imut_t::*;
     mod config_set_imut_t {
         use super::*;
         pub struct ConfigSetMutTrueImut<T>(PhantomData<T>);
@@ -127,19 +126,23 @@ pub mod set {
     mod config_set_expandable_t {
         use super::*;
         pub(crate) trait ConfigSetExpandableT<T> {
-            const SEND: bool;
             fn mutable(&self) -> bool;
             fn default_value(&self) -> T;
         }
+        /// Configuration struct that controls adding new elements to set. Used for `T: Send+Any`
         pub struct ConfigSetExpandable<'a, T> {
+            /// Function that generates new value that will be added to collection (on `+` button click).
+            /// If self.mutable == true generates starting value that can further edited before adding
             pub default: &'a dyn for<'b> Fn() -> T,
+            /// Can element be edited prior adding to collection
             pub mutable: bool,
         }
+        /// Configuration struct that controls adding new elements to set. Used for `T: !(Send+Any)`
         pub struct ConfigSetExpandableNStore<'a, T> {
+            /// Function that generates new value that will be added to collection (on `+` button click).
             pub default: &'a dyn for<'b> Fn() -> T,
         }
         impl<T: Send + Any> ConfigSetExpandableT<T> for ConfigSetExpandable<'_, T> {
-            const SEND: bool = true;
             fn mutable(&self) -> bool {
                 self.mutable
             }
@@ -149,7 +152,6 @@ pub mod set {
             }
         }
         impl<T> ConfigSetExpandableT<T> for ConfigSetExpandableNStore<'_, T> {
-            const SEND: bool = false;
             fn mutable(&self) -> bool {
                 false
             }
@@ -159,7 +161,6 @@ pub mod set {
             }
         }
         impl<T: Default + Send + Any> ConfigSetExpandableT<T> for bool {
-            const SEND: bool = true;
             fn mutable(&self) -> bool {
                 *self
             }
@@ -169,7 +170,6 @@ pub mod set {
             }
         }
         impl<T: Default> ConfigSetExpandableT<T> for () {
-            const SEND: bool = false;
             fn mutable(&self) -> bool {
                 false
             }
@@ -179,7 +179,7 @@ pub mod set {
             }
         }
     }
-    pub use maybe_owned::*;
+    pub(crate) use maybe_owned::*;
     mod maybe_owned {
         use super::*;
         pub(crate) enum MaybeOwned<'a, T> {
@@ -221,14 +221,22 @@ pub mod set {
             }
         }
     }
-    pub use vec_wrapper::*;
-    mod vec_wrapper {
+
+    pub(crate) use _vec_wrapper::*;
+    mod _vec_wrapper {
         use super::*;
+        #[allow(private_interfaces, private_bounds)]
+        /// Thin wrapper around [Vec], that provides generic configured [EguiStructMut] implementation for [Vec].
+        ///
+        /// Different generics combination provide slightly different feature set, but allows to loosen bounds on `T`
+        ///
+        /// See [vec_wrappers].
         pub struct VecWrapper<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>>(
             pub MaybeOwned<'a, Vec<T>>,
-            pub PhantomData<(E, I)>,
+            PhantomData<(E, I)>,
         );
 
+        #[allow(private_bounds)]
         impl<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>>
             VecWrapper<'a, T, E, I>
         {
@@ -260,7 +268,7 @@ pub mod set {
             }
         }
     }
-    pub use config_set_t::*;
+    pub(crate) use config_set_t::*;
     mod config_set_t {
         use super::*;
         pub(crate) trait ConfigSetT<T: EguiStructMut, E> {
@@ -353,6 +361,66 @@ pub mod set {
         _add_elements_nsend! { ConfigSetExpandableNStore<'_, T>, []}
         _add_elements_send! { ConfigSetExpandable<'_, T>, [Send,Any]}
         _add_elements_send! { bool, [Default,Send,Any]}
+    }
+
+    pub(crate) use vec_wrappers::*;
+    pub mod vec_wrappers {
+        //! [Vec] wrappers that allow to get [EguiStructMut] implementation for [Vec] with looser bounds
+        //!
+        //! There are 3 traits that characterize this wrappers (different trait combination provide slightly different feature set, but allows to loosen bounds on `T`):
+        //! - `S`- [Send]+[Any] - Elements can be edited prior adding
+        //!     (otherwise `+` button will add "default" value)
+        //! - `D`- [Default] - New elements (`+` button) will be generated with [Default]
+        //!     (otherwise function specified in config struct will be used)
+        //! - `I`- [EguiStructImut] -  immutable (`config.mutable_value == false`) Set elements will be using this trait
+        //!     (otherwise they will use disabled [egui::Ui])
+        //!
+        //! | `S` | `D` | type of `config.expandable.unwrap()`   | comment |
+        //! |-----|-----|----------------------------------------|---------|
+        //! | ✅ | ✅ | [bool]                                  | `bool` controls if value can be modified prior add |
+        //! | ❌ | ✅ | [()](unit)                              |
+        //! | ✅ | ❌ | [ConfigSetExpandable]                   |
+        //! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
+        //!
+        //! [EguiStructMut] for [Vec] is implemented using this [VecWrapperFull]
+        //!
+        use super::*;
+        pub use _vec_wrapper::VecWrapper;
+        /// Requires `T`: [EguiStructMut]
+        #[allow(private_interfaces)]
+        pub type VecWrapperMinimal<'a, 'b, T> =
+            VecWrapper<'a, T, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [Any] + [Send]
+        #[allow(private_interfaces)]
+        pub type VecWrapperS<'a, 'b, T> =
+            VecWrapper<'a, T, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [Default]
+        #[allow(private_interfaces)]
+        pub type VecWrapperD<'a, 'b, T> = VecWrapper<'a, T, (), ConfigSetMutDisableMut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [Default] + [Any] + [Send]
+        #[allow(private_interfaces)]
+        pub type VecWrapperSD<'a, 'b, T> = VecWrapper<'a, T, bool, ConfigSetMutDisableMut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [EguiStructImut]
+        #[allow(private_interfaces)]
+        pub type VecWrapperI<'a, 'b, T> =
+            VecWrapper<'a, T, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Any] + [Send]
+        #[allow(private_interfaces)]
+        pub type VecWrapperSI<'a, 'b, T> =
+            VecWrapper<'a, T, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default]
+        #[allow(private_interfaces)]
+        pub type VecWrapperDI<'a, 'b, T> = VecWrapper<'a, T, (), ConfigSetMutTrueImut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
+        #[allow(private_interfaces)]
+        pub type VecWrapperFull<'a, 'b, T> = VecWrapper<'a, T, bool, ConfigSetMutTrueImut<T>>;
     }
 }
 //////////////////////////////////////////////////////////////
