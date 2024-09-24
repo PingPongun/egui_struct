@@ -3,6 +3,7 @@ use crate::traits::{EguiStructImut, EguiStructMut};
 use egui::Response;
 use exgrid::ExUi;
 use std::any::Any;
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 /// Config structure for mutable view of Numerics
@@ -52,7 +53,7 @@ pub enum ConfigStrImut {
 
 pub mod set {
     use super::*;
-    /// Configuration options for mutable sets (HashSet, Vec, ..)
+    /// Configuration options for mutable sets (IndexSet, Vec, ..)
     pub struct ConfigSetMut<'a, T: EguiStructMut, E> {
         /// Can new elements be added to set
         pub expandable: Option<E>,
@@ -222,46 +223,162 @@ pub mod set {
         }
     }
 
-    pub(crate) use _vec_wrapper::*;
-    mod _vec_wrapper {
-        use super::*;
-        #[allow(private_interfaces, private_bounds)]
-        /// Thin wrapper around [Vec], that provides generic configured [EguiStructMut] implementation for [Vec].
-        ///
-        /// Different generics combination provide slightly different feature set, but allows to loosen bounds on `T`
-        ///
-        /// See [vec_wrappers].
-        pub struct VecWrapper<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>>(
-            pub MaybeOwned<'a, Vec<T>>,
-            PhantomData<(E, I)>,
-        );
+    pub(crate) use set_wrapper_t::*;
+    mod set_wrapper_t {
 
-        #[allow(private_bounds)]
-        impl<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>>
-            VecWrapper<'a, T, E, I>
-        {
-            pub fn new(inner: Vec<T>) -> Self {
-                VecWrapper(MaybeOwned::Owned(inner), PhantomData)
+        use super::*;
+        pub trait SetWrapperT<T>: FromIterator<T> {
+            fn len(&self) -> usize;
+            fn new() -> Self;
+            fn get(&self, idx: usize) -> Option<&T>;
+            fn remove(&mut self, idx: usize);
+            fn truncate(&mut self, len: usize);
+            fn swap(&mut self, idx: (usize, usize));
+            fn push(&mut self, val: T);
+            fn drain(&mut self) -> impl Iterator<Item = T>;
+            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+            where
+                T: 'a;
+        }
+        impl<T> SetWrapperT<T> for Vec<T> {
+            fn len(&self) -> usize {
+                self.len()
             }
-            pub fn new_mut(inner: &'a mut Vec<T>) -> Self {
-                VecWrapper(MaybeOwned::BorrowedMut(inner), PhantomData)
+
+            fn new() -> Self {
+                Self::new()
             }
-            pub fn new_ref(inner: &'a Vec<T>) -> Self {
-                VecWrapper(MaybeOwned::Borrowed(inner), PhantomData)
+
+            fn get(&self, idx: usize) -> Option<&T> {
+                self.deref().get(idx)
+            }
+
+            fn remove(&mut self, idx: usize) {
+                self.remove(idx);
+            }
+
+            fn truncate(&mut self, len: usize) {
+                self.truncate(len);
+            }
+
+            fn swap(&mut self, idx: (usize, usize)) {
+                self.deref_mut().swap(idx.0, idx.1);
+            }
+
+            fn push(&mut self, value: T) {
+                self.push(value);
+            }
+
+            fn drain(&mut self) -> impl Iterator<Item = T> {
+                self.drain(..)
+            }
+
+            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+            where
+                T: 'a,
+            {
+                self.deref().iter()
             }
         }
 
-        impl<T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> Deref
-            for VecWrapper<'_, T, E, I>
+        #[cfg(feature = "indexmap")]
+        impl<T: Hash + Eq> SetWrapperT<T> for indexmap::IndexSet<T> {
+            fn len(&self) -> usize {
+                self.len()
+            }
+
+            fn new() -> Self {
+                Self::new()
+            }
+
+            fn get(&self, idx: usize) -> Option<&T> {
+                self.get_index(idx)
+            }
+
+            fn remove(&mut self, idx: usize) {
+                self.shift_remove_index(idx);
+            }
+
+            fn truncate(&mut self, len: usize) {
+                self.truncate(len);
+            }
+
+            fn swap(&mut self, idx: (usize, usize)) {
+                self.swap_indices(idx.0, idx.1);
+            }
+
+            fn push(&mut self, value: T) {
+                self.insert(value);
+            }
+
+            fn drain(&mut self) -> impl Iterator<Item = T> {
+                self.drain(..)
+            }
+
+            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+            where
+                T: 'a,
+            {
+                self.iter()
+            }
+        }
+    }
+    pub(crate) use _set_wrapper::*;
+    mod _set_wrapper {
+        use super::*;
+        #[allow(private_interfaces, private_bounds)]
+        /// Thin wrapper around [Vec]/[indexmap::IndexSet], that provides generic configured [EguiStructMut] implementation for [Vec]/[indexmap::IndexSet].
+        ///
+        /// Different generics combination provide slightly different feature set, but allows to loosen bounds on `T`
+        ///
+        /// See [set_wrappers].
+        pub struct SetWrapper<
+            'a,
+            T: EguiStructMut,
+            D: SetWrapperT<T>,
+            E: ConfigSetExpandableT<T>,
+            I: ConfigSetImutT<T>,
+        >(pub MaybeOwned<'a, D>, PhantomData<(T, E, I)>);
+
+        #[allow(private_bounds)]
+        impl<
+                'a,
+                T: EguiStructMut,
+                D: SetWrapperT<T>,
+                E: ConfigSetExpandableT<T>,
+                I: ConfigSetImutT<T>,
+            > SetWrapper<'a, T, D, E, I>
         {
-            type Target = Vec<T>;
+            pub fn new(inner: D) -> Self {
+                SetWrapper(MaybeOwned::Owned(inner), PhantomData)
+            }
+            pub fn new_mut(inner: &'a mut D) -> Self {
+                SetWrapper(MaybeOwned::BorrowedMut(inner), PhantomData)
+            }
+            pub fn new_ref(inner: &'a D) -> Self {
+                SetWrapper(MaybeOwned::Borrowed(inner), PhantomData)
+            }
+        }
+
+        impl<
+                T: EguiStructMut,
+                D: SetWrapperT<T>,
+                E: ConfigSetExpandableT<T>,
+                I: ConfigSetImutT<T>,
+            > Deref for SetWrapper<'_, T, D, E, I>
+        {
+            type Target = D;
 
             fn deref(&self) -> &Self::Target {
                 &self.0
             }
         }
-        impl<T: EguiStructMut, E: ConfigSetExpandableT<T>, I: ConfigSetImutT<T>> DerefMut
-            for VecWrapper<'_, T, E, I>
+        impl<
+                T: EguiStructMut,
+                D: SetWrapperT<T>,
+                E: ConfigSetExpandableT<T>,
+                I: ConfigSetImutT<T>,
+            > DerefMut for SetWrapper<'_, T, D, E, I>
         {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
@@ -280,8 +397,8 @@ pub mod set {
         }
         macro_rules! _add_elements_send {
     ($typ:ty, [$($bound:ident),*]) => {
-        impl<T: EguiStructMut $(+ $bound)*,  I: ConfigSetImutT<T>> ConfigSetT<T,$typ>
-            for VecWrapper<'_, T, $typ, I>
+        impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T,$typ>
+            for SetWrapper<'_, T, D, $typ, I>
         {
             fn _add_elements(
                 &mut self,
@@ -311,7 +428,7 @@ pub mod set {
                             response = resp.clone();
                             if add_elem {
                                 self.0.push(*val);
-                            } else if resp.changed() {
+                            } else {
                                 ui.data_store(id, val);
                             }
                         } else {
@@ -332,8 +449,8 @@ pub mod set {
 }
         macro_rules! _add_elements_nsend {
     ($typ:ty, [$($bound:ident),*]) => {
-        impl<T: EguiStructMut $(+ $bound)*, I: ConfigSetImutT<T>> ConfigSetT<T, $typ>
-            for VecWrapper<'_, T, $typ, I>
+        impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T, $typ>
+            for SetWrapper<'_, T, D, $typ, I>
         {
             fn _add_elements(
                 &mut self,
@@ -363,9 +480,9 @@ pub mod set {
         _add_elements_send! { bool, [Default,Send,Any]}
     }
 
-    pub(crate) use vec_wrappers::*;
-    pub mod vec_wrappers {
-        //! [Vec] wrappers that allow to get [EguiStructMut] implementation for [Vec] with looser bounds
+    pub(crate) use set_wrappers::*;
+    pub mod set_wrappers {
+        //! [Vec]/[indexmap::IndexSet] wrappers that allow to get [EguiStructMut] implementation for [Vec]/[indexmap::IndexSet] with looser bounds
         //!
         //! There are 3 traits that characterize this wrappers (different trait combination provide slightly different feature set, but allows to loosen bounds on `T`):
         //! - `S`- [Send]+[Any] - Elements can be edited prior adding
@@ -382,45 +499,45 @@ pub mod set {
         //! | ✅ | ❌ | [ConfigSetExpandable]                   |
         //! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
         //!
-        //! [EguiStructMut] for [Vec] is implemented using this [VecWrapperFull]
+        //! [EguiStructMut] for [Vec]/[indexmap::IndexSet] is implemented using [SetWrapperFull]
         //!
         use super::*;
-        pub use _vec_wrapper::VecWrapper;
+        pub use _set_wrapper::SetWrapper;
         /// Requires `T`: [EguiStructMut]
         #[allow(private_interfaces)]
-        pub type VecWrapperMinimal<'a, 'b, T> =
-            VecWrapper<'a, T, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperMinimal<'a, 'b, T, D> =
+            SetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type VecWrapperS<'a, 'b, T> =
-            VecWrapper<'a, T, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperS<'a, 'b, T, D> =
+            SetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default]
         #[allow(private_interfaces)]
-        pub type VecWrapperD<'a, 'b, T> = VecWrapper<'a, T, (), ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperD<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type VecWrapperSD<'a, 'b, T> = VecWrapper<'a, T, bool, ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperSD<'a, 'b, T, D> = SetWrapper<'a, T, D, bool, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut]
         #[allow(private_interfaces)]
-        pub type VecWrapperI<'a, 'b, T> =
-            VecWrapper<'a, T, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperI<'a, 'b, T, D> =
+            SetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type VecWrapperSI<'a, 'b, T> =
-            VecWrapper<'a, T, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperSI<'a, 'b, T, D> =
+            SetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default]
         #[allow(private_interfaces)]
-        pub type VecWrapperDI<'a, 'b, T> = VecWrapper<'a, T, (), ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperDI<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type VecWrapperFull<'a, 'b, T> = VecWrapper<'a, T, bool, ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperFull<'a, 'b, T, D> = SetWrapper<'a, T, D, bool, ConfigSetMutTrueImut<T>>;
     }
 }
 //////////////////////////////////////////////////////////////
