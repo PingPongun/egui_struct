@@ -56,86 +56,92 @@ mod impl_sets_imut {
 }
 mod hashset {
     use super::*;
-    macro_rules! impl_set {
-    ($typ:ty, $impl:ident, $ConfigType:ty, [$( $bound:path),*]) => {
 
-        impl<T: 'static+EguiStructMut $(+ $bound)*> EguiStructMut for $typ{
-            const SIMPLE_MUT: bool = false;
-            type ConfigTypeMut<'a> = ConfigSetMut<'a, T, bool>;
-            fn has_childs_mut(&self) -> bool {
-                !self.is_empty()
-            }
-            fn has_primitive_mut(&self) -> bool {
-                false
-            }
-            fn show_childs_mut(
-                &mut self,
-                ui: &mut ExUi,
-                config: &mut Self::ConfigTypeMut<'_>,
-                reset2: Option<&Self>,
-            ) -> Response {
-                let mut response = ui.dummy_response();
-                macro_rules! show{
-                    (HASHSET)=>{
-                        self.iter().enumerate().for_each(|(idx, x)| {
-                            response |= x.show_collapsing_imut(ui, idx.to_string(), "", &mut Default::default(), None, None)
+    impl<T: EguiStructMut + Eq + Hash + EguiStructImut + Default + Send + Any> EguiStructMut
+        for std::collections::HashSet<T>
+    {
+        const SIMPLE_MUT: bool = false;
+        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, ()>;
+        fn has_childs_mut(&self) -> bool {
+            !self.is_empty()
+        }
+        fn has_primitive_mut(&self) -> bool {
+            false
+        }
+        fn show_childs_mut(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut Self::ConfigTypeMut<'_>,
+            _reset2: Option<&Self>,
+        ) -> Response {
+            let mut response = ui.dummy_response();
+
+            let mut idx = 0;
+            self.retain(|x| {
+                let has_childs = x.has_childs_imut();
+                let header = |ui: &mut ExUi| {
+                    ui.keep_cell_start();
+                    ui.extext(idx.to_string());
+                    let mut response = ui.dummy_response();
+                    if config.shrinkable {
+                        let bresp = ui.button("-");
+                        response |= bresp.clone();
+                    }
+                    ui.keep_cell_stop();
+                    response | x.show_primitive_imut(ui, &mut Default::default())
+                };
+                let loc_response =
+                    ui.maybe_collapsing_rows(has_childs, header)
+                        .body_simple(|ui: &mut ExUi| {
+                            x.show_childs_imut(ui, &mut Default::default(), None)
                         });
-                    };
-                    (INDEXSET)=>{
-                        // Below allows to mutate set elements, but:
-                        // - HashSet: at each frame element order is changed, which makes it unusable
-                        // - IndexSet: Set may deduplicate during editing
-                        *self = self
-                            .drain(..)
-                            .enumerate()
-                            .map(|(idx, mut x)| {
-                                response |= x.show_collapsing_mut(ui, idx.to_string(), "", &mut config.inner_config, None, None);
-                                x
-                            })
-                            .collect()
-                    };
-                    (VEC)=>{
-                        self.iter_mut().enumerate().for_each(|(idx, x)| {
-                            response |= x.show_collapsing_mut(ui, idx.to_string(), "", &mut config.inner_config, None, None)
-                        });
-                    };
+                idx += 1;
+                response |= loc_response.clone();
+                !loc_response.clicked()
+            });
+
+            if let Some(add) = &config.expandable {
+                if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
+                    let id = ui.id();
+                    let mut val: Box<T> = ui
+                        .data_remove(id)
+                        .unwrap_or_else(|| Box::new(add.default_value()));
+                    let mut add_elem = false;
+                    response |= ui
+                        .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
+                            let bresp = ui.button("+");
+                            let presp = val.show_primitive_mut(ui, &mut config.inner_config);
+                            add_elem = bresp.clicked();
+                            bresp | presp
+                        })
+                        .body_simple(|ui| val.show_childs_mut(ui, &mut config.inner_config, None));
+                    if add_elem {
+                        self.insert(*val);
+                    } else {
+                        ui.data_store(id, val);
+                    }
                 }
-                show!($impl);
-
-                // if let Some(add)=config.expandable{
-                //     let mut new_val=(add.default)();
-                //     let has_childs = new_val.has_childs_mut();
-                //     let header = |ui: &mut ExUi| {
-                //         let bresp=ui.button("+");
-                //         response|=bresp;
-                //         if bresp.clicked(){
-                //             self.insert(new_val);
-                //         }
-                //         crate::trait_implementor_set::primitive_w_reset(&mut new_val, ui, &mut config.inner_config, todo)
-                //     };
-                //     response|=ui.maybe_collapsing_rows(has_childs, header)
-                //         .body_simple(|ui| new_val.show_childs_mut(ui, &mut config.inner_config, todo));
-                // }
-
-                response
             }
-            fn start_collapsed_mut(&self) -> bool {
-                self.len() > 16
-            }
+            response
         }
 
-        impl<T: EguiStructEq> EguiStructEq for $typ  {
-            fn eguis_eq(&self, rhs: &Self) -> bool {
-                //TODO allow mismatched order for std::HashMap
-                let mut ret = self.len()==rhs.len();
-                self.iter().zip(rhs.iter()).for_each(|(s,r)|ret &= s.eguis_eq(r));
-                ret
-            }
+        fn start_collapsed_mut(&self) -> bool {
+            self.len() > 16
         }
-    };
-}
-    impl_set! {std::collections::HashSet<T>, HASHSET, ConfigSetMut<T>,[Eq, std::hash::Hash, EguiStructImut] }
-    impl<T: EguiStructClone + Eq + std::hash::Hash> EguiStructClone for std::collections::HashSet<T> {
+    }
+
+    impl<T: EguiStructEq> EguiStructEq for std::collections::HashSet<T> {
+        //TODO allow mismatched order for std::HashMap
+        fn eguis_eq(&self, rhs: &Self) -> bool {
+            let mut ret = self.len() == rhs.len();
+            self.iter()
+                .zip(rhs.iter())
+                .for_each(|(s, r)| ret &= s.eguis_eq(r));
+            ret
+        }
+    }
+
+    impl<T: EguiStructClone + Eq + Hash> EguiStructClone for std::collections::HashSet<T> {
         fn eguis_clone(&mut self, source: &Self) {
             let src: Vec<_> = source.iter().collect();
             *self = self
