@@ -18,7 +18,7 @@ egui_struct = { path = "../", default-features = false, features = [
 rust-i18n = { git = "https://github.com/PingPongun/rust-i18n.git" }
 # rust-i18n = "2.2.1" # crates version also works correctly, but modified has some advantages, mostly optimized & more recent deps
 lazy_static = "1.4.0"
-indexmap = "2.4"
+indexmap = "2.5"
 [features]
 egui28 = []
 default = ["egui28"]

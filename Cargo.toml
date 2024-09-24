@@ -41,3 +41,6 @@ i18n = ["egui_struct_macros/i18n"]
 
 [workspace]
 members = ["demo"]
+
+[package.metadata.docs.rs]
+features = ["indexmap", "i18n"]

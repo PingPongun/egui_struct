@@ -4,6 +4,7 @@ Data.bool: Bool
 Data.f32: F 32
 Data.f64: F 64
 Data.hashmap: Hashmap
+Data.hashset: Hashset
 Data.i128: I 128
 Data.i16: I 16
 Data.i32: I 32
@@ -20,6 +21,7 @@ Data.optional_string: Optional string
 Data.optional_string.__hint.: This is also Option, but as inner value is simple it is presented inline
 Data.primary_color: Primary color
 Data.secondary_color: Secondary color
+Data.set: IndexSet
 Data.static_combobox: Static combobox
 Data.stepped_isize: Stepped isize
 Data.string: String

@@ -2,6 +2,7 @@
 use egui::mutex::RwLock;
 use egui::RichText;
 use egui_struct::exgrid::GridMode;
+use egui_struct::prelude::set::*;
 use egui_struct::prelude::*;
 use indexmap::IndexSet;
 use rust_i18n::set_locale;
@@ -81,6 +82,7 @@ pub struct Data {
     app_language: Language,
 
     hashmap: std::collections::HashMap<String, String>,
+    hashset: std::collections::HashSet<String>,
 
     #[eguis(resettable(with_expr = "Resettable with expr".to_string()))]
     string: String,
@@ -160,7 +162,7 @@ pub struct Data {
     optional_string: Option<String>,
 
     #[eguis(config = " ConfigSetMut{
-            expandable: Some(ConfigSetExpandable{default: &Default::default, mutable:true}),
+            expandable: Some(true),
             shrinkable: true,
             mutable_value: false,
             max_len: Some(5),
@@ -179,6 +181,7 @@ impl Default for Data {
                 map.insert("Key".to_string(), "Value".to_string());
                 map
             },
+            hashset: Default::default(),
             skipped_data: 0,
             string: "Hello!".to_string(),
             not_resettable_string: "Hello!".to_string(),
