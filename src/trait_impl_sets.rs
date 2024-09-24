@@ -63,7 +63,7 @@ mod hashset {
         const SIMPLE_MUT: bool = false;
         type ConfigTypeMut<'a> = ConfigSetMut<'a, T, ()>;
         fn has_childs_mut(&self) -> bool {
-            !self.is_empty()
+            true
         }
         fn has_primitive_mut(&self) -> bool {
             false

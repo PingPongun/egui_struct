@@ -77,10 +77,10 @@ pub mod set {
         pub reorder: bool,
     }
 
-    impl<'a, T: EguiStructMut, E> Default for ConfigSetMut<'a, T, E> {
+    impl<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>> Default for ConfigSetMut<'a, T, E> {
         fn default() -> Self {
             Self {
-                expandable: None,
+                expandable: E::default_config(),
                 shrinkable: true,
                 mutable_value: true,
                 mutable_key: true,
@@ -127,8 +127,16 @@ pub mod set {
     mod config_set_expandable_t {
         use super::*;
         pub(crate) trait ConfigSetExpandableT<T> {
-            fn mutable(&self) -> bool;
+            fn mutable(&self) -> bool {
+                false
+            }
             fn default_value(&self) -> T;
+            fn default_config() -> Option<Self>
+            where
+                Self: Sized,
+            {
+                None
+            }
         }
         /// Configuration struct that controls adding new elements to set. Used for `T: Send+Any`
         pub struct ConfigSetExpandable<'a, T> {
@@ -153,10 +161,6 @@ pub mod set {
             }
         }
         impl<T> ConfigSetExpandableT<T> for ConfigSetExpandableNStore<'_, T> {
-            fn mutable(&self) -> bool {
-                false
-            }
-
             fn default_value(&self) -> T {
                 (self.default)()
             }
@@ -169,14 +173,17 @@ pub mod set {
             fn default_value(&self) -> T {
                 T::default()
             }
+            fn default_config() -> Option<Self> {
+                Some(true)
+            }
         }
         impl<T: Default> ConfigSetExpandableT<T> for () {
-            fn mutable(&self) -> bool {
-                false
-            }
-
             fn default_value(&self) -> T {
                 T::default()
+            }
+
+            fn default_config() -> Option<Self> {
+                Some(())
             }
         }
     }
