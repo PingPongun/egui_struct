@@ -283,13 +283,10 @@ pub struct EguiStructWrapper<'a, T: Deref> {
 macro_rules! generate_EguiStruct_show {
     ($show_collapsing:ident, $generic:ident, $typ:ty, $bound:ident) => {
         impl<'a, $generic: $bound + ?Sized> EguiStructWrapper<'a, $typ> {
-            pub fn show(self, ui: &mut Ui) -> Response
-            where
-                $generic: 'static,
-            {
+            pub fn show(self, ui: &mut Ui) -> Response {
                 let id = ui.make_persistent_id((
                     self.label.text().to_string(),
-                    std::any::TypeId::of::<$generic>(),
+                    std::any::type_name::<$generic>(),
                 ));
                 ScrollArea::vertical()
                     .id_source(id)
