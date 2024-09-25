@@ -1,10 +1,11 @@
+use crate::config::config_set_expandable::*;
+use crate::config::*;
 use crate::traits::*;
-use crate::types::*;
-use crate::*;
-use egui::Response;
+use crate::wrappers::*;
+
+use crate::egui::{Rect, Response, Sense};
 use exgrid::ExUi;
 
-use set::*;
 use std::any::Any;
 use std::hash::Hash;
 
@@ -28,9 +29,9 @@ mod impl_sets_imut {
                     _reset2: Option<&Self>,
                 ) -> Response {
                     let mut response = ui.interact(
-                        egui::Rect::NOTHING,
+                        Rect::NOTHING,
                         "dummy".into(),
-                        egui::Sense {
+                        Sense {
                             click: false,
                             drag: false,
                             focusable: false,
@@ -203,7 +204,7 @@ mod impl_from_wrapper {
                     SetWrapperFull::new_mut(self).show_childs_mut(
                         ui,
                         config,
-                        reset2.map(|x| SetWrapper::new_ref(x)).as_ref(),
+                        reset2.map(|x| SetWrapperFull::new_ref(x)).as_ref(),
                     )
                 }
 
@@ -219,7 +220,7 @@ mod impl_from_wrapper {
                 for $typ<T>
             {
                 fn eguis_clone(&mut self, source: &Self) {
-                    SetWrapperFull::new_mut(self).eguis_clone(&SetWrapper::new_ref(source))
+                    SetWrapperFull::new_mut(self).eguis_clone(&SetWrapperFull::new_ref(source))
                 }
 
                 fn eguis_clone_full(&self) -> Option<Self> {
@@ -232,7 +233,7 @@ mod impl_from_wrapper {
                 for $typ<T>
             {
                 fn eguis_eq(&self, rhs: &Self) -> bool {
-                    SetWrapperFull::new_ref(self).eguis_eq(&SetWrapper::new_ref(rhs))
+                    SetWrapperFull::new_ref(self).eguis_eq(&SetWrapperFull::new_ref(rhs))
                 }
             }
         };

@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 use egui::mutex::RwLock;
 use egui::RichText;
+use egui_struct::config::*;
 use egui_struct::exgrid::GridMode;
-use egui_struct::prelude::set::*;
 use egui_struct::prelude::*;
+use egui_struct::wrappers::*;
 use indexmap::IndexSet;
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};

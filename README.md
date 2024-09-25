@@ -69,7 +69,7 @@ Grid benefits:
 
 [<a id="ref5">5</a>] : Wrap `T: Clone + ToString + PartialEq` type into `Combobox<T>` and pass through `config` attribute iterator with all possible values → field will be shown as combobox
 
-### Set/Map features
+### Mutable Set/Map features
 
 | type          | add | remove | mut value | mut prior add | reorder | limit length | mut key |
 | ------------- | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
@@ -80,7 +80,7 @@ Grid benefits:
 | `HashMap<T>`  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
 | `IndexMap<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
 
-//TODO add info how to use loosen trait bounds
+Vec/Set/Map implementations have normally quite strict bounds (T: `Any`+`Send`+`Default`+`EguiStructImut`), if your type does not satisfy them, use [`wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html) module/[`wrapper`](https://docs.rs/egui_struct/latest/egui_struct/prelude/derive.EguiStructMut.html) macro attribute to loosen them.
 
 ## Usage
 

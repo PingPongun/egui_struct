@@ -6,10 +6,17 @@
 mod trait_impls;
 mod trait_impl_sets;
 mod traits;
-mod types;
+
+#[cfg(doc)]
+use crate::traits::*;
+#[cfg(doc)]
+use egui_struct_macros::*;
+
+pub mod config;
+pub mod wrappers;
 pub mod prelude {
+    pub use crate::config::*;
     pub use crate::traits::{EguiStruct, EguiStructWrapper};
-    pub use crate::types::*;
     pub use egui_struct_macros::*;
 }
 

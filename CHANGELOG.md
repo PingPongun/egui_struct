@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## TODO [0.6.0] - Planning ( non exhaustive)
+
+- revisit Config/Reset values passing down data hierarchy
+
+## TODO [0.5.1] - Planning ( non exhaustive)
+
+- Added content preview (eg. Vec displays first few elements as immutable in its primitive)
+- Support `Tuples`, `[T,N]`
+- Better `EguiStructEq` for `HashSet`
+
 ## [0.5.0] - Major API update- Unreleased ( changelog non exhaustive)
 
 ### Common
@@ -12,9 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Layout switched from `egui::Grid` to `exgrid::ExGrid` (to force grid layout always use `eguis_mut().view_mode(egui_struct::exgrid::GridMode::Traditional)`, otherwise layout might switch on narrow windows)
 - [Breaking] Default egui bumped to v0.28 (was v0.26)
 - [Breaking] Minimal egui bumped to v0.23 (was v0.21)
-- [Breaking] Library has been grouped into `prelude` (macro generation & showing), `config` (configuration structs #TODO) and `trait_implementor_set` (used when manually implementing traits)
+- [Breaking] Library has been grouped into `prelude` (macro generation & showing), `config` (configuration structs), `wrappers`(Wrappers to provide alternative EguiStructMut implementation) and `trait_implementor_set` (used when manually implementing traits)
 - [Breaking] New show API: `data.show_top(ui, ..)` -> `data.eguis_mut().show(ui)` (with `prelude::EguiStruct` trait in scope)
-- Added content preview (eg. Vec displays first few elements as immutable in its primitive) #TODO
 - Removed empty first row when label passed in show_top is empty
 - `i18n` is no longer default feature
 
@@ -24,8 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Breaking] Sets&Maps impl updated:
   - EguiStructMut impl added for HashSet&IndexSet
   - Sets/Map got configurable features like: add, remove, mut elements, mut prior add, reorder, limit length (See readme for feature support for types)  #TODO
-  - Bounds have changed slightly (`Vec<T>` fallbacks to `[T]` if bounds are not met, so no regression, but to get new features use #TODO )
-- [Added] macro attributes: eguis(wrapper_complex, show_childs=), eguis(wrapper_simple, show_primitive=), #TODO
+  - Bounds have changed slightly (`Vec<T>` fallbacks to `[T]` if bounds are not met, so no regression, but to get new features use `wrappers` module )
+- [Added] macro attributes: eguis(wrapper(dummyC), show_childs_mut=), eguis(wrapper(dummyS), show_primitive_mut=), eguis(wrapper(setMinimal)) #TODO
 
 ### Manual trait implementations
 
@@ -38,13 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
 - [Breaking] Most functions take `exgrid::ExUi` instead of `egui::Ui` (generally function signature update should suffice)
 - [Breaking] EguiStruct{Imut, Mut}::show_\* functions signatures have been simplified (indent_level, \*id are skipped, as they are handled by exgrid)
-- [Breaking] `EguiStruct*::show_childs*` now takes `config: &mut Self::ConfigType*` argument
+- [Breaking] `EguiStruct*::show_childs*` now takes `config: &mut Self::ConfigType*` argument #TODO use &
 - [Breaking] Sets&Maps impl updated:
   - `[T]::ConfigTypeMut` changed from `()` to `T::ConfigTypeMut`
   - `{Vec<T>, HashSet<T>, IndexSet<T>}::ConfigTypeMut` changed from `()` to `ConfigSetMut<T>`
   - `{HashMap<Q,V>, IndexMap<Q,V>}::ConfigTypeMut` changed from `()` to `ConfigMapMut<Q,V>`
 - [Breaking] `Option<T>::ConfigType*` changed from `()` to `T::ConfigType*`
-- EguiStruct{Mut, Imut}::COLUMN_COUNT_{MUT, IMUT} (it was used only internally, highly unlikely anyone will notice difference)
+- [Removed] EguiStruct{Mut, Imut}::COLUMN_COUNT_{MUT, IMUT} (it was used only internally, highly unlikely anyone will notice difference)
 
 ## [0.4.2] - 2024-07-09
 

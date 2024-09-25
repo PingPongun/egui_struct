@@ -1,96 +1,47 @@
+//! # Combobox wrappers
+//!
+//! //TODO docs
+//!
+//! # Vec/Set wrappers
+//!
+//! [Vec]/[IndexSet] wrappers that allow to get [EguiStructMut] implementation for [Vec]/[IndexSet] with looser bounds
+//!
+//! There are 3 traits that characterize this wrappers (different trait combination provide slightly different feature set, but allows to loosen bounds on `T`):
+//! - `S`- [Send]+[Any] - Elements can be edited prior adding
+//!     (otherwise `+` button will add "default" value)
+//! - `D`- [Default] - New elements (`+` button) will be generated with [Default]
+//!     (otherwise function specified in config struct will be used)
+//! - `I`- [EguiStructImut] -  immutable (`config.mutable_value == false`) Set elements will be using this trait
+//!     (otherwise they will use disabled [egui::Ui])
+//!
+//! | `S` | `D` | type of `config.expandable.unwrap()`   | comment |
+//! |-----|-----|----------------------------------------|---------|
+//! | ✅ | ✅ | [bool]                                  | `bool` controls if value can be modified prior add |
+//! | ❌ | ✅ | [()](unit)                              |
+//! | ✅ | ❌ | [ConfigSetExpandable]                   |
+//! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
+//!
+//! [EguiStructMut] for [Vec]/[IndexSet] is implemented using [SetWrapperFull]
+//!
+
+use crate::config::config_set_expandable::*;
+use crate::config::*;
 use crate::egui;
-use crate::traits::{EguiStructImut, EguiStructMut};
+use crate::traits::*;
+
 use egui::Response;
 use exgrid::ExUi;
 use std::any::Any;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-/// Config structure for mutable view of Numerics
-#[derive(Default)]
-pub enum ConfigNum<'a, T: 'a> {
-    /// Default: DragValue (without limits)
-    #[default]
-    NumDefault,
 
-    /// DragValue(min, max)
-    DragValue(T, T),
+#[cfg(doc)]
+use indexmap::*;
 
-    /// Slider(min, max)
-    Slider(T, T),
-
-    /// Slider(min, max, step)
-    SliderStep(T, T, T),
-
-    /// Combobox with available options specified by included iterator
-    ComboBox(&'a mut dyn Iterator<Item = T>),
-}
-
-///Config structure for mutable view of String
-#[derive(Default)]
-pub enum ConfigStr<'a> {
-    ///Default: single line `egui::TextEdit`
-    #[default]
-    SingleLine,
-
-    ///multi line `egui::TextEdit`
-    MultiLine,
-
-    ///Combobox with available options specified by included iterator
-    ComboBox(&'a mut dyn Iterator<Item = String>),
-}
-
-/// Config structure for immutable view of many simple types like str, String & numerics
-#[derive(Default)]
-pub enum ConfigStrImut {
-    /// `egui::Label`
-    NonSelectable,
-
-    /// Default: immutable `egui::TextEdit`
-    #[default]
-    Selectable,
-}
-
-pub mod set {
+pub use set::*;
+mod set {
     use super::*;
-    /// Configuration options for mutable sets (IndexSet, Vec, ..)
-    pub struct ConfigSetMut<'a, T: EguiStructMut, E> {
-        /// Can new elements be added to set
-        pub expandable: Option<E>,
-
-        /// Can elements be removed from set
-        pub shrinkable: bool,
-
-        /// Can element value be changed after adding (ignored for [std::collections::HashSet])
-        pub mutable_value: bool,
-
-        /// Can element key be changed after adding (Applicable only for [indexmap::IndexMap])
-        pub mutable_key: bool,
-
-        /// Maximum number of elements in set
-        pub max_len: Option<usize>,
-
-        /// Config how elements are shown
-        pub inner_config: T::ConfigTypeMut<'a>,
-
-        /// Can elements be reordered? (ignored for [std::collections::HashSet]/[std::collections::HashMap])
-        pub reorder: bool,
-    }
-
-    impl<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>> Default for ConfigSetMut<'a, T, E> {
-        fn default() -> Self {
-            Self {
-                expandable: E::default_config(),
-                shrinkable: true,
-                mutable_value: true,
-                mutable_key: true,
-                max_len: None,
-                inner_config: Default::default(),
-                reorder: true,
-            }
-        }
-    }
-
     pub(crate) use config_set_imut_t::*;
     mod config_set_imut_t {
         use super::*;
@@ -120,70 +71,6 @@ pub mod set {
                 let ret = val.show_primitive_mut(ui, &mut Default::default());
                 ui.stop_disabled();
                 ret
-            }
-        }
-    }
-    pub use config_set_expandable_t::*;
-    mod config_set_expandable_t {
-        use super::*;
-        pub(crate) trait ConfigSetExpandableT<T> {
-            fn mutable(&self) -> bool {
-                false
-            }
-            fn default_value(&self) -> T;
-            fn default_config() -> Option<Self>
-            where
-                Self: Sized,
-            {
-                None
-            }
-        }
-        /// Configuration struct that controls adding new elements to set. Used for `T: Send+Any`
-        pub struct ConfigSetExpandable<'a, T> {
-            /// Function that generates new value that will be added to collection (on `+` button click).
-            /// If self.mutable == true generates starting value that can further edited before adding
-            pub default: &'a dyn for<'b> Fn() -> T,
-            /// Can element be edited prior adding to collection
-            pub mutable: bool,
-        }
-        /// Configuration struct that controls adding new elements to set. Used for `T: !(Send+Any)`
-        pub struct ConfigSetExpandableNStore<'a, T> {
-            /// Function that generates new value that will be added to collection (on `+` button click).
-            pub default: &'a dyn for<'b> Fn() -> T,
-        }
-        impl<T: Send + Any> ConfigSetExpandableT<T> for ConfigSetExpandable<'_, T> {
-            fn mutable(&self) -> bool {
-                self.mutable
-            }
-
-            fn default_value(&self) -> T {
-                (self.default)()
-            }
-        }
-        impl<T> ConfigSetExpandableT<T> for ConfigSetExpandableNStore<'_, T> {
-            fn default_value(&self) -> T {
-                (self.default)()
-            }
-        }
-        impl<T: Default + Send + Any> ConfigSetExpandableT<T> for bool {
-            fn mutable(&self) -> bool {
-                *self
-            }
-
-            fn default_value(&self) -> T {
-                T::default()
-            }
-            fn default_config() -> Option<Self> {
-                Some(true)
-            }
-        }
-        impl<T: Default> ConfigSetExpandableT<T> for () {
-            fn default_value(&self) -> T {
-                T::default()
-            }
-
-            fn default_config() -> Option<Self> {
-                Some(())
             }
         }
     }
@@ -330,7 +217,7 @@ pub mod set {
             }
         }
     }
-    pub(crate) use _set_wrapper::*;
+
     mod _set_wrapper {
         use super::*;
         #[allow(private_interfaces, private_bounds)]
@@ -338,7 +225,9 @@ pub mod set {
         ///
         /// Different generics combination provide slightly different feature set, but allows to loosen bounds on `T`
         ///
-        /// See [set_wrappers].
+        /// Generally use aliases to this type ([SetWrapperFull], [SetWrapperI], ..), instead using this type directly.
+        ///
+        /// See [crate::wrappers] module description.
         pub struct SetWrapper<
             'a,
             T: EguiStructMut,
@@ -395,7 +284,7 @@ pub mod set {
     pub(crate) use config_set_t::*;
     mod config_set_t {
         use super::*;
-        pub(crate) trait ConfigSetT<T: EguiStructMut, E> {
+        pub(crate) trait ConfigSetT<T: EguiStructMut, E: ConfigSetExpandableT<T>> {
             fn _add_elements(
                 &mut self,
                 ui: &mut ExUi,
@@ -403,70 +292,42 @@ pub mod set {
             ) -> Response;
         }
         macro_rules! _add_elements_send {
-    ($typ:ty, [$($bound:ident),*]) => {
-        impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T,$typ>
-            for SetWrapper<'_, T, D, $typ, I>
-        {
-            fn _add_elements(
-                &mut self,
-                ui: &mut ExUi,
-                config: &mut ConfigSetMut<'_, T,  $typ>,
-            ) -> Response {
-                let mut response = ui.dummy_response();
-                if let Some(add) = &config.expandable {
-                    if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
-                        if <$typ as ConfigSetExpandableT<T>>::mutable(add) {
-                            let id = ui.id();
-                            let mut val: Box<T> = ui
-                                .data_remove(id)
-                                .unwrap_or_else(|| Box::new(add.default_value()));
-                            let mut add_elem = false;
-                            let resp = ui
-                                .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
-                                    let bresp = ui.button("+");
-                                    let presp =
-                                        val.show_primitive_mut(ui, &mut config.inner_config);
-                                    add_elem = bresp.clicked();
-                                    bresp | presp
-                                })
-                                .body_simple(|ui| {
-                                    val.show_childs_mut(ui, &mut config.inner_config, None)
-                                });
-                            response = resp.clone();
-                            if add_elem {
-                                self.0.push(*val);
-                            } else {
-                                ui.data_store(id, val);
-                            }
+($typ:ty, [$($bound:ident),*]) => {
+    impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T,$typ>
+        for SetWrapper<'_, T, D, $typ, I>
+    {
+        fn _add_elements(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut ConfigSetMut<'_, T,  $typ>,
+        ) -> Response {
+            let mut response = ui.dummy_response();
+            if let Some(add) = &config.expandable {
+                if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
+                    if <$typ as ConfigSetExpandableT<T>>::mutable(add) {
+                        let id = ui.id();
+                        let mut val: Box<T> = ui
+                            .data_remove(id)
+                            .unwrap_or_else(|| Box::new(add.default_value()));
+                        let mut add_elem = false;
+                        let resp = ui
+                            .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
+                                let bresp = ui.button("+");
+                                let presp =
+                                    val.show_primitive_mut(ui, &mut config.inner_config);
+                                add_elem = bresp.clicked();
+                                bresp | presp
+                            })
+                            .body_simple(|ui| {
+                                val.show_childs_mut(ui, &mut config.inner_config, None)
+                            });
+                        response = resp.clone();
+                        if add_elem {
+                            self.0.push(*val);
                         } else {
-                            let bresp = ui.button("+");
-                            ui.end_row();
-                            response = bresp.clone();
-                            if bresp.clicked() {
-                                let new_val = add.default_value();
-                                self.0.push(new_val);
-                            }
-                        };
-                    }
-                }
-                response
-            }
-        }
-    };
-}
-        macro_rules! _add_elements_nsend {
-    ($typ:ty, [$($bound:ident),*]) => {
-        impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T, $typ>
-            for SetWrapper<'_, T, D, $typ, I>
-        {
-            fn _add_elements(
-                &mut self,
-                ui: &mut ExUi,
-                config: &mut ConfigSetMut<'_, T,  $typ>,
-            ) -> Response {
-                let mut response = ui.dummy_response();
-                if let Some(add) = &config.expandable {
-                    if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
+                            ui.data_store(id, val);
+                        }
+                    } else {
                         let bresp = ui.button("+");
                         ui.end_row();
                         response = bresp.clone();
@@ -474,12 +335,40 @@ pub mod set {
                             let new_val = add.default_value();
                             self.0.push(new_val);
                         }
+                    };
+                }
+            }
+            response
+        }
+    }
+};
+}
+        macro_rules! _add_elements_nsend {
+($typ:ty, [$($bound:ident),*]) => {
+    impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T, $typ>
+        for SetWrapper<'_, T, D, $typ, I>
+    {
+        fn _add_elements(
+            &mut self,
+            ui: &mut ExUi,
+            config: &mut ConfigSetMut<'_, T,  $typ>,
+        ) -> Response {
+            let mut response = ui.dummy_response();
+            if let Some(add) = &config.expandable {
+                if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
+                    let bresp = ui.button("+");
+                    ui.end_row();
+                    response = bresp.clone();
+                    if bresp.clicked() {
+                        let new_val = add.default_value();
+                        self.0.push(new_val);
                     }
                 }
-                response
             }
+            response
         }
-    };
+    }
+};
 }
         _add_elements_nsend! { (),  [Default]}
         _add_elements_nsend! { ConfigSetExpandableNStore<'_, T>, []}
@@ -487,27 +376,8 @@ pub mod set {
         _add_elements_send! { bool, [Default,Send,Any]}
     }
 
-    pub(crate) use set_wrappers::*;
-    pub mod set_wrappers {
-        //! [Vec]/[indexmap::IndexSet] wrappers that allow to get [EguiStructMut] implementation for [Vec]/[indexmap::IndexSet] with looser bounds
-        //!
-        //! There are 3 traits that characterize this wrappers (different trait combination provide slightly different feature set, but allows to loosen bounds on `T`):
-        //! - `S`- [Send]+[Any] - Elements can be edited prior adding
-        //!     (otherwise `+` button will add "default" value)
-        //! - `D`- [Default] - New elements (`+` button) will be generated with [Default]
-        //!     (otherwise function specified in config struct will be used)
-        //! - `I`- [EguiStructImut] -  immutable (`config.mutable_value == false`) Set elements will be using this trait
-        //!     (otherwise they will use disabled [egui::Ui])
-        //!
-        //! | `S` | `D` | type of `config.expandable.unwrap()`   | comment |
-        //! |-----|-----|----------------------------------------|---------|
-        //! | ✅ | ✅ | [bool]                                  | `bool` controls if value can be modified prior add |
-        //! | ❌ | ✅ | [()](unit)                              |
-        //! | ✅ | ❌ | [ConfigSetExpandable]                   |
-        //! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
-        //!
-        //! [EguiStructMut] for [Vec]/[indexmap::IndexSet] is implemented using [SetWrapperFull]
-        //!
+    pub use set_wrappers::*;
+    mod set_wrappers {
         use super::*;
         pub use _set_wrapper::SetWrapper;
         /// Requires `T`: [EguiStructMut]
@@ -547,11 +417,10 @@ pub mod set {
         pub type SetWrapperFull<'a, 'b, T, D> = SetWrapper<'a, T, D, bool, ConfigSetMutTrueImut<T>>;
     }
 }
-//////////////////////////////////////////////////////////////
+
 pub use combobox::Combobox;
 pub(crate) mod combobox {
-    use crate::traits::*;
-    use crate::types::*;
+    use super::*;
     pub struct Combobox<T>(pub T);
 
     impl<T: ToString> EguiStructImut for Combobox<T> {

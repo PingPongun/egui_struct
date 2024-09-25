@@ -1,4 +1,8 @@
+#[cfg(doc)]
+use crate::config::*;
 use crate::egui;
+#[cfg(doc)]
+use crate::*;
 use egui::{Response, RichText, ScrollArea, Ui};
 use exgrid::*;
 use std::ops::Deref;

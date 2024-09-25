@@ -1,12 +1,13 @@
+use crate::config::*;
 use crate::traits::*;
-use crate::types::combobox::show_combobox;
-use crate::types::*;
+use crate::wrappers::combobox::show_combobox;
 use crate::*;
 use egui::Response;
 use egui::Widget;
 use exgrid::ExUi;
 
 pub mod macros {
+    #[cfg(doc)]
     pub use super::*;
 
     #[macro_export]
