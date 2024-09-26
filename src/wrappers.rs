@@ -1,6 +1,5 @@
-//! # Combobox wrappers
-//!
-//! //TODO docs
+//! Module provides wrappers that allow to use alternative EguiStruct* traits implementations (eg. with loosen bounds or changed functionality)
+//! or use types that does not impl them
 //!
 //! # Vec/Set wrappers
 //!
@@ -22,6 +21,33 @@
 //! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
 //!
 //! [EguiStructMut] for [Vec]/[IndexSet] is implemented using [SetWrapperFull]
+//!
+//! Usage:
+//!
+//! ```
+//! // In derive
+//! #[EguiStructMut]
+//! struct MyStruct<T: !Send>{
+//!     #[eguis(wrapper="SetDI")]
+//!     field: Vec<T>
+//! }
+//! // Standalone usage
+//! SetWrapperFull::new_mut(&mut vec).eguis_mut().show(ui);
+//! // Usage during trait implementation
+//! SetWrapperFull::new_mut(&mut vec).show_collapsing_mut(
+//!     ui,
+//!     "name",
+//!     "hint",
+//!     config,
+//!     reset2.map(|x| SetWrapperFull::new_ref(x)).as_ref(),
+//!     None,
+//! );
+//! ```
+//!
+//!
+//! # Combobox wrappers
+//!
+//! //TODO docs
 //!
 
 use crate::config::config_set_expandable::*;

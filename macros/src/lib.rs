@@ -34,6 +34,40 @@ impl Resettable {
         }
     }
 }
+#[derive(Debug, Default, Clone, FromMeta, PartialEq)]
+#[darling(rename_all = "PascalCase")]
+enum Wrapper {
+    #[default]
+    Set,
+    SetMinimal,
+    SetI,
+    SetD,
+    SetS,
+    SetSI,
+    SetSD,
+    SetDI,
+    SetSDI,
+    SetFull,
+    DummyC,
+    DummyS,
+}
+impl ToTokens for Wrapper {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        use Wrapper::*;
+        tokens.extend(match self {
+            Set | SetMinimal => quote! {::egui_struct::wrappers::SetWrapperMinimal},
+            SetI => quote! {::egui_struct::wrappers::SetWrapperI},
+            SetD => quote! {::egui_struct::wrappers::SetWrapperD},
+            SetS => quote! {::egui_struct::wrappers::SetWrapperS},
+            SetSI => quote! {::egui_struct::wrappers::SetWrapperSI},
+            SetSD => quote! {::egui_struct::wrappers::SetWrapperSD},
+            SetDI => quote! {::egui_struct::wrappers::SetWrapperDI},
+            SetSDI | SetFull => quote! {::egui_struct::wrappers::SetWrapperFull},
+            DummyC => quote! {::egui_struct::wrappers::DummyWrapperSimple},
+            DummyS => quote! {::egui_struct::wrappers::DummyWrapperSimple},
+        });
+    }
+}
 
 #[derive(Debug, Clone, FromField)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -82,10 +116,25 @@ struct EField {
     /// - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
     eeq: Option<Expr>,
     /// override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
-    // / - if `field_type : EguiStructClone` can be unused
+    /// - if `field_type : EguiStructClone` can be unused
     eclone: Option<Expr>,
     /// Override fields `start_collapsed()` output (if set true field will always start collapsed)
     start_collapsed: Option<bool>,
+    /// `show_childs_mut= func`- override `show_childs_mut` function for field
+    show_childs_mut: Option<Expr>,
+    /// `show_primitive_mut= func`- override `show_primitive_mut` function for field
+    show_primitive_mut: Option<Expr>,
+    /// `show_childs_imut= func`- override `show_childs_imut` function for field
+    show_childs_imut: Option<Expr>,
+    /// `show_primitive_imut= func`- override `show_primitive_imut` function for field
+    show_primitive_imut: Option<Expr>,
+    ///  `wrapper= "wrappercode"`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
+    ///   This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_mut`/`show_primitive_mut` attributes use types that does not impl EguiStructMut
+    ///   - Dummy wrappers:
+    ///     - `wrappercode="DummyC"` - wrapper provides impl that does nothing, but works with `show_childs_mut` override
+    ///     - `wrappercode="DummyS"` - wrapper provides impl that does nothing, but works with `show_primitive_mut` override
+    ///   - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
+    wrapper: Option<Wrapper>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -261,19 +310,24 @@ fn handle_enum(
                     let fident = format_ident!("_field_{}", fidx);
                     let single_field = single_field.unwrap();
                     let fty = single_field.ty;
-                    let map_ref = single_field.map_pre_ref.map_or(quote! {}, |x| quote! {#x});
-                    let map = single_field.map_pre.map_or(quote! {}, |x| quote! {#x});
-                    let map_post = single_field.map_post.map_or(
+                    let mut map_ref = single_field.map_pre_ref.map_or(quote! {}, |x| quote! {#x});
+                    let mut map = single_field.map_pre.map_or(quote! {}, |x| quote! {#x});
+                    let mut map_post = single_field.map_post.map_or(
                         quote! {},
                         |x| quote! {if r.changed() { #x(#fident, mapped); } },
                     );
+                    if let Some(wrapper) = single_field.wrapper.clone() {
+                        map = quote! {#wrapper::new_mut};
+                        map_ref = quote! {#wrapper::new_ref};
+                        map_post = quote! {};
+                    }
 
                     let imconfig = get_config(single_field.imconfig);
                     let config = get_config(single_field.config);
                     has_childs_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_IMUT,});
                     has_childs_mut_arm.push(quote! { Self:: #vident(..) => ! #fty::SIMPLE_MUT,});
                     let primitive_imut = quote! {#vident_w_inner => response |= #map_ref(#fident).show_primitive_imut(ui,&mut #imconfig),};
-                    let primitive_mut = quote! { #vident_w_inner => {let mut mapped=#map(#fident); let r= mapped.show_primitive_mut(ui,&mut #config);  #map_post; {#on_change}; response |=r;},};
+                    let primitive_mut = quote! { #vident_w_inner => { let r; {let mut mapped=#map(#fident); r= mapped.show_primitive_mut(ui,&mut #config);  #map_post;} {#on_change}; response |=r;},};
                     show_primitive_arm.push(primitive_imut.clone());
                     if variant.imut {
                         show_primitive_mut_arm.push(primitive_imut);
@@ -796,36 +850,46 @@ fn handle_fields(
             (quote! {&}, quote! {&mut})
         };
         let mut sfield = field.clone();
+        sfield.map_pre = sfield.map_pre.or(field.map_pre_ref.clone());
         let mut map_reset = quote! {};
-        if let Some(map_pre_ref) = &field.map_pre_ref {
-            let _ = sfield.map_pre.get_or_insert(map_pre_ref.clone());
+        let mut map = field.map_pre.clone().map(|x| quote! {#x});
+        let mut map_ref = field.map_pre_ref.clone().map(|x| quote! {#x});
+        let mut map_post = field.map_post.clone().map(|x| quote! {#x});
+        if let Some(wrapper) = field.wrapper.clone() {
+            map = Some(quote! {#wrapper::new_mut});
+            map_ref = Some(quote! {#wrapper::new_ref});
+            map_post = None;
+        }
+        if let Some(map_ref) = map_ref.clone() {
             field_code_imut = quote! {
                 #[allow(unused_mut)]
-                let mut mapped = #map_pre_ref(#_ref #whole_ident);
+                let mut mapped = #map_ref(#_ref #whole_ident);
                 response |=mapped .show_collapsing_imut( ui, #lab, #hint, &mut #imconfig, ::std::option::Option::None, #start_collapsed);
             };
-            map_reset = quote! {#map_pre_ref};
+            map_reset = quote! {#map_ref};
         }
 
-        if let Some(map_pre) = &sfield.map_pre {
+        if let Some(map) = map.clone() {
             field_code_mut = quote! {
                 #[allow(unused_mut)]
-                let mut mapped = #map_pre(#_ref_mut #whole_ident);
+                let mut mapped = #map(#_ref_mut #whole_ident);
                 let r = mapped .show_collapsing_mut( ui, #lab, #hint, &mut #config, #resettable.map(|x|#map_reset(x)).as_ref(), #start_collapsed);
                 response |= r.clone();
             };
 
-            if let Some(map_post) = &field.map_post {
+            if let Some(map_post) = map_post {
                 field_code_mut = quote! { #field_code_mut if r.changed() { #map_post(#_ref_mut #whole_ident, mapped);}  };
             }
         }
-        field_code_mut = quote! { #field_code_mut {#on_change}; };
+        field_code_mut = quote! { {#field_code_mut} {#on_change}; };
 
         if let Some(expr) = &field.eeq {
             fields_map_eeq.push(quote! {#expr(#_ref #whole_ident,#_ref #whole_ident2);});
         } else {
-            if let Some(map_pre_ref) = &field.map_pre_ref {
-                fields_map_eeq.push(quote! {#map_pre_ref(#_ref #whole_ident).eguis_eq(&#map_pre_ref(#_ref #whole_ident));});
+            if let Some(map_ref) = map_ref.clone() {
+                fields_map_eeq.push(
+                    quote! {#map_ref(#_ref #whole_ident).eguis_eq(&#map_ref(#_ref #whole_ident));},
+                );
             } else {
                 fields_map_eeq.push(quote! {#whole_ident.eguis_eq(#_ref #whole_ident2);});
             }
@@ -835,7 +899,11 @@ fn handle_fields(
             fields_map_eclone_full.push(None);
         } else {
             fields_map_eclone_full.push(Some((
-                quote! { let #ident3 = #whole_ident.eguis_clone_full(); },
+                if let Some(map_ref) = map_ref.clone() {
+                    quote! { let #ident3 = #map_ref(&#whole_ident).eguis_clone_full(); }
+                } else {
+                    quote! { let #ident3 = #whole_ident.eguis_clone_full(); }
+                },
                 quote! { #ident3.is_some() },
                 quote! { #field_construct #ident3.unwrap() },
             )));
@@ -846,7 +914,13 @@ fn handle_fields(
         if let Some(expr) = &field.eclone {
             fields_map_eclone.push(quote! {#expr(#_ref_mut #whole_ident,#_ref #whole_ident2);});
         } else {
-            fields_map_eclone.push(quote! {#whole_ident.eguis_clone(#_ref #whole_ident2);});
+            if let Some((map, map_ref)) = map.zip(map_ref).clone() {
+                fields_map_eclone.push(
+                    quote! {#map(&mut #whole_ident).eguis_clone(&#map_ref(#_ref #whole_ident2));},
+                );
+            } else {
+                fields_map_eclone.push(quote! {#whole_ident.eguis_clone(#_ref #whole_ident2);});
+            }
         }
 
         fields_code.push(field_code_imut.clone());
@@ -948,18 +1022,23 @@ fn handle_struct(
             let config_imut = get_config(single_field.imconfig.clone());
             let config = get_config(single_field.config.clone());
 
-            let map_ref = single_field
+            let mut map_ref = single_field
                 .map_pre_ref
                 .clone()
                 .map_or(quote! {}, |x| quote! {#x});
-            let map = single_field
+            let mut map = single_field
                 .map_pre
                 .clone()
                 .map_or(quote! {}, |x| quote! {#x});
-            let map_post = single_field.map_post.clone().map_or(
+            let mut map_post = single_field.map_post.clone().map_or(
                 quote! {},
                 |x| quote! { if response.changed() {#x(&mut self.#index, mapped);} },
             );
+            if let Some(wrapper) = single_field.wrapper.clone() {
+                map = quote! {#wrapper::new_mut};
+                map_ref = quote! {#wrapper::new_ref};
+                map_post = quote! {};
+            }
             show_primitive_imut = quote! {
                   if Self::SIMPLE_IMUT {
                     #map_ref (&self. #index).show_primitive_imut(ui,&mut #config_imut)
@@ -969,9 +1048,12 @@ fn handle_struct(
             };
             show_primitive_mut = quote! {
                 if Self::SIMPLE_MUT {
-                    let mut mapped=#map (&mut self. #index);
-                    let response=mapped.show_primitive_mut(ui, &mut #config);
-                    #map_post
+                    let response;
+                    {
+                        let mut mapped=#map (&mut self. #index);
+                        response=mapped.show_primitive_mut(ui, &mut #config);
+                        #map_post
+                    }
                     {#on_change};
                     response
                 }else {
@@ -1176,6 +1258,15 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///     - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
 ///   - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
 ///     - if `field_type : EguiStructClone` can be unused
+///   - `show_childs_mut= func`- override `show_childs_mut` function for field
+///   - `show_primitive_mut= func`- override `show_primitive_mut` function for field
+///   - `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
+///     This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_mut`/`show_primitive_mut` attributes use types that does not impl EguiStructMut
+///     This attribute overrides `map*` attributes
+///     - Dummy wrappers:
+///       - `wrappercode=DummyC` - wrapper provides impl that does nothing, but works with `show_childs_mut` override
+///       - `wrappercode=DummyS` - wrapper provides impl that does nothing, but works with `show_primitive_mut` override
+///     - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
 #[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
@@ -1216,6 +1307,13 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///   - `map_pre_ref`- Expression (closure surrounded by `()` OR function path) called to map field to another type before displaying
 ///     - this allows displaying fields that does not implement `EguiStructImut` or overriding how field is shown
 ///     - function shall take `&field_type` AND return either reference or owned value of selected type (that implements `EguiStructImut`)
+///   - `show_childs_imut`- override `show_childs_imut` function for field
+///   - `show_primitive_imut`- override `show_primitive_imut` function for field
+///   - `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
+///     This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_imut`/`show_primitive_imut` attributes use types that does not impl EguiStructImut
+///     - Dummy wrappers:
+///       - `wrappercode=DummyC` - wrapper provides impl that does nothing, but works with `show_childs_imut` override
+///       - `wrappercode=DummyS` - wrapper provides impl that does nothing, but works with `show_primitive_imut` override
 #[proc_macro_derive(EguiStructImut, attributes(eguis, eguisI))]
 pub fn egui_struct_imut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);

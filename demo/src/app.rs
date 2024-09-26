@@ -83,7 +83,6 @@ pub struct Data {
     app_language: Language,
 
     hashmap: std::collections::HashMap<String, String>,
-    hashset: std::collections::HashSet<String>,
 
     #[eguis(resettable(with_expr = "Resettable with expr".to_string()))]
     string: String,
@@ -170,7 +169,9 @@ pub struct Data {
             ..Default::default()
         }")]
     list: Vec<Color>,
-    set: IndexSet<i32>,
+    #[eguis(wrapper = "SetSD")]
+    set: IndexSet<SubData>,
+    hashset: std::collections::HashSet<String>,
 }
 
 impl Default for Data {
@@ -182,7 +183,6 @@ impl Default for Data {
                 map.insert("Key".to_string(), "Value".to_string());
                 map
             },
-            hashset: Default::default(),
             skipped_data: 0,
             string: "Hello!".to_string(),
             not_resettable_string: "Hello!".to_string(),
@@ -227,7 +227,17 @@ impl Default for Data {
                     },
                 },
             ],
-            set: IndexSet::from([2, 4, 8]),
+            set: IndexSet::from([
+                SubData {
+                    value: "This set uses SetWrapper".to_string(),
+                    number: 3,
+                },
+                SubData {
+                    value: "This set uses SetWrapper".to_string(),
+                    number: 5,
+                },
+            ]),
+            hashset: Default::default(),
         }
     }
 }
@@ -251,7 +261,7 @@ pub struct Metadata {
     message: String,
 }
 
-#[derive(EguiStructMut, Default)]
+#[derive(EguiStructMut, Default, PartialEq, Eq, Hash)]
 #[eguis(resettable = "struct_default")]
 pub struct SubData {
     value: String,
