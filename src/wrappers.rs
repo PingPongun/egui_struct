@@ -44,7 +44,6 @@
 //! );
 //! ```
 //!
-//!
 //! # Combobox wrappers
 //!
 //! //TODO docs

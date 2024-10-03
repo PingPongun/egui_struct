@@ -120,19 +120,8 @@ struct EField {
     eclone: Option<Expr>,
     /// Override fields `start_collapsed()` output (if set true field will always start collapsed)
     start_collapsed: Option<bool>,
-    /// `show_childs_mut= func`- override `show_childs_mut` function for field
-    show_childs_mut: Option<Expr>,
-    /// `show_primitive_mut= func`- override `show_primitive_mut` function for field
-    show_primitive_mut: Option<Expr>,
-    /// `show_childs_imut= func`- override `show_childs_imut` function for field
-    show_childs_imut: Option<Expr>,
-    /// `show_primitive_imut= func`- override `show_primitive_imut` function for field
-    show_primitive_imut: Option<Expr>,
     ///  `wrapper= "wrappercode"`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
-    ///   This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_mut`/`show_primitive_mut` attributes use types that does not impl EguiStructMut
-    ///   - Dummy wrappers:
-    ///     - `wrappercode="DummyC"` - wrapper provides impl that does nothing, but works with `show_childs_mut` override
-    ///     - `wrappercode="DummyS"` - wrapper provides impl that does nothing, but works with `show_primitive_mut` override
+    ///   This allows to use alternative trait implementation (eg. with loosen bounds)
     ///   - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
     wrapper: Option<Wrapper>,
 }
@@ -1258,14 +1247,9 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///     - if either `field_type : EguiStructEq` OR `map_pre_ref` is specified can be unused
 ///   - `eclone`- override `eguis_eclone` function for field (signature fn(&mut field_type, &field_type))
 ///     - if `field_type : EguiStructClone` can be unused
-///   - `show_childs_mut= func`- override `show_childs_mut` function for field
-///   - `show_primitive_mut= func`- override `show_primitive_mut` function for field
 ///   - `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
-///     This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_mut`/`show_primitive_mut` attributes use types that does not impl EguiStructMut
+///     This allows to use alternative trait implementation (eg. with loosen bounds)
 ///     This attribute overrides `map*` attributes
-///     - Dummy wrappers:
-///       - `wrappercode=DummyC` - wrapper provides impl that does nothing, but works with `show_childs_mut` override
-///       - `wrappercode=DummyS` - wrapper provides impl that does nothing, but works with `show_primitive_mut` override
 ///     - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
 #[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -1307,13 +1291,6 @@ pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///   - `map_pre_ref`- Expression (closure surrounded by `()` OR function path) called to map field to another type before displaying
 ///     - this allows displaying fields that does not implement `EguiStructImut` or overriding how field is shown
 ///     - function shall take `&field_type` AND return either reference or owned value of selected type (that implements `EguiStructImut`)
-///   - `show_childs_imut`- override `show_childs_imut` function for field
-///   - `show_primitive_imut`- override `show_primitive_imut` function for field
-///   - `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
-///     This allows to use alternative trait implementation (eg. with loosen bounds) or with `show_child_imut`/`show_primitive_imut` attributes use types that does not impl EguiStructImut
-///     - Dummy wrappers:
-///       - `wrappercode=DummyC` - wrapper provides impl that does nothing, but works with `show_childs_imut` override
-///       - `wrappercode=DummyS` - wrapper provides impl that does nothing, but works with `show_primitive_imut` override
 #[proc_macro_derive(EguiStructImut, attributes(eguis, eguisI))]
 pub fn egui_struct_imut(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);

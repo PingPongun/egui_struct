@@ -9,13 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - revisit Config/Reset values passing down data hierarchy
 
-## TODO [0.5.1] - Planning ( non exhaustive)
+## TODO [0.5.x] - Planning ( non exhaustive)
 
 - Added content preview (eg. Vec displays first few elements as immutable in its primitive)
 - Support `Tuples`, `[T,N]`
 - Better `EguiStructEq` for `HashSet`
+- Extend `wrapper` attribute to make it take also user written wrappers
+- Evaluate possibility of SerdeWrapper
+- Internals: Macro code cleanup & simplify
+- Add CI to test demo app on all supported egui versions
 
 ## [0.5.0] - Major API update- Unreleased ( changelog non exhaustive)
+### TODO
+
+- &config
+- docs
+- egui 0.29
+- exgrid default to traditional layout
+- ? Map impls
+- ? exgrid docs
+- ? exgrid frames fix
 
 ### Common
 
@@ -34,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut impl added for HashSet&IndexSet
   - Sets/Map got configurable features like: add, remove, mut elements, mut prior add, reorder, limit length (See readme for feature support for types)  #TODO
   - Bounds have changed slightly (`Vec<T>` fallbacks to `[T]` if bounds are not met, so no regression, but to get new features use `wrappers` module )
-- [Added] macro attributes: eguis(wrapper(dummyC), show_childs_mut=), eguis(wrapper(dummyS), show_primitive_mut=), eguis(wrapper(setMinimal)) #TODO
+- [Added] macro attributes eg. `eguis(wrapper=SetMinimal)`
 
 ### Manual trait implementations
 

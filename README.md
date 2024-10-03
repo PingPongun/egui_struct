@@ -129,15 +129,6 @@ OR use `[patch]` section. Currently `egui_struct` supports `egui 0.23-0.28`.
 
 Default egui version feature will be updated to newest egui on semver minor release(0.6).
 
-## TODO
-
-- rethink reset2 & field config passing
-- elegant error/invalid input handling & helpful messages (macro)
-  - add bounds
-- tests
-- code cleanup & simplify
-- (requires specialization) EguiStructEq/EguiStructClone default impl
-
 ## License
 
 `egui_struct` is licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE).

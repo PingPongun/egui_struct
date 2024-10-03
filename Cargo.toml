@@ -44,3 +44,4 @@ members = ["demo"]
 
 [package.metadata.docs.rs]
 features = ["indexmap", "i18n"]
+rustdoc-args = ["--generate-link-to-definition"]
