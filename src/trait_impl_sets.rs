@@ -212,9 +212,9 @@ mod impl_from_wrapper {
                     SetWrapperFull::new_ref(self).start_collapsed_mut()
                 }
 
-                fn preview_str_mut<'b>(&'b self) -> &'b str {
-                    "TODO"
-                }
+                // fn preview_str_mut<'b>(&'b self) -> &'b str {
+                //     "TODO"
+                // }
             }
             impl<T: EguiStructMut + EguiStructImut + Default + Send + Any $(+$bound)*> EguiStructClone
                 for $typ<T>

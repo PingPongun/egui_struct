@@ -26,7 +26,8 @@ macro_rules! generate_show {
             !self.$has_childs()
         }
         /// Use it when implementing [.show_childs_mut()](EguiStructMut::show_childs_mut) to display single nested element
-        /// !!! WARNING: This function is not intended for manual implementation !!!
+        ///
+        /// ⚠ WARNING: This function is not intended for manual implementation ⚠
         fn $show_collapsing(
             self: $typ,
             ui: &mut ExUi,
@@ -83,13 +84,13 @@ macro_rules! generate_show {
             false
         }
 
-        /// String that may be used by parent structs to hint its content
-        ///
-        /// eg. `Vec<int>` may display preview of its data as `[1,2,3,..]#100`
-        /// (impl of preview_str() for int returns its value as str)
-        fn $preview_str<'b>(&'b self) -> &'b str {
-            ""
-        }
+        // /// String that may be used by parent structs to hint its content
+        // ///
+        // /// eg. `Vec<int>` may display preview of its data as `[1,2,3,..]#100`
+        // /// (impl of preview_str() for int returns its value as str)
+        // fn $preview_str<'b>(&'b self) -> &'b str {
+        //     ""
+        // }
     };
 }
 /// Similar to std [`Clone`] trait, but they respect `#[eguis(skip)]`.

@@ -501,8 +501,8 @@ impl EguiStructMut for exgrid::GridMode {
         }
         grs | crs
     }
-    fn preview_str_mut<'b>(&'b self) -> &'b str {
-        ""
-    }
+    // fn preview_str_mut<'b>(&'b self) -> &'b str {
+    //     ""
+    // }
 }
 impl_eeqclone! {exgrid::GridMode}
