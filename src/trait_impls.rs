@@ -66,9 +66,9 @@ mod impl_numerics {
                 fn show_primitive_mut(&mut self, ui: &mut ExUi, config: &Self::ConfigTypeMut<'_>) -> Response {
                     match config{
                         Self::ConfigTypeMut::NumDefault        =>  egui::DragValue::new(self).ui(ui),
-                        #[cfg(feature = "egui28")]
+                        #[cfg(any(feature = "egui28", feature = "egui29"))]
                         Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).range(*min..=*max).ui(ui),
-                        #[cfg(not(feature = "egui28"))]
+                        #[cfg(not(any(feature = "egui28", feature = "egui29")))]
                         Self::ConfigTypeMut::DragValue(min,max)=>  egui::DragValue::new(self).clamp_range(*min..=*max).ui(ui),
                         Self::ConfigTypeMut::Slider(min,max)   =>  egui::Slider::new(self, *min..=*max).ui(ui),
                         Self::ConfigTypeMut::SliderStep(min,max,step)   =>  egui::Slider::new(self, *min..=*max).step_by(*step as f64).ui(ui),

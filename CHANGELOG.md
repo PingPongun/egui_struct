@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - docs
-- egui 0.29
 - exgrid default to traditional layout
 - ? Map impls
 - ? exgrid docs

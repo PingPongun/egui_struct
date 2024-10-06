@@ -285,9 +285,11 @@ macro_rules! generate_EguiStruct_show {
                     self.label.text().to_string(),
                     std::any::type_name::<$generic>(),
                 ));
-                ScrollArea::vertical()
-                    .id_source(id)
-                    .auto_shrink(self.scroll_area_auto_shrink)
+                #[cfg(not(feature = "egui29"))]
+                let s = ScrollArea::vertical().id_source(id);
+                #[cfg(feature = "egui29")]
+                let s = ScrollArea::vertical().id_salt(id);
+                s.auto_shrink(self.scroll_area_auto_shrink)
                     .show(ui, |ui| {
                         let mut grid = ExGrid::new(id);
                         if let Some(s) = self.striped {

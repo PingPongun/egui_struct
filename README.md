@@ -15,7 +15,7 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 
 |                                   | EguiStruct                                                                   | egui-probe                                        | enum2egui             | egui_inspect                 | egui-controls                     |
 | :-------------------------------- | :--------------------------------------------------------------------------- | ------------------------------------------------- | :-------------------- | :--------------------------- | :-------------------------------- |
-| egui version[[1]](#ref1)          | 0.28 (0.23-0.28)                                                             | 0.27/0.28                                         | 0.23/0.24.1/0.26/0.28 | 0.20                         | N/A                               |
+| egui version[[1]](#ref1)          | 0.29 (0.23-0.29)                                                             | 0.27/0.28                                         | 0.23/0.24.1/0.26/0.28 | 0.20                         | N/A                               |
 | Adheres to SemVer                 | ✅                                                                            | ✅                                                 | ❌                     | ✅                            | ✅                                 |
 | Layout[[2]](#ref2)                | [ExGrid](https://crates.io/crates/exgrid)                                    | Grid                                              | Group/nested          | Nested                       | Grid                              |
 | i18n support                      | ✅ (rust-i18n[[3]](#ref3))                                                    | ❌                                                 | ❌                     | ❌                            | ❌                                 |
@@ -119,13 +119,13 @@ See ./demo
 
 ### egui version
 
-`egui_struct 0.5` by default depends on `egui 0.28`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
+`egui_struct 0.5` by default depends on `egui 0.29`. To use other versions of egui use correct feature in `Cargo.toml`, eg. to make it work with egui 0.25:
 
 ```toml
 egui_struct = { version = "0.5", default-features = false, features = [ "egui25" ] }
 ```
 
-OR use `[patch]` section. Currently `egui_struct` supports `egui 0.23-0.28`.
+OR use `[patch]` section. Currently `egui_struct` supports `egui 0.23-0.29`.
 
 Default egui version feature will be updated to newest egui on semver minor release(0.6).
 

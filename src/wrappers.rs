@@ -504,7 +504,11 @@ pub(crate) mod combobox {
     ) -> Response {
         let id = ui.id();
         let mut inner_response = ui.dummy_response();
-        let ret = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"))
+        #[cfg(feature = "egui29")]
+        let comb = egui::ComboBox::from_id_salt((id, "__EguiStruct_combobox"));
+        #[cfg(not(feature = "egui29"))]
+        let comb = egui::ComboBox::from_id_source((id, "__EguiStruct_combobox"));
+        let ret = comb
             .selected_text(sel.to_string())
             .show_ui(ui, |ui| {
                 inner_response.layer_id = ui.layer_id();
