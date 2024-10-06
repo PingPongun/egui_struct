@@ -46,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut impl added for HashSet&IndexSet
   - Sets/Map got configurable features like: add, remove, mut elements, mut prior add, reorder, limit length (See readme for feature support for types)  #TODO
   - Bounds have changed slightly (`Vec<T>` fallbacks to `[T]` if bounds are not met, so no regression, but to get new features use `wrappers` module )
-- [Added] macro attributes eg. `eguis(wrapper=SetMinimal)`
+- [Added] macro attributes eg. `eguis(wrapper="SetMinimal")`
+- `ComboBox` impl has been updated; it should now be used via `eguis(wrapper = "ComboBox")`
 
 ### Manual trait implementations
 

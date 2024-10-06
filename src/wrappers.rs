@@ -46,8 +46,27 @@
 //!
 //! # Combobox wrappers
 //!
-//! //TODO docs
+//! Wrapper that provides `EguiStructMut` impl in form of drop-down list (possible options are passed via iterator in config struct)
 //!
+//! Usage:
+//!
+//! ```
+//! // In derive
+//! #[EguiStructMut]
+//! struct MyStruct<T: ToString + Clone + PartialEq>{
+//!     #[eguis(wrapper="ComboBox", config = "Some(&[ T(1), T(2), T(3) ].into_iter())")]
+//!     field: T
+//! }
+//! // Usage during trait implementation
+//! ComboBox::new_mut(&mut val).show_collapsing_mut(
+//!     ui,
+//!     "name",
+//!     "hint",
+//!     Some(iter),
+//!     reset2.map(|x| ComboBox::new_ref(x)).as_ref(),
+//!     None,
+//! );
+//! ```
 
 use crate::config::config_set_expandable::*;
 use crate::config::*;
@@ -440,14 +459,26 @@ mod set {
     }
 }
 
-pub use combobox::Combobox;
+pub use combobox::ComboBox;
 pub(crate) mod combobox {
     use dyn_clone::DynClone;
 
     use super::*;
-    pub struct Combobox<T>(pub T);
+    pub struct ComboBox<'a, T>(MaybeOwned<'a, T>);
 
-    impl<T: ToString> EguiStructImut for Combobox<T> {
+    #[allow(private_bounds)]
+    impl<'a, T> ComboBox<'a, T> {
+        pub fn new(inner: T) -> Self {
+            Self(MaybeOwned::Owned(inner))
+        }
+        pub fn new_mut(inner: &'a mut T) -> Self {
+            Self(MaybeOwned::BorrowedMut(inner))
+        }
+        pub fn new_ref(inner: &'a T) -> Self {
+            Self(MaybeOwned::Borrowed(inner))
+        }
+    }
+    impl<T: ToString> EguiStructImut for ComboBox<'_, T> {
         type ConfigTypeImut<'a> = ConfigStrImut;
 
         fn show_primitive_imut(
@@ -469,21 +500,21 @@ pub(crate) mod combobox {
     //         self.0.eq(&rhs)
     //     }
     // }
-    impl<T: Clone> EguiStructClone for Combobox<T> {
+    impl<T: Clone> EguiStructClone for ComboBox<'_, T> {
         fn eguis_clone(&mut self, source: &Self) {
             self.0.clone_from(&source.0)
         }
 
         fn eguis_clone_full(&self) -> Option<Self> {
-            Some(Combobox(self.0.clone()))
+            Some(ComboBox(MaybeOwned::Owned(self.0.clone())))
         }
     }
-    impl<T: PartialEq> EguiStructEq for Combobox<T> {
+    impl<T: PartialEq> EguiStructEq for ComboBox<'_, T> {
         fn eguis_eq(&self, rhs: &Self) -> bool {
             self.0.eq(&rhs.0)
         }
     }
-    impl<T: Clone + ToString + PartialEq + 'static> EguiStructMut for Combobox<T> {
+    impl<T: Clone + ToString + PartialEq + 'static> EguiStructMut for ComboBox<'_, T> {
         type ConfigTypeMut<'a> = Option<&'a dyn IteratorClone<T>>;
 
         fn show_primitive_mut(
@@ -491,7 +522,7 @@ pub(crate) mod combobox {
             ui: &mut ExUi,
             config: &Self::ConfigTypeMut<'_>,
         ) -> Response {
-            show_combobox(&mut self.0, ui, &config)
+            show_combobox(self.0.deref_mut(), ui, &config)
         }
     }
     pub trait IteratorClone<T>: Iterator<Item = T> + DynClone {}
@@ -523,41 +554,40 @@ pub(crate) mod combobox {
         inner_response.layer_id = ui.layer_id();
         ret | inner_response
     }
-    impl<T> Deref for Combobox<T> {
+    impl<T> Deref for ComboBox<'_, T> {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
             &self.0
         }
     }
-    impl<T> DerefMut for Combobox<T> {
+    impl<T> DerefMut for ComboBox<'_, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.0
         }
     }
-    impl<T: Default> Default for Combobox<T> {
+    impl<T: Default> Default for ComboBox<'_, T> {
         fn default() -> Self {
-            Self(Default::default())
+            Self(MaybeOwned::Owned(Default::default()))
         }
     }
-    impl<T: Clone> Clone for Combobox<T> {
+    impl<T: Clone> Clone for ComboBox<'_, T> {
         fn clone(&self) -> Self {
-            Self(self.0.clone())
+            Self(MaybeOwned::Owned(self.0.clone()))
         }
     }
-    impl<T: Copy> Copy for Combobox<T> {}
-    impl<T: Eq> Eq for Combobox<T> {}
-    impl<T: Ord> Ord for Combobox<T> {
+    impl<T: Eq> Eq for ComboBox<'_, T> {}
+    impl<T: Ord> Ord for ComboBox<'_, T> {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
             self.0.cmp(&other.0)
         }
     }
-    impl<T: PartialEq> PartialEq for Combobox<T> {
+    impl<T: PartialEq> PartialEq for ComboBox<'_, T> {
         fn eq(&self, other: &Self) -> bool {
-            self.0 == other.0
+            self.0.eq(&other.0)
         }
     }
-    impl<T: PartialOrd> PartialOrd for Combobox<T> {
+    impl<T: PartialOrd> PartialOrd for ComboBox<'_, T> {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             self.0.partial_cmp(&other.0)
         }

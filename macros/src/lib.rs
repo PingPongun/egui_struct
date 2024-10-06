@@ -48,8 +48,7 @@ enum Wrapper {
     SetDI,
     SetSDI,
     SetFull,
-    DummyC,
-    DummyS,
+    ComboBox,
 }
 impl ToTokens for Wrapper {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -63,8 +62,7 @@ impl ToTokens for Wrapper {
             SetSD => quote! {::egui_struct::wrappers::SetWrapperSD},
             SetDI => quote! {::egui_struct::wrappers::SetWrapperDI},
             SetSDI | SetFull => quote! {::egui_struct::wrappers::SetWrapperFull},
-            DummyC => quote! {::egui_struct::wrappers::DummyWrapperSimple},
-            DummyS => quote! {::egui_struct::wrappers::DummyWrapperSimple},
+            ComboBox => quote! {::egui_struct::wrappers::ComboBox},
         });
     }
 }
@@ -123,6 +121,7 @@ struct EField {
     ///  `wrapper= "wrappercode"`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
     ///   This allows to use alternative trait implementation (eg. with loosen bounds)
     ///   - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
+    ///   - ComboBox wrapper: (`wrapper = "ComboBox"`)
     wrapper: Option<Wrapper>,
 }
 #[derive(Debug, FromVariant)]
@@ -1256,6 +1255,7 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///     This allows to use alternative trait implementation (eg. with loosen bounds)
 ///     This attribute overrides `map*` attributes
 ///     - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
+///     - ComboBox wrapper: (`wrapper = "ComboBox"`) (remember to use also `config` attr to pass available selections(eg. `config = "Some(&[2,3,5,7].into_iter())"`))
 #[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);

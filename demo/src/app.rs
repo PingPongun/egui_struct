@@ -4,7 +4,6 @@ use egui::RichText;
 use egui_struct::config::*;
 use egui_struct::exgrid::GridMode;
 use egui_struct::prelude::*;
-use egui_struct::wrappers::*;
 use indexmap::IndexSet;
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
@@ -140,15 +139,21 @@ pub struct Data {
     )]
     usize_boxed: Box<usize>,
 
-    #[eguis(config = "Some(&[2,3,5,7,11,13,17,19].into_iter())")]
-    u8_combobox_wrapper: Combobox<u8>,
+    #[eguis(
+        wrapper = "ComboBox",
+        config = "Some(&[2,3,5,7,11,13,17,19].into_iter())"
+    )]
+    u8_combobox_wrapper: u8,
 
     #[eguis(config = "ComboBox(&[2,3,5,7,11,13,17,19].into_iter())")]
     u8_combobox_config: u8,
 
     //this(cloning) is not elegant but for most cases would work well enough
-    #[eguis(config = "Some(&STATIC_COMBOBOX.read().iter().map(|x| x.to_string()))")]
-    static_combobox: Combobox<String>,
+    #[eguis(
+        wrapper = "ComboBox",
+        config = "Some(&STATIC_COMBOBOX.read().iter().map(|x| x.to_string()))"
+    )]
+    static_combobox: String,
 
     nested_struct: SubData,
     unnamed_struct: TupleStruct,
@@ -161,7 +166,7 @@ pub struct Data {
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
 
-    #[eguis(config = " ConfigSetMut{
+    #[eguis(config = "ConfigSetMut{
             expandable: Some(true),
             shrinkable: true,
             mutable_value: false,
@@ -205,9 +210,9 @@ impl Default for Data {
             u128: u128::MAX,
             usize: usize::MAX,
             usize_boxed: Box::new(usize::MAX),
-            u8_combobox_wrapper: Combobox(3),
+            u8_combobox_wrapper: 3,
             u8_combobox_config: 3,
-            static_combobox: Combobox("default name".to_string()),
+            static_combobox: "default name".to_string(),
             nested_struct: SubData::default(),
             unnamed_struct: TupleStruct::default(),
             primary_color: Color::default(),
