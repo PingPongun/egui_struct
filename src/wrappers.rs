@@ -310,11 +310,8 @@ mod set {
     mod config_set_t {
         use super::*;
         pub(crate) trait ConfigSetT<T: EguiStructMut, E: ConfigSetExpandableT<T>> {
-            fn _add_elements(
-                &mut self,
-                ui: &mut ExUi,
-                config: &mut ConfigSetMut<'_, T, E>,
-            ) -> Response;
+            fn _add_elements(&mut self, ui: &mut ExUi, config: &ConfigSetMut<'_, T, E>)
+                -> Response;
         }
         macro_rules! _add_elements_send {
 ($typ:ty, [$($bound:ident),*]) => {
@@ -324,7 +321,7 @@ mod set {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &mut ConfigSetMut<'_, T,  $typ>,
+            config: &ConfigSetMut<'_, T,  $typ>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
@@ -339,12 +336,12 @@ mod set {
                             .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
                                 let bresp = ui.button("+");
                                 let presp =
-                                    val.show_primitive_mut(ui, &mut config.inner_config);
+                                    val.show_primitive_mut(ui, &config.inner_config);
                                 add_elem = bresp.clicked();
                                 bresp | presp
                             })
                             .body_simple(|ui| {
-                                val.show_childs_mut(ui, &mut config.inner_config, None)
+                                val.show_childs_mut(ui, &config.inner_config, None)
                             });
                         response = resp.clone();
                         if add_elem {
@@ -376,7 +373,7 @@ mod set {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &mut ConfigSetMut<'_, T,  $typ>,
+            config: &ConfigSetMut<'_, T,  $typ>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
@@ -445,6 +442,8 @@ mod set {
 
 pub use combobox::Combobox;
 pub(crate) mod combobox {
+    use dyn_clone::DynClone;
+
     use super::*;
     pub struct Combobox<T>(pub T);
 
@@ -454,7 +453,7 @@ pub(crate) mod combobox {
         fn show_primitive_imut(
             self: &Self,
             ui: &mut ExUi,
-            config: &mut Self::ConfigTypeImut<'_>,
+            config: &Self::ConfigTypeImut<'_>,
         ) -> Response {
             self.0.to_string().show_primitive_imut(ui, config)
         }
@@ -485,21 +484,23 @@ pub(crate) mod combobox {
         }
     }
     impl<T: Clone + ToString + PartialEq + 'static> EguiStructMut for Combobox<T> {
-        type ConfigTypeMut<'a> = Option<&'a mut dyn Iterator<Item = T>>;
+        type ConfigTypeMut<'a> = Option<&'a dyn IteratorClone<T>>;
 
         fn show_primitive_mut(
             self: &mut Self,
             ui: &mut ExUi,
-            config: &mut Self::ConfigTypeMut<'_>,
+            config: &Self::ConfigTypeMut<'_>,
         ) -> Response {
-            show_combobox(&mut self.0, ui, config)
+            show_combobox(&mut self.0, ui, &config)
         }
     }
+    pub trait IteratorClone<T>: Iterator<Item = T> + DynClone {}
+    impl<TI, T: Iterator<Item = TI> + DynClone> IteratorClone<TI> for T {}
 
-    pub(crate) fn show_combobox<'a, T: Clone + ToString + PartialEq>(
+    pub(crate) fn show_combobox<'a, T: Clone + ToString + PartialEq, TS: Clone + Into<T>>(
         sel: &mut T,
         ui: &mut ExUi,
-        config: &mut Option<&'a mut dyn Iterator<Item = T>>,
+        config: &Option<&'a dyn IteratorClone<TS>>,
     ) -> Response {
         let id = ui.id();
         let mut inner_response = ui.dummy_response();
@@ -508,9 +509,9 @@ pub(crate) mod combobox {
             .show_ui(ui, |ui| {
                 inner_response.layer_id = ui.layer_id();
                 if let Some(config) = config {
-                    for i in config {
-                        let s = i.to_string();
-                        inner_response |= ui.selectable_value(sel, i, s);
+                    for i in dyn_clone::clone_box(*config) {
+                        let s = i.clone().into().to_string();
+                        inner_response |= ui.selectable_value(sel, i.into().clone(), s);
                     }
                 }
             })

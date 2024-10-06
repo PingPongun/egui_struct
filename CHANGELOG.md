@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - Major API update- Unreleased ( changelog non exhaustive)
 ### TODO
 
-- &config
 - docs
 - egui 0.29
 - exgrid default to traditional layout
@@ -39,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Breaking] New show API: `data.show_top(ui, ..)` -> `data.eguis_mut().show(ui)` (with `prelude::EguiStruct` trait in scope)
 - Removed empty first row when label passed in show_top is empty
 - `i18n` is no longer default feature
+- Iterator used as config for `ComboBox` has slightly different requirements (requires `Clone` trait; in `ConfigStr` it takes `&str`)
 
 ### Macro derive usage (no manual implementations)
 
@@ -60,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - EguiStructMut::ConfigType -> EguiStructMut::ConfigTypeMut
 - [Breaking] Most functions take `exgrid::ExUi` instead of `egui::Ui` (generally function signature update should suffice)
 - [Breaking] EguiStruct{Imut, Mut}::show_\* functions signatures have been simplified (indent_level, \*id are skipped, as they are handled by exgrid)
-- [Breaking] `EguiStruct*::show_childs*` now takes `config: &mut Self::ConfigType*` argument #TODO use &
+- [Breaking] `EguiStruct*::show_primitive*`&`EguiStruct*::show_collapsing*` take `&config` instead `config`
+- [Breaking] `EguiStruct*::show_childs*` now takes `config: &Self::ConfigType*` argument
 - [Breaking] Sets&Maps impl updated:
   - `[T]::ConfigTypeMut` changed from `()` to `T::ConfigTypeMut`
   - `{Vec<T>, HashSet<T>, IndexSet<T>}::ConfigTypeMut` changed from `()` to `ConfigSetMut<T>`

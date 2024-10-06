@@ -1,4 +1,5 @@
 use crate::traits::EguiStructMut;
+use crate::wrappers::combobox::IteratorClone;
 use std::any::Any;
 
 /// Config structure for mutable view of Numerics
@@ -18,7 +19,7 @@ pub enum ConfigNum<'a, T: 'a> {
     SliderStep(T, T, T),
 
     /// Combobox with available options specified by included iterator
-    ComboBox(&'a mut dyn Iterator<Item = T>),
+    ComboBox(&'a dyn IteratorClone<T>),
 }
 
 ///Config structure for mutable view of String
@@ -32,7 +33,7 @@ pub enum ConfigStr<'a> {
     MultiLine,
 
     ///Combobox with available options specified by included iterator
-    ComboBox(&'a mut dyn Iterator<Item = String>),
+    ComboBox(&'a dyn IteratorClone<&'a str>),
 }
 
 /// Config structure for immutable view of many simple types like str, String & numerics

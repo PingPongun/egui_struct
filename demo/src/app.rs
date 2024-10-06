@@ -69,8 +69,8 @@ pub enum Color {
     },
 }
 lazy_static::lazy_static! {
-    pub static ref STATIC_COMBOBOX: RwLock<HashSet<String>> =  RwLock::new(
-        HashSet::from(["Einar".to_string(), "Olaf".to_string(), "Harald".to_string()])
+    pub static ref STATIC_COMBOBOX: RwLock<HashSet<&'static str>> =  RwLock::new(
+        HashSet::from(["Einar", "Olaf", "Harald"])
     );
 }
 #[derive(EguiStructMut)]
@@ -140,14 +140,14 @@ pub struct Data {
     )]
     usize_boxed: Box<usize>,
 
-    #[eguis(config = "Some(&mut [2,3,5,7,11,13,17,19].into_iter())")]
+    #[eguis(config = "Some(&[2,3,5,7,11,13,17,19].into_iter())")]
     u8_combobox_wrapper: Combobox<u8>,
 
-    #[eguis(config = "ComboBox(&mut [2,3,5,7,11,13,17,19].into_iter())")]
+    #[eguis(config = "ComboBox(&[2,3,5,7,11,13,17,19].into_iter())")]
     u8_combobox_config: u8,
 
     //this(cloning) is not elegant but for most cases would work well enough
-    #[eguis(config = "Some(&mut STATIC_COMBOBOX.read().clone().into_iter())")]
+    #[eguis(config = "Some(&STATIC_COMBOBOX.read().iter().map(|x| x.to_string()))")]
     static_combobox: Combobox<String>,
 
     nested_struct: SubData,

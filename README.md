@@ -9,7 +9,7 @@
 EguiStruct is a rust derive macro that creates egui UI's from arbitrary structs and enums.
 This is useful for generating data bindings that can be modified and displayed in an [egui](https://github.com/emilk/egui) ui.
 
-Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-probe), [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and [egui-controls](https://github.com/aalekhpatel07/egui-controls), but there are some important differences:
+Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-probe), [enum2egui](https://github.com/matthewjberger/enum2egui), [egui_inspect](https://github.com/Meisterlama/egui_inspect) and [egui-controls](https://github.com/aalekhpatel07/egui-controls), but has some nice unique features:
 
 ## EguiStruct vs similar crates
 
@@ -71,14 +71,14 @@ Grid benefits:
 
 ### Mutable Set/Map features
 
-| type          | add | remove | mut value | mut prior add | reorder | limit length | mut key |
-| ------------- | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
-| `[T]`         | ❌   | ❌      | ✅         | ∅             | ✅       | ∅            | ∅       |
-| `Vec<T>`      | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
-| `HashSet<T>`  | ✅   | ✅      | ❌         | ✅             | ❌       | ✅            | ∅       |
-| `IndexSet<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
-| `HashMap<T>`  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
-| `IndexMap<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
+| type               | add | remove | mut value | mut prior add | reorder | limit length | mut key |
+| ------------------ | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
+| `[T]`              | ❌   | ❌      | ✅         | ∅             | ✅       | ∅            | ∅       |
+| `Vec<T>`           | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashSet<T>`       | ✅   | ✅      | ❌         | ✅             | ❌       | ✅            | ∅       |
+| `IndexSet<T>`      | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashMap<T>`#TODO  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
+| `IndexMap<T>`#TODO | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
 
 Vec/Set/Map implementations have normally quite strict bounds (T: `Any`+`Send`+`Default`+`EguiStructImut`), if your type does not satisfy them, use [`wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html) module/[`wrapper`](https://docs.rs/egui_struct/latest/egui_struct/prelude/derive.EguiStructMut.html) macro attribute to loosen them.
 

@@ -33,7 +33,7 @@ macro_rules! generate_show {
             ui: &mut ExUi,
             label: impl Into<RichText> + Clone,
             hint: impl Into<RichText> + Clone,
-            config: &mut Self::$ConfigType<'_>, //TODO use &
+            config: &Self::$ConfigType<'_>,
             reset2: Option<&Self>,
             start_collapsed: Option<bool>,
         ) -> Response {
@@ -57,11 +57,7 @@ macro_rules! generate_show {
         /// UI elements shown in the same line as label
         ///
         /// If data element view is fully contained in childs section(does not have primitive section), leave this & [.has_primitive()](EguiStructMut::has_primitive_mut) with default impl
-        fn $show_primitive(
-            self: $typ,
-            ui: &mut ExUi,
-            _config: &mut Self::$ConfigType<'_>,
-        ) -> Response {
+        fn $show_primitive(self: $typ, ui: &mut ExUi, _config: &Self::$ConfigType<'_>) -> Response {
             ui.dummy_response()
         }
 
@@ -71,7 +67,7 @@ macro_rules! generate_show {
         fn $show_childs(
             self: $typ,
             ui: &mut ExUi,
-            _config: &mut Self::$ConfigType<'_>,
+            _config: &Self::$ConfigType<'_>,
             _reset2: Option<&Self>,
         ) -> Response {
             ui.dummy_response()

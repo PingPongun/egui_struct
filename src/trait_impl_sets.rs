@@ -25,7 +25,7 @@ mod impl_sets_imut {
                 fn show_childs_imut(
                     &self,
                     ui: &mut ExUi,
-                    config: &mut Self::ConfigTypeImut<'_>,
+                    config: &Self::ConfigTypeImut<'_>,
                     _reset2: Option<&Self>,
                 ) -> Response {
                     let mut response = ui.interact(
@@ -72,7 +72,7 @@ mod hashset {
         fn show_childs_mut(
             &mut self,
             ui: &mut ExUi,
-            config: &mut Self::ConfigTypeMut<'_>,
+            config: &Self::ConfigTypeMut<'_>,
             _reset2: Option<&Self>,
         ) -> Response {
             let mut response = ui.dummy_response();
@@ -111,11 +111,11 @@ mod hashset {
                     response |= ui
                         .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
                             let bresp = ui.button("+");
-                            let presp = val.show_primitive_mut(ui, &mut config.inner_config);
+                            let presp = val.show_primitive_mut(ui, &config.inner_config);
                             add_elem = bresp.clicked();
                             bresp | presp
                         })
-                        .body_simple(|ui| val.show_childs_mut(ui, &mut config.inner_config, None));
+                        .body_simple(|ui| val.show_childs_mut(ui, &config.inner_config, None));
                     if add_elem {
                         self.insert(*val);
                     } else {
@@ -198,7 +198,7 @@ mod impl_from_wrapper {
                 fn show_childs_mut(
                     self: &mut Self,
                     ui: &mut ExUi,
-                    config: &mut Self::ConfigTypeMut<'_>,
+                    config: &Self::ConfigTypeMut<'_>,
                     reset2: Option<&Self>,
                 ) -> Response {
                     SetWrapperFull::new_mut(self).show_childs_mut(
@@ -267,7 +267,7 @@ mod vec_wrapper {
         fn show_childs_mut(
             &mut self,
             ui: &mut ExUi,
-            config: &mut Self::ConfigTypeMut<'_>,
+            config: &Self::ConfigTypeMut<'_>,
             reset2: Option<&Self>,
         ) -> Response {
             let mut response = ui.dummy_response();
@@ -312,7 +312,7 @@ mod vec_wrapper {
                             crate::trait_implementor_set::primitive_w_reset(
                                 &mut x,
                                 ui,
-                                &mut config.inner_config,
+                                &config.inner_config,
                                 reset,
                             )
                         } else {
@@ -322,7 +322,7 @@ mod vec_wrapper {
                     response |= ui.maybe_collapsing_rows(has_childs, header).body_simple(
                         |ui: &mut ExUi| {
                             if config.mutable_value {
-                                x.show_childs_mut(ui, &mut config.inner_config, reset)
+                                x.show_childs_mut(ui, &config.inner_config, reset)
                             } else {
                                 I::_show_childs_imut(&mut x, ui)
                             }
@@ -409,7 +409,7 @@ mod slice {
         fn show_childs_mut(
             &mut self,
             ui: &mut ExUi,
-            config: &mut Self::ConfigTypeMut<'_>,
+            config: &Self::ConfigTypeMut<'_>,
             reset2: Option<&Self>,
         ) -> Response {
             let mut response = ui.dummy_response();
