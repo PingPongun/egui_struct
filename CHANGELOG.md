@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - docs
-- exgrid default to traditional layout
 - ? Map impls
 - ? exgrid docs
 - ? exgrid frames fix
@@ -31,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Common
 
 - Layout switched from `egui::Grid` to `exgrid::ExGrid` (to force grid layout always use `eguis_mut().view_mode(egui_struct::exgrid::GridMode::Traditional)`, otherwise layout might switch on narrow windows)
-- [Breaking] Default egui bumped to v0.28 (was v0.26)
+- [Breaking] Default egui bumped to v0.29 (was v0.26)
 - [Breaking] Minimal egui bumped to v0.23 (was v0.21)
 - [Breaking] Library has been grouped into `prelude` (macro generation & showing), `config` (configuration structs), `wrappers`(Wrappers to provide alternative EguiStructMut implementation) and `trait_implementor_set` (used when manually implementing traits)
 - [Breaking] New show API: `data.show_top(ui, ..)` -> `data.eguis_mut().show(ui)` (with `prelude::EguiStruct` trait in scope)

@@ -255,7 +255,7 @@ macro_rules! generate_IntoEguiStruct {
                 scroll_area_auto_shrink: [true; 2],
                 scroll_bar_visibility: Default::default(),
                 striped: None,
-                view_mode: Default::default(),
+                view_mode: exgrid::GridMode::Traditional,
             }
         }
     };
