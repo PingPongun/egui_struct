@@ -92,29 +92,109 @@ mod set {
         pub struct ConfigSetMutTrueImut<T>(PhantomData<T>);
         pub struct ConfigSetMutDisableMut<T>(PhantomData<T>);
         pub(crate) trait ConfigSetImutT<T: EguiStructMut> {
-            fn _show_childs_imut(val: &mut T, ui: &mut ExUi) -> Response;
-            fn _show_primitive_imut(val: &mut T, ui: &mut ExUi) -> Response;
+            fn _show_childs_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response;
+            fn _show_primitive_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response;
+            fn _has_childs_imut(val: &T) -> bool;
+            fn show_childs(
+                val: &mut T,
+                mutable: bool,
+                ui: &mut ExUi,
+                config: &T::ConfigTypeMut<'_>,
+                reset2: Option<&T>,
+            ) -> Response {
+                if mutable {
+                    val.show_childs_mut(ui, config, reset2)
+                } else {
+                    Self::_show_childs_imut(val, ui, &Default::default())
+                }
+            }
+            fn show_primitive(
+                val: &mut T,
+                mutable: bool,
+                ui: &mut ExUi,
+                config: &T::ConfigTypeMut<'_>,
+                reset2: Option<&T>,
+            ) -> Response {
+                if mutable {
+                    crate::trait_implementor_set::primitive_w_reset(val, ui, config, reset2)
+                } else {
+                    Self::_show_primitive_imut(val, ui, &Default::default())
+                }
+            }
+        }
+        impl<T: EguiStructMut + EguiStructImut> ConfigSetImutT<T> for () {
+            fn _show_childs_imut(
+                _val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
+                ("[".to_string() + &ui.get_nesting_cursor().last().unwrap().to_string() + "]")
+                    .show_primitive_imut(ui, &Default::default())
+            }
+            fn _show_primitive_imut(
+                _val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
+                ("[".to_string() + &ui.get_nesting_cursor().last().unwrap().to_string() + "]")
+                    .show_primitive_imut(ui, &Default::default())
+            }
+
+            fn _has_childs_imut(_val: &T) -> bool {
+                todo!()
+            }
         }
         impl<T: EguiStructMut + EguiStructImut> ConfigSetImutT<T> for ConfigSetMutTrueImut<T> {
-            fn _show_childs_imut(val: &mut T, ui: &mut ExUi) -> Response {
+            fn _show_childs_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
                 val.show_childs_imut(ui, &mut Default::default(), None)
             }
-            fn _show_primitive_imut(val: &mut T, ui: &mut ExUi) -> Response {
+            fn _show_primitive_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
                 val.show_primitive_imut(ui, &mut Default::default())
+            }
+
+            fn _has_childs_imut(val: &T) -> bool {
+                val.has_childs_imut()
             }
         }
         impl<T: EguiStructMut> ConfigSetImutT<T> for ConfigSetMutDisableMut<T> {
-            fn _show_childs_imut(val: &mut T, ui: &mut ExUi) -> Response {
+            fn _show_childs_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
                 ui.start_disabled();
                 let ret = val.show_childs_mut(ui, &mut Default::default(), None);
                 ui.stop_disabled();
                 ret
             }
-            fn _show_primitive_imut(val: &mut T, ui: &mut ExUi) -> Response {
+            fn _show_primitive_imut(
+                val: &mut T,
+                ui: &mut ExUi,
+                _config: &T::ConfigTypeMut<'_>,
+            ) -> Response {
                 ui.start_disabled();
                 let ret = val.show_primitive_mut(ui, &mut Default::default());
                 ui.stop_disabled();
                 ret
+            }
+            fn _has_childs_imut(val: &T) -> bool {
+                val.has_childs_mut()
             }
         }
     }
@@ -165,99 +245,153 @@ mod set {
     mod set_wrapper_t {
 
         use super::*;
-        pub trait SetWrapperT<T>: FromIterator<T> {
-            fn len(&self) -> usize;
-            fn new() -> Self;
-            fn get(&self, idx: usize) -> Option<&T>;
-            fn remove(&mut self, idx: usize);
-            fn truncate(&mut self, len: usize);
-            fn swap(&mut self, idx: (usize, usize));
-            fn push(&mut self, val: T);
-            fn drain(&mut self) -> impl Iterator<Item = T>;
-            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+        pub trait SetWrapperT<K, V> {
+            fn e_len(&self) -> usize;
+            fn e_new() -> Self;
+            fn e_get(&self, idx: usize) -> Option<(&K, &V)>;
+            fn e_remove(&mut self, idx: usize);
+            fn e_truncate(&mut self, len: usize);
+            fn e_swap(&mut self, idx: (usize, usize));
+            fn e_push(&mut self, val: (K, V));
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, V)>;
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a V)>
             where
-                T: 'a;
+                K: 'a,
+                V: 'a;
+            fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self;
         }
-        impl<T> SetWrapperT<T> for Vec<T> {
-            fn len(&self) -> usize {
+        impl<T> SetWrapperT<T, ()> for Vec<T> {
+            fn e_len(&self) -> usize {
                 self.len()
             }
 
-            fn new() -> Self {
+            fn e_new() -> Self {
                 Self::new()
             }
 
-            fn get(&self, idx: usize) -> Option<&T> {
-                self.deref().get(idx)
+            fn e_get(&self, idx: usize) -> Option<(&T, &())> {
+                self.deref().get(idx).map(|x| (x, &()))
             }
 
-            fn remove(&mut self, idx: usize) {
+            fn e_remove(&mut self, idx: usize) {
                 self.remove(idx);
             }
 
-            fn truncate(&mut self, len: usize) {
+            fn e_truncate(&mut self, len: usize) {
                 self.truncate(len);
             }
 
-            fn swap(&mut self, idx: (usize, usize)) {
+            fn e_swap(&mut self, idx: (usize, usize)) {
                 self.deref_mut().swap(idx.0, idx.1);
             }
 
-            fn push(&mut self, value: T) {
-                self.push(value);
+            fn e_push(&mut self, value: (T, ())) {
+                self.push(value.0);
             }
 
-            fn drain(&mut self) -> impl Iterator<Item = T> {
-                self.drain(..)
+            fn e_drain(&mut self) -> impl Iterator<Item = (T, ())> {
+                self.drain(..).map(|x| (x, ()))
             }
 
-            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a T, &'a ())>
             where
                 T: 'a,
             {
-                self.deref().iter()
+                self.deref().iter().map(|x| (x, &()))
+            }
+
+            fn e_from_iter<I: IntoIterator<Item = (T, ())>>(iterable: I) -> Self {
+                iterable.into_iter().map(|(x, _)| x).collect()
             }
         }
 
         #[cfg(feature = "indexmap")]
-        impl<T: Hash + Eq> SetWrapperT<T> for indexmap::IndexSet<T> {
-            fn len(&self) -> usize {
+        impl<T: Hash + Eq> SetWrapperT<T, ()> for indexmap::IndexSet<T> {
+            fn e_len(&self) -> usize {
                 self.len()
             }
 
-            fn new() -> Self {
+            fn e_new() -> Self {
                 Self::new()
             }
 
-            fn get(&self, idx: usize) -> Option<&T> {
-                self.get_index(idx)
+            fn e_get(&self, idx: usize) -> Option<(&T, &())> {
+                self.get_index(idx).map(|x| (x, &()))
             }
 
-            fn remove(&mut self, idx: usize) {
+            fn e_remove(&mut self, idx: usize) {
                 self.shift_remove_index(idx);
             }
 
-            fn truncate(&mut self, len: usize) {
+            fn e_truncate(&mut self, len: usize) {
                 self.truncate(len);
             }
 
-            fn swap(&mut self, idx: (usize, usize)) {
+            fn e_swap(&mut self, idx: (usize, usize)) {
                 self.swap_indices(idx.0, idx.1);
             }
 
-            fn push(&mut self, value: T) {
-                self.insert(value);
+            fn e_push(&mut self, value: (T, ())) {
+                self.insert(value.0);
             }
 
-            fn drain(&mut self) -> impl Iterator<Item = T> {
-                self.drain(..)
+            fn e_drain(&mut self) -> impl Iterator<Item = (T, ())> {
+                self.drain(..).map(|x| (x, ()))
             }
 
-            fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a T, &'a ())>
             where
                 T: 'a,
             {
+                self.iter().map(|x| (x, &()))
+            }
+            fn e_from_iter<I: IntoIterator<Item = (T, ())>>(iterable: I) -> Self {
+                iterable.into_iter().map(|(x, _)| x).collect()
+            }
+        }
+        #[cfg(feature = "indexmap")]
+        impl<K: Hash + Eq, V> SetWrapperT<K, V> for indexmap::IndexMap<K, V> {
+            fn e_len(&self) -> usize {
+                self.len()
+            }
+
+            fn e_new() -> Self {
+                Self::new()
+            }
+
+            fn e_get(&self, idx: usize) -> Option<(&K, &V)> {
+                self.get_index(idx)
+            }
+
+            fn e_remove(&mut self, idx: usize) {
+                self.shift_remove_index(idx);
+            }
+
+            fn e_truncate(&mut self, len: usize) {
+                self.truncate(len);
+            }
+
+            fn e_swap(&mut self, idx: (usize, usize)) {
+                self.swap_indices(idx.0, idx.1);
+            }
+
+            fn e_push(&mut self, value: (K, V)) {
+                self.insert(value.0, value.1);
+            }
+
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, V)> {
+                self.drain(..)
+            }
+
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a V)>
+            where
+                K: 'a,
+                V: 'a,
+            {
                 self.iter()
+            }
+            fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self {
+                iterable.into_iter().collect()
             }
         }
     }
@@ -274,20 +408,26 @@ mod set {
         /// See [crate::wrappers] module description.
         pub struct SetWrapper<
             'a,
-            T: EguiStructMut,
-            D: SetWrapperT<T>,
-            E: ConfigSetExpandableT<T>,
-            I: ConfigSetImutT<T>,
-        >(pub MaybeOwned<'a, D>, PhantomData<(T, E, I)>);
+            K: EguiStructMut,
+            V: EguiStructMut,
+            D: SetWrapperT<K, V>,
+            EK: ConfigSetExpandableT<K>,
+            EV: ConfigSetExpandableT<V>,
+            IK: ConfigSetImutT<K>,
+            IV: ConfigSetImutT<V>,
+        >(pub MaybeOwned<'a, D>, PhantomData<(K, V, EK, EV, IK, IV)>);
 
         #[allow(private_bounds)]
         impl<
                 'a,
-                T: EguiStructMut,
-                D: SetWrapperT<T>,
-                E: ConfigSetExpandableT<T>,
-                I: ConfigSetImutT<T>,
-            > SetWrapper<'a, T, D, E, I>
+                K: EguiStructMut,
+                V: EguiStructMut,
+                D: SetWrapperT<K, V>,
+                EK: ConfigSetExpandableT<K>,
+                EV: ConfigSetExpandableT<V>,
+                IK: ConfigSetImutT<K>,
+                IV: ConfigSetImutT<V>,
+            > SetWrapper<'a, K, V, D, EK, EV, IK, IV>
         {
             pub fn new(inner: D) -> Self {
                 SetWrapper(MaybeOwned::Owned(inner), PhantomData)
@@ -301,11 +441,14 @@ mod set {
         }
 
         impl<
-                T: EguiStructMut,
-                D: SetWrapperT<T>,
-                E: ConfigSetExpandableT<T>,
-                I: ConfigSetImutT<T>,
-            > Deref for SetWrapper<'_, T, D, E, I>
+                K: EguiStructMut,
+                V: EguiStructMut,
+                D: SetWrapperT<K, V>,
+                EK: ConfigSetExpandableT<K>,
+                EV: ConfigSetExpandableT<V>,
+                IK: ConfigSetImutT<K>,
+                IV: ConfigSetImutT<V>,
+            > Deref for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
         {
             type Target = D;
 
@@ -314,11 +457,14 @@ mod set {
             }
         }
         impl<
-                T: EguiStructMut,
-                D: SetWrapperT<T>,
-                E: ConfigSetExpandableT<T>,
-                I: ConfigSetImutT<T>,
-            > DerefMut for SetWrapper<'_, T, D, E, I>
+                K: EguiStructMut,
+                V: EguiStructMut,
+                D: SetWrapperT<K, V>,
+                EK: ConfigSetExpandableT<K>,
+                EV: ConfigSetExpandableT<V>,
+                IK: ConfigSetImutT<K>,
+                IV: ConfigSetImutT<V>,
+            > DerefMut for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
         {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
@@ -328,53 +474,72 @@ mod set {
     pub(crate) use config_set_t::*;
     mod config_set_t {
         use super::*;
-        pub(crate) trait ConfigSetT<T: EguiStructMut, E: ConfigSetExpandableT<T>> {
-            fn _add_elements(&mut self, ui: &mut ExUi, config: &ConfigSetMut<'_, T, E>)
-                -> Response;
+        use crate::wrappers::set::_set_wrapper::SetWrapper;
+        pub(crate) trait ConfigSetT<
+            K: EguiStructMut,
+            V: EguiStructMut,
+            EK: ConfigSetExpandableT<K>,
+            EV: ConfigSetExpandableT<V>,
+        >
+        {
+            fn _add_elements(
+                &mut self,
+                ui: &mut ExUi,
+                config: &ConfigSetMut<'_, K, V, EK, EV>,
+            ) -> Response;
         }
         macro_rules! _add_elements_send {
-($typ:ty, [$($bound:ident),*]) => {
-    impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T,$typ>
-        for SetWrapper<'_, T, D, $typ, I>
+($typ:ty, [$($bound:ident),*], $typV:ty, [$($boundV:ident),*]) => {
+    impl<
+            K: EguiStructMut $(+ $bound)*,
+            V: EguiStructMut $(+ $boundV)*,
+            D: SetWrapperT<K,V>,
+            IK: ConfigSetImutT<K>,
+            IV: ConfigSetImutT<V>,
+        > ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
     {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &ConfigSetMut<'_, T,  $typ>,
+            config: &ConfigSetMut<'_, K,V, $typ, $typV>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
-                if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
-                    if <$typ as ConfigSetExpandableT<T>>::mutable(add) {
+                if config.max_len.is_none() || self.0.e_len() < config.max_len.unwrap() {
+                    if <$typ as ConfigSetExpandableT<K>>::mutable(&add.0) {
                         let id = ui.id();
-                        let mut val: Box<T> = ui
+                        let mut key: Box<K> = ui
                             .data_remove(id)
-                            .unwrap_or_else(|| Box::new(add.default_value()));
+                            .unwrap_or_else(|| Box::new(add.0.default_value()));
                         let mut add_elem = false;
+                        let show_childs=if typeid::of::<V>() == typeid::of::<()>() {
+                            key.has_childs_mut()
+                        } else {
+                            false
+                        };
                         let resp = ui
-                            .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
+                            .maybe_collapsing_rows(show_childs, |ui| {
                                 let bresp = ui.button("+");
                                 let presp =
-                                    val.show_primitive_mut(ui, &config.inner_config);
+                                    key.show_primitive_mut(ui, &config.inner_config.0);
                                 add_elem = bresp.clicked();
                                 bresp | presp
                             })
                             .body_simple(|ui| {
-                                val.show_childs_mut(ui, &config.inner_config, None)
+                                key.show_childs_mut(ui, &config.inner_config.0, None)
                             });
                         response = resp.clone();
                         if add_elem {
-                            self.0.push(*val);
+                            self.0.e_push((*key, add.1.default_value()));
                         } else {
-                            ui.data_store(id, val);
+                            ui.data_store(id, key);
                         }
                     } else {
                         let bresp = ui.button("+");
                         ui.end_row();
                         response = bresp.clone();
                         if bresp.clicked() {
-                            let new_val = add.default_value();
-                            self.0.push(new_val);
+                            self.0.e_push((add.0.default_value(),add.1.default_value()));
                         }
                     };
                 }
@@ -384,25 +549,90 @@ mod set {
     }
 };
 }
+        macro_rules! _add_elements_sendsend {
+($typ:ty, [$($bound:ident),*], $typV:ty, [$($boundV:ident),*]) => {
+impl<
+    K: EguiStructMut $(+ $bound)*,
+    V: EguiStructMut $(+ $boundV)*,
+    D: SetWrapperT<K,V>,
+    IK: ConfigSetImutT<K>,
+    IV: ConfigSetImutT<V>,
+> ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
+{
+fn _add_elements(
+    &mut self,
+    ui: &mut ExUi,
+    config: &ConfigSetMut<'_, K,V, $typ, $typV>,
+) -> Response {
+    let mut response = ui.dummy_response();
+    if let Some(add) = &config.expandable {
+        if config.max_len.is_none() || self.0.e_len() < config.max_len.unwrap() {
+            let mut_key=<$typV as ConfigSetExpandableT<V>>::mutable(&add.1);
+            let mut_val=<$typ as ConfigSetExpandableT<K>>::mutable(&add.0);
+            if mut_key||mut_val {
+                let id = ui.id();
+                let mut key_val: Box<(K,V)> = ui
+                    .data_remove(id)
+                    .unwrap_or_else(|| Box::new((add.0.default_value(),add.1.default_value())));
+                let mut add_elem = false;
+                let has_childs = if mut_val { key_val.1.has_childs_mut() } else { IV::_has_childs_imut(&key_val.1) };
+                let resp = ui
+                    .maybe_collapsing_rows(has_childs, |ui| {
+                        ui.keep_cell_start();
+                        let bresp = ui.button("+");
+                        let mut presp = IK::show_primitive( &mut key_val.0, mut_key, ui, &config.inner_config.0, None);
+                        ui.keep_cell_stop();
+                        presp |= IV::show_primitive( &mut key_val.1, mut_val, ui, &config.inner_config.1, None);
+                        add_elem = bresp.clicked();
+                        bresp | presp
+                    })
+                    .body_simple(|ui| {
+                        IV::show_childs( &mut key_val.1,mut_val, ui, &config.inner_config.1, None)
+                    });
+                response = resp.clone();
+                if add_elem {
+                    self.e_push(*key_val);
+                } else {
+                    ui.data_store(id, key_val);
+                }
+            } else {
+                let bresp = ui.button("+");
+                ui.end_row();
+                response = bresp.clone();
+                if bresp.clicked() {
+                    self.0.e_push((add.0.default_value(),add.1.default_value()));
+                }
+            };
+        }
+    }
+    response
+}
+}
+};
+}
         macro_rules! _add_elements_nsend {
-($typ:ty, [$($bound:ident),*]) => {
-    impl<T: EguiStructMut $(+ $bound)*, D: SetWrapperT<T>, I: ConfigSetImutT<T>> ConfigSetT<T, $typ>
-        for SetWrapper<'_, T, D, $typ, I>
+($typ:ty, [$($bound:ident),*], $typV:ty, [$($boundV:ident),*]) => {
+    impl<
+            K: EguiStructMut $(+ $bound)*,
+            V: EguiStructMut $(+ $boundV)*,
+            D: SetWrapperT<K,V>,
+            IK: ConfigSetImutT<K>,
+            IV: ConfigSetImutT<V>,
+        > ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
     {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &ConfigSetMut<'_, T,  $typ>,
+            config: &ConfigSetMut<'_, K,V, $typ, $typV>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
-                if config.max_len.is_none() || self.0.len() < config.max_len.unwrap() {
+                if config.max_len.is_none() || self.0.e_len() < config.max_len.unwrap() {
                     let bresp = ui.button("+");
                     ui.end_row();
                     response = bresp.clone();
                     if bresp.clicked() {
-                        let new_val = add.default_value();
-                        self.0.push(new_val);
+                        self.0.e_push((add.0.default_value(),add.1.default_value()));
                     }
                 }
             }
@@ -411,51 +641,69 @@ mod set {
     }
 };
 }
-        _add_elements_nsend! { (),  [Default]}
-        _add_elements_nsend! { ConfigSetExpandableNStore<'_, T>, []}
-        _add_elements_send! { ConfigSetExpandable<'_, T>, [Send,Any]}
-        _add_elements_send! { bool, [Default,Send,Any]}
+        _add_elements_nsend! { ConfigSetExpandableNStore<'_, K>, [], (), [Default]}
+        _add_elements_nsend! { (), [Default], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_nsend! { (), [Default], (), [Default]}
+        _add_elements_nsend! { ConfigSetExpandableNStore<'_, K>, [], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_send! { ConfigSetExpandable<'_, K>, [Send,Any], (), [Default]}
+        _add_elements_send! { ConfigSetExpandable<'_, K>, [Send,Any], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_send! { bool, [Default,Send,Any], (), [Default]}
+        _add_elements_send! { bool, [Default,Send,Any], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_sendsend! { ConfigSetExpandable<'_, K>, [Send,Any], bool, [Default,Send,Any]}
+        _add_elements_sendsend! { bool, [Default,Send,Any],  ConfigSetExpandable<'_, V>, [Send,Any]}
+        _add_elements_sendsend! { bool, [Default,Send,Any],  bool, [Default,Send,Any]}
+        _add_elements_sendsend! { ConfigSetExpandable<'_, K>, [Send,Any], ConfigSetExpandable<'_, V>, [Send,Any]}
     }
 
     pub use set_wrappers::*;
     mod set_wrappers {
         use super::*;
         pub use _set_wrapper::SetWrapper;
+        type SimpleSetWrapper<'a, T, D, E, I> = SetWrapper<'a, T, (), D, E, (), I, ()>;
         /// Requires `T`: [EguiStructMut]
         #[allow(private_interfaces)]
         pub type SetWrapperMinimal<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
+            SimpleSetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperS<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
+            SimpleSetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default]
         #[allow(private_interfaces)]
-        pub type SetWrapperD<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperD<'a, 'b, T, D> =
+            SimpleSetWrapper<'a, T, D, (), ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type SetWrapperSD<'a, 'b, T, D> = SetWrapper<'a, T, D, bool, ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperSD<'a, 'b, T, D> =
+            SimpleSetWrapper<'a, T, D, bool, ConfigSetMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut]
         #[allow(private_interfaces)]
         pub type SetWrapperI<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
+            SimpleSetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperSI<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
+            SimpleSetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default]
         #[allow(private_interfaces)]
-        pub type SetWrapperDI<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperDI<'a, 'b, T, D> =
+            SimpleSetWrapper<'a, T, D, (), ConfigSetMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type SetWrapperFull<'a, 'b, T, D> = SetWrapper<'a, T, D, bool, ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperFull<'a, 'b, T, D> =
+            SimpleSetWrapper<'a, T, D, bool, ConfigSetMutTrueImut<T>>;
+
+        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
+        #[allow(private_interfaces)]
+        pub type MapWrapperFull<'a, 'b, K, V, D> =
+            SetWrapper<'a, K, V, D, bool, bool, ConfigSetMutTrueImut<K>, ConfigSetMutTrueImut<V>>;
     }
 }
 

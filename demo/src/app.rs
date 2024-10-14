@@ -4,7 +4,7 @@ use egui::RichText;
 use egui_struct::config::*;
 use egui_struct::exgrid::GridMode;
 use egui_struct::prelude::*;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
 use ConfigNum::*;
@@ -167,7 +167,7 @@ pub struct Data {
     optional_string: Option<String>,
 
     #[eguis(config = "ConfigSetMut{
-            expandable: Some(true),
+            expandable: Some((true,())),
             shrinkable: true,
             mutable_value: false,
             max_len: Some(5),
@@ -176,6 +176,7 @@ pub struct Data {
     list: Vec<Color>,
     #[eguis(wrapper = "SetSD")]
     set: IndexSet<SubData>,
+    indexmap: IndexMap<isize, Metadata>,
     hashset: std::collections::HashSet<String>,
 }
 
@@ -241,6 +242,20 @@ impl Default for Data {
                     value: "This set uses SetWrapper".to_string(),
                     number: 5,
                 },
+            ]),
+            indexmap: IndexMap::from([
+                (
+                    1,
+                    Metadata {
+                        message: "IndexMap".to_string(),
+                    },
+                ),
+                (
+                    3,
+                    Metadata {
+                        message: "IndexMap2".to_string(),
+                    },
+                ),
             ]),
             hashset: Default::default(),
         }

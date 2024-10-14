@@ -475,9 +475,6 @@ mod impl_maps {
 
     // impl_map! { std::collections::HashMap<Q,V>, std::collections::HashMap<Q,V::Reset2> }
     impl_map! { std::collections::HashMap<Q,V> }
-    #[cfg(feature = "indexmap")]
-    impl_map! { indexmap::IndexMap<Q,V> }
-    // impl_map! { indexmap::IndexMap<Q,V>, indexmap::IndexMap<Q,V::Reset2> }
 }
 
 impl EguiStructMut for exgrid::GridMode {
@@ -506,3 +503,11 @@ impl EguiStructMut for exgrid::GridMode {
     // }
 }
 impl_eeqclone! {exgrid::GridMode}
+
+impl EguiStructMut for () {
+    type ConfigTypeMut<'a> = ();
+}
+impl EguiStructImut for () {
+    type ConfigTypeImut<'a> = ();
+}
+impl_eeqclone! {()}

@@ -48,9 +48,15 @@ pub enum ConfigStrImut {
 }
 
 /// Configuration options for mutable sets (IndexSet, Vec, ..)
-pub struct ConfigSetMut<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>> {
+pub struct ConfigSetMut<
+    'a,
+    K: EguiStructMut,
+    V: EguiStructMut,
+    EK: ConfigSetExpandableT<K>,
+    EV: ConfigSetExpandableT<V>,
+> {
     /// Can new elements be added to set
-    pub expandable: Option<E>,
+    pub expandable: Option<(EK, EV)>,
 
     /// Can elements be removed from set
     pub shrinkable: bool,
@@ -65,16 +71,23 @@ pub struct ConfigSetMut<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>> {
     pub max_len: Option<usize>,
 
     /// Config how elements are shown
-    pub inner_config: T::ConfigTypeMut<'a>,
+    pub inner_config: (K::ConfigTypeMut<'a>, V::ConfigTypeMut<'a>),
 
     /// Can elements be reordered? (ignored for [std::collections::HashSet]/[std::collections::HashMap])
     pub reorder: bool,
 }
 
-impl<'a, T: EguiStructMut, E: ConfigSetExpandableT<T>> Default for ConfigSetMut<'a, T, E> {
+impl<
+        'a,
+        K: EguiStructMut,
+        V: EguiStructMut,
+        EK: ConfigSetExpandableT<K>,
+        EV: ConfigSetExpandableT<V>,
+    > Default for ConfigSetMut<'a, K, V, EK, EV>
+{
     fn default() -> Self {
         Self {
-            expandable: E::default_config(),
+            expandable: EK::default_config().zip(EV::default_config()),
             shrinkable: true,
             mutable_value: true,
             mutable_key: true,

@@ -16,6 +16,7 @@ rust-version = "1.70"
 egui_struct_macros = { path = "./macros/", version = "0.5.0" }
 exgrid = { path = "../ExGrid", version = "0.2.0", default-features = false }
 dyn-clone = "1"
+typeid = "1"
 
 # egui dep is handled through feature to overcome cargo resolver not be able to select same egui version as used in rest of the app.
 # this allows egui_struct to work with newer egui through semver patch update
