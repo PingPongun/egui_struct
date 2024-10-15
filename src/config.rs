@@ -48,12 +48,12 @@ pub enum ConfigStrImut {
 }
 
 /// Configuration options for mutable sets (IndexSet, Vec, ..)
-pub struct ConfigSetMut<
+pub struct ConfigCollMut<
     'a,
     K: EguiStructMut,
     V: EguiStructMut,
-    EK: ConfigSetExpandableT<K>,
-    EV: ConfigSetExpandableT<V>,
+    EK: ConfigCollExpandableT<K>,
+    EV: ConfigCollExpandableT<V>,
 > {
     /// Can new elements be added to set
     pub expandable: Option<(EK, EV)>,
@@ -81,9 +81,9 @@ impl<
         'a,
         K: EguiStructMut,
         V: EguiStructMut,
-        EK: ConfigSetExpandableT<K>,
-        EV: ConfigSetExpandableT<V>,
-    > Default for ConfigSetMut<'a, K, V, EK, EV>
+        EK: ConfigCollExpandableT<K>,
+        EV: ConfigCollExpandableT<V>,
+    > Default for ConfigCollMut<'a, K, V, EK, EV>
 {
     fn default() -> Self {
         Self {
@@ -98,11 +98,11 @@ impl<
     }
 }
 
-use config_set_expandable::*;
-pub mod config_set_expandable {
+use config_coll_expandable::*;
+pub mod config_coll_expandable {
 
     use super::*;
-    pub trait ConfigSetExpandableT<T> {
+    pub trait ConfigCollExpandableT<T> {
         fn mutable(&self) -> bool {
             false
         }
@@ -116,7 +116,7 @@ pub mod config_set_expandable {
     }
 
     /// Configuration struct that controls adding new elements to set. Used for `T: Send+Any`
-    pub struct ConfigSetExpandable<'a, T> {
+    pub struct ConfigCollExpandable<'a, T> {
         /// Function that generates new value that will be added to collection (on `+` button click).
         /// If self.mutable == true generates starting value that can further edited before adding
         pub default: &'a dyn for<'b> Fn() -> T,
@@ -124,12 +124,12 @@ pub mod config_set_expandable {
         pub mutable: bool,
     }
     /// Configuration struct that controls adding new elements to set. Used for `T: !(Send+Any)`
-    pub struct ConfigSetExpandableNStore<'a, T> {
+    pub struct ConfigCollExpandableNStore<'a, T> {
         /// Function that generates new value that will be added to collection (on `+` button click).
         pub default: &'a dyn for<'b> Fn() -> T,
     }
 
-    impl<T: Send + Any> ConfigSetExpandableT<T> for ConfigSetExpandable<'_, T> {
+    impl<T: Send + Any> ConfigCollExpandableT<T> for ConfigCollExpandable<'_, T> {
         fn mutable(&self) -> bool {
             self.mutable
         }
@@ -138,12 +138,12 @@ pub mod config_set_expandable {
             (self.default)()
         }
     }
-    impl<T> ConfigSetExpandableT<T> for ConfigSetExpandableNStore<'_, T> {
+    impl<T> ConfigCollExpandableT<T> for ConfigCollExpandableNStore<'_, T> {
         fn default_value(&self) -> T {
             (self.default)()
         }
     }
-    impl<T: Default + Send + Any> ConfigSetExpandableT<T> for bool {
+    impl<T: Default + Send + Any> ConfigCollExpandableT<T> for bool {
         fn mutable(&self) -> bool {
             *self
         }
@@ -155,7 +155,7 @@ pub mod config_set_expandable {
             Some(true)
         }
     }
-    impl<T: Default> ConfigSetExpandableT<T> for () {
+    impl<T: Default> ConfigCollExpandableT<T> for () {
         fn default_value(&self) -> T {
             T::default()
         }

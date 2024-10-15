@@ -1,9 +1,16 @@
 //! Module provides wrappers that allow to use alternative EguiStruct* traits implementations (eg. with loosen bounds or changed functionality)
 //! or use types that does not impl them
 //!
-//! # Vec/Set wrappers
+//! # Collection (Vec/Set/Map) wrappers
 //!
-//! [Vec]/[IndexSet] wrappers that allow to get [EguiStructMut] implementation for [Vec]/[IndexSet] with looser bounds
+//! Collection wrappers that allow to get [EguiStructMut] implementation for [Vec]/[IndexSet]/[IndexMap] with looser bounds
+//!
+//! There are available generic wrapper [`CollWrapper<K, V, D, EK, EV, IK, IV>`](CollWrapper),
+//! wrapper around it for Sets/Vec ([`SetWrapper<K, D, EK, IK>`](SetWrapper)),
+//! and simple wrappers for specific requirements (eg. [`SetWrapperFull<K>`](SetWrapperFull), [`SetWrapperSD<K>`](SetWrapperSD), [`CollWrapperFull<K,V>`](CollWrapperFull)).
+//! Last group should be preferred one.
+//!
+//! ## Simple SetWrapper naming:
 //!
 //! There are 3 traits that characterize this wrappers (different trait combination provide slightly different feature set, but allows to loosen bounds on `T`):
 //! - `S`- [Send]+[Any] - Elements can be edited prior adding
@@ -17,12 +24,12 @@
 //! |-----|-----|----------------------------------------|---------|
 //! | ✅ | ✅ | [bool]                                  | `bool` controls if value can be modified prior add |
 //! | ❌ | ✅ | [()](unit)                              |
-//! | ✅ | ❌ | [ConfigSetExpandable]                   |
-//! | ❌ | ❌ | [ConfigSetExpandableNStore]             |
+//! | ✅ | ❌ | [ConfigCollExpandable]                  |
+//! | ❌ | ❌ | [ConfigCollExpandableNStore]            |
 //!
 //! [EguiStructMut] for [Vec]/[IndexSet] is implemented using [SetWrapperFull]
 //!
-//! Usage:
+//! ## Usage:
 //!
 //! ```
 //! // In derive
@@ -68,7 +75,7 @@
 //! );
 //! ```
 
-use crate::config::config_set_expandable::*;
+use crate::config::config_coll_expandable::*;
 use crate::config::*;
 use crate::egui;
 use crate::traits::*;
@@ -83,15 +90,15 @@ use std::ops::{Deref, DerefMut};
 #[cfg(doc)]
 use indexmap::*;
 
-pub use set::*;
-mod set {
+pub use collection::*;
+mod collection {
     use super::*;
-    pub(crate) use config_set_imut_t::*;
-    mod config_set_imut_t {
+    pub(crate) use config_coll_imut_t::*;
+    mod config_coll_imut_t {
         use super::*;
-        pub struct ConfigSetMutTrueImut<T>(PhantomData<T>);
-        pub struct ConfigSetMutDisableMut<T>(PhantomData<T>);
-        pub(crate) trait ConfigSetImutT<T: EguiStructMut> {
+        pub struct ConfigCollMutTrueImut<T>(PhantomData<T>);
+        pub struct ConfigCollMutDisableMut<T>(PhantomData<T>);
+        pub(crate) trait ConfigCollImutT<T: EguiStructMut> {
             fn _show_childs_imut(
                 val: &mut T,
                 ui: &mut ExUi,
@@ -130,7 +137,7 @@ mod set {
                 }
             }
         }
-        impl<T: EguiStructMut + EguiStructImut> ConfigSetImutT<T> for () {
+        impl<T: EguiStructMut + EguiStructImut> ConfigCollImutT<T> for () {
             fn _show_childs_imut(
                 _val: &mut T,
                 ui: &mut ExUi,
@@ -152,7 +159,7 @@ mod set {
                 todo!()
             }
         }
-        impl<T: EguiStructMut + EguiStructImut> ConfigSetImutT<T> for ConfigSetMutTrueImut<T> {
+        impl<T: EguiStructMut + EguiStructImut> ConfigCollImutT<T> for ConfigCollMutTrueImut<T> {
             fn _show_childs_imut(
                 val: &mut T,
                 ui: &mut ExUi,
@@ -172,7 +179,7 @@ mod set {
                 val.has_childs_imut()
             }
         }
-        impl<T: EguiStructMut> ConfigSetImutT<T> for ConfigSetMutDisableMut<T> {
+        impl<T: EguiStructMut> ConfigCollImutT<T> for ConfigCollMutDisableMut<T> {
             fn _show_childs_imut(
                 val: &mut T,
                 ui: &mut ExUi,
@@ -241,11 +248,11 @@ mod set {
         }
     }
 
-    pub(crate) use set_wrapper_t::*;
-    mod set_wrapper_t {
+    pub(crate) use coll_wrapper_t::*;
+    mod coll_wrapper_t {
 
         use super::*;
-        pub trait SetWrapperT<K, V> {
+        pub trait CollWrapperT<K, V> {
             fn e_len(&self) -> usize;
             fn e_new() -> Self;
             fn e_get(&self, idx: usize) -> Option<(&K, &V)>;
@@ -260,7 +267,7 @@ mod set {
                 V: 'a;
             fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self;
         }
-        impl<T> SetWrapperT<T, ()> for Vec<T> {
+        impl<T> CollWrapperT<T, ()> for Vec<T> {
             fn e_len(&self) -> usize {
                 self.len()
             }
@@ -306,7 +313,7 @@ mod set {
         }
 
         #[cfg(feature = "indexmap")]
-        impl<T: Hash + Eq> SetWrapperT<T, ()> for indexmap::IndexSet<T> {
+        impl<T: Hash + Eq> CollWrapperT<T, ()> for indexmap::IndexSet<T> {
             fn e_len(&self) -> usize {
                 self.len()
             }
@@ -350,7 +357,7 @@ mod set {
             }
         }
         #[cfg(feature = "indexmap")]
-        impl<K: Hash + Eq, V> SetWrapperT<K, V> for indexmap::IndexMap<K, V> {
+        impl<K: Hash + Eq, V> CollWrapperT<K, V> for indexmap::IndexMap<K, V> {
             fn e_len(&self) -> usize {
                 self.len()
             }
@@ -396,25 +403,25 @@ mod set {
         }
     }
 
-    mod _set_wrapper {
+    mod _coll_wrapper {
         use super::*;
         #[allow(private_interfaces, private_bounds)]
-        /// Thin wrapper around [Vec]/[indexmap::IndexSet], that provides generic configured [EguiStructMut] implementation for [Vec]/[indexmap::IndexSet].
+        /// Thin wrapper around Collections (Vec, HashMaps/HashSets), that provides generic configured [EguiStructMut] implementation for Collections ([Vec], [indexmap::IndexSet], ..).
         ///
         /// Different generics combination provide slightly different feature set, but allows to loosen bounds on `T`
         ///
         /// Generally use aliases to this type ([SetWrapperFull], [SetWrapperI], ..), instead using this type directly.
         ///
         /// See [crate::wrappers] module description.
-        pub struct SetWrapper<
+        pub struct CollWrapper<
             'a,
             K: EguiStructMut,
             V: EguiStructMut,
-            D: SetWrapperT<K, V>,
-            EK: ConfigSetExpandableT<K>,
-            EV: ConfigSetExpandableT<V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
+            D: CollWrapperT<K, V>,
+            EK: ConfigCollExpandableT<K>,
+            EV: ConfigCollExpandableT<V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
         >(pub MaybeOwned<'a, D>, PhantomData<(K, V, EK, EV, IK, IV)>);
 
         #[allow(private_bounds)]
@@ -422,33 +429,33 @@ mod set {
                 'a,
                 K: EguiStructMut,
                 V: EguiStructMut,
-                D: SetWrapperT<K, V>,
-                EK: ConfigSetExpandableT<K>,
-                EV: ConfigSetExpandableT<V>,
-                IK: ConfigSetImutT<K>,
-                IV: ConfigSetImutT<V>,
-            > SetWrapper<'a, K, V, D, EK, EV, IK, IV>
+                D: CollWrapperT<K, V>,
+                EK: ConfigCollExpandableT<K>,
+                EV: ConfigCollExpandableT<V>,
+                IK: ConfigCollImutT<K>,
+                IV: ConfigCollImutT<V>,
+            > CollWrapper<'a, K, V, D, EK, EV, IK, IV>
         {
             pub fn new(inner: D) -> Self {
-                SetWrapper(MaybeOwned::Owned(inner), PhantomData)
+                CollWrapper(MaybeOwned::Owned(inner), PhantomData)
             }
             pub fn new_mut(inner: &'a mut D) -> Self {
-                SetWrapper(MaybeOwned::BorrowedMut(inner), PhantomData)
+                CollWrapper(MaybeOwned::BorrowedMut(inner), PhantomData)
             }
             pub fn new_ref(inner: &'a D) -> Self {
-                SetWrapper(MaybeOwned::Borrowed(inner), PhantomData)
+                CollWrapper(MaybeOwned::Borrowed(inner), PhantomData)
             }
         }
 
         impl<
                 K: EguiStructMut,
                 V: EguiStructMut,
-                D: SetWrapperT<K, V>,
-                EK: ConfigSetExpandableT<K>,
-                EV: ConfigSetExpandableT<V>,
-                IK: ConfigSetImutT<K>,
-                IV: ConfigSetImutT<V>,
-            > Deref for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
+                D: CollWrapperT<K, V>,
+                EK: ConfigCollExpandableT<K>,
+                EV: ConfigCollExpandableT<V>,
+                IK: ConfigCollImutT<K>,
+                IV: ConfigCollImutT<V>,
+            > Deref for CollWrapper<'_, K, V, D, EK, EV, IK, IV>
         {
             type Target = D;
 
@@ -459,33 +466,33 @@ mod set {
         impl<
                 K: EguiStructMut,
                 V: EguiStructMut,
-                D: SetWrapperT<K, V>,
-                EK: ConfigSetExpandableT<K>,
-                EV: ConfigSetExpandableT<V>,
-                IK: ConfigSetImutT<K>,
-                IV: ConfigSetImutT<V>,
-            > DerefMut for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
+                D: CollWrapperT<K, V>,
+                EK: ConfigCollExpandableT<K>,
+                EV: ConfigCollExpandableT<V>,
+                IK: ConfigCollImutT<K>,
+                IV: ConfigCollImutT<V>,
+            > DerefMut for CollWrapper<'_, K, V, D, EK, EV, IK, IV>
         {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
             }
         }
     }
-    pub(crate) use config_set_t::*;
-    mod config_set_t {
+    pub(crate) use config_coll_t::*;
+    mod config_coll_t {
         use super::*;
-        use crate::wrappers::set::_set_wrapper::SetWrapper;
-        pub(crate) trait ConfigSetT<
+        use crate::wrappers::collection::_coll_wrapper::CollWrapper;
+        pub(crate) trait ConfigCollT<
             K: EguiStructMut,
             V: EguiStructMut,
-            EK: ConfigSetExpandableT<K>,
-            EV: ConfigSetExpandableT<V>,
+            EK: ConfigCollExpandableT<K>,
+            EV: ConfigCollExpandableT<V>,
         >
         {
             fn _add_elements(
                 &mut self,
                 ui: &mut ExUi,
-                config: &ConfigSetMut<'_, K, V, EK, EV>,
+                config: &ConfigCollMut<'_, K, V, EK, EV>,
             ) -> Response;
         }
         macro_rules! _add_elements_send {
@@ -493,20 +500,20 @@ mod set {
     impl<
             K: EguiStructMut $(+ $bound)*,
             V: EguiStructMut $(+ $boundV)*,
-            D: SetWrapperT<K,V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
-        > ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
+            D: CollWrapperT<K,V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
+        > ConfigCollT<K,V, $typ, $typV> for CollWrapper<'_, K, V, D, $typ,$typV, IK,IV>
     {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &ConfigSetMut<'_, K,V, $typ, $typV>,
+            config: &ConfigCollMut<'_, K,V, $typ, $typV>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
                 if config.max_len.is_none() || self.0.e_len() < config.max_len.unwrap() {
-                    if <$typ as ConfigSetExpandableT<K>>::mutable(&add.0) {
+                    if <$typ as ConfigCollExpandableT<K>>::mutable(&add.0) {
                         let id = ui.id();
                         let mut key: Box<K> = ui
                             .data_remove(id)
@@ -554,21 +561,21 @@ mod set {
 impl<
     K: EguiStructMut $(+ $bound)*,
     V: EguiStructMut $(+ $boundV)*,
-    D: SetWrapperT<K,V>,
-    IK: ConfigSetImutT<K>,
-    IV: ConfigSetImutT<V>,
-> ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
+    D: CollWrapperT<K,V>,
+    IK: ConfigCollImutT<K>,
+    IV: ConfigCollImutT<V>,
+> ConfigCollT<K,V, $typ, $typV> for CollWrapper<'_, K, V, D, $typ,$typV, IK,IV>
 {
 fn _add_elements(
     &mut self,
     ui: &mut ExUi,
-    config: &ConfigSetMut<'_, K,V, $typ, $typV>,
+    config: &ConfigCollMut<'_, K,V, $typ, $typV>,
 ) -> Response {
     let mut response = ui.dummy_response();
     if let Some(add) = &config.expandable {
         if config.max_len.is_none() || self.0.e_len() < config.max_len.unwrap() {
-            let mut_key=<$typV as ConfigSetExpandableT<V>>::mutable(&add.1);
-            let mut_val=<$typ as ConfigSetExpandableT<K>>::mutable(&add.0);
+            let mut_key=<$typV as ConfigCollExpandableT<V>>::mutable(&add.1);
+            let mut_val=<$typ as ConfigCollExpandableT<K>>::mutable(&add.0);
             if mut_key||mut_val {
                 let id = ui.id();
                 let mut key_val: Box<(K,V)> = ui
@@ -615,15 +622,15 @@ fn _add_elements(
     impl<
             K: EguiStructMut $(+ $bound)*,
             V: EguiStructMut $(+ $boundV)*,
-            D: SetWrapperT<K,V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
-        > ConfigSetT<K,V, $typ, $typV> for SetWrapper<'_, K, V, D, $typ,$typV, IK,IV>
+            D: CollWrapperT<K,V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
+        > ConfigCollT<K,V, $typ, $typV> for CollWrapper<'_, K, V, D, $typ,$typV, IK,IV>
     {
         fn _add_elements(
             &mut self,
             ui: &mut ExUi,
-            config: &ConfigSetMut<'_, K,V, $typ, $typV>,
+            config: &ConfigCollMut<'_, K,V, $typ, $typV>,
         ) -> Response {
             let mut response = ui.dummy_response();
             if let Some(add) = &config.expandable {
@@ -641,69 +648,78 @@ fn _add_elements(
     }
 };
 }
-        _add_elements_nsend! { ConfigSetExpandableNStore<'_, K>, [], (), [Default]}
-        _add_elements_nsend! { (), [Default], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_nsend! { ConfigCollExpandableNStore<'_, K>, [], (), [Default]}
+        _add_elements_nsend! { (), [Default], ConfigCollExpandableNStore<'_, V>, []}
         _add_elements_nsend! { (), [Default], (), [Default]}
-        _add_elements_nsend! { ConfigSetExpandableNStore<'_, K>, [], ConfigSetExpandableNStore<'_, V>, []}
-        _add_elements_send! { ConfigSetExpandable<'_, K>, [Send,Any], (), [Default]}
-        _add_elements_send! { ConfigSetExpandable<'_, K>, [Send,Any], ConfigSetExpandableNStore<'_, V>, []}
+        _add_elements_nsend! { ConfigCollExpandableNStore<'_, K>, [], ConfigCollExpandableNStore<'_, V>, []}
+        _add_elements_send! { ConfigCollExpandable<'_, K>, [Send,Any], (), [Default]}
+        _add_elements_send! { ConfigCollExpandable<'_, K>, [Send,Any], ConfigCollExpandableNStore<'_, V>, []}
         _add_elements_send! { bool, [Default,Send,Any], (), [Default]}
-        _add_elements_send! { bool, [Default,Send,Any], ConfigSetExpandableNStore<'_, V>, []}
-        _add_elements_sendsend! { ConfigSetExpandable<'_, K>, [Send,Any], bool, [Default,Send,Any]}
-        _add_elements_sendsend! { bool, [Default,Send,Any],  ConfigSetExpandable<'_, V>, [Send,Any]}
+        _add_elements_send! { bool, [Default,Send,Any], ConfigCollExpandableNStore<'_, V>, []}
+        _add_elements_sendsend! { ConfigCollExpandable<'_, K>, [Send,Any], bool, [Default,Send,Any]}
+        _add_elements_sendsend! { bool, [Default,Send,Any],  ConfigCollExpandable<'_, V>, [Send,Any]}
         _add_elements_sendsend! { bool, [Default,Send,Any],  bool, [Default,Send,Any]}
-        _add_elements_sendsend! { ConfigSetExpandable<'_, K>, [Send,Any], ConfigSetExpandable<'_, V>, [Send,Any]}
+        _add_elements_sendsend! { ConfigCollExpandable<'_, K>, [Send,Any], ConfigCollExpandable<'_, V>, [Send,Any]}
     }
 
-    pub use set_wrappers::*;
-    mod set_wrappers {
+    pub use coll_wrappers::*;
+    mod coll_wrappers {
         use super::*;
-        pub use _set_wrapper::SetWrapper;
-        type SimpleSetWrapper<'a, T, D, E, I> = SetWrapper<'a, T, (), D, E, (), I, ()>;
+        pub use _coll_wrapper::CollWrapper;
+
+        /// Generic wrapper around simple collections (Vec&Sets)
+        pub type SetWrapper<'a, T, D, E, I> = CollWrapper<'a, T, (), D, E, (), I, ()>;
+
         /// Requires `T`: [EguiStructMut]
         #[allow(private_interfaces)]
         pub type SetWrapperMinimal<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutDisableMut<T>>;
+            SetWrapper<'a, T, D, ConfigCollExpandableNStore<'b, T>, ConfigCollMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperS<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutDisableMut<T>>;
+            SetWrapper<'a, T, D, ConfigCollExpandable<'b, T>, ConfigCollMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default]
         #[allow(private_interfaces)]
-        pub type SetWrapperD<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, (), ConfigSetMutDisableMut<T>>;
+        pub type SetWrapperD<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigCollMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperSD<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, bool, ConfigSetMutDisableMut<T>>;
+            SetWrapper<'a, T, D, bool, ConfigCollMutDisableMut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut]
         #[allow(private_interfaces)]
         pub type SetWrapperI<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, ConfigSetExpandableNStore<'b, T>, ConfigSetMutTrueImut<T>>;
+            SetWrapper<'a, T, D, ConfigCollExpandableNStore<'b, T>, ConfigCollMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperSI<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, ConfigSetExpandable<'b, T>, ConfigSetMutTrueImut<T>>;
+            SetWrapper<'a, T, D, ConfigCollExpandable<'b, T>, ConfigCollMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default]
         #[allow(private_interfaces)]
-        pub type SetWrapperDI<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, (), ConfigSetMutTrueImut<T>>;
+        pub type SetWrapperDI<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigCollMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
         pub type SetWrapperFull<'a, 'b, T, D> =
-            SimpleSetWrapper<'a, T, D, bool, ConfigSetMutTrueImut<T>>;
+            SetWrapper<'a, T, D, bool, ConfigCollMutTrueImut<T>>;
 
         /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
         #[allow(private_interfaces)]
-        pub type MapWrapperFull<'a, 'b, K, V, D> =
-            SetWrapper<'a, K, V, D, bool, bool, ConfigSetMutTrueImut<K>, ConfigSetMutTrueImut<V>>;
+        pub type CollWrapperFull<'a, 'b, K, V, D> = CollWrapper<
+            'a,
+            K,
+            V,
+            D,
+            bool,
+            bool,
+            ConfigCollMutTrueImut<K>,
+            ConfigCollMutTrueImut<V>,
+        >;
     }
 }
 

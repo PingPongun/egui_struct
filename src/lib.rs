@@ -4,7 +4,7 @@
 #![forbid(unsafe_code)]
 #[macro_use]
 mod trait_impls;
-mod trait_impl_sets;
+mod trait_impl_coll;
 mod traits;
 
 #[cfg(doc)]

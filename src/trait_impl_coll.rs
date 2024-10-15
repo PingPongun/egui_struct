@@ -1,4 +1,4 @@
-use crate::config::config_set_expandable::*;
+use crate::config::config_coll_expandable::*;
 use crate::config::*;
 use crate::traits::*;
 use crate::wrappers::*;
@@ -68,7 +68,7 @@ mod hashset {
         for std::collections::HashSet<T>
     {
         const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = ConfigSetMut<'a, T, (), (), ()>;
+        type ConfigTypeMut<'a> = ConfigCollMut<'a, T, (), (), ()>;
         fn has_childs_mut(&self) -> bool {
             true
         }
@@ -190,7 +190,7 @@ mod impl_from_wrapper {
             impl<T: EguiStructMut + EguiStructImut + Default + Send + Any $(+$bound)*> EguiStructMut
                 for $typ<T>
             {
-                type ConfigTypeMut<'a> = ConfigSetMut<'a, T, (),bool,()>;
+                type ConfigTypeMut<'a> = ConfigCollMut<'a, T, (),bool,()>;
 
                 const SIMPLE_MUT: bool = false;
 
@@ -256,7 +256,7 @@ mod impl_from_wrapper {
                     V: EguiStructMut + EguiStructImut + Default + Send + Any,
                 > EguiStructMut for $typ<K, V>
             {
-                type ConfigTypeMut<'a> = ConfigSetMut<'a, K, V, bool, bool>;
+                type ConfigTypeMut<'a> = ConfigCollMut<'a, K, V, bool, bool>;
 
                 const SIMPLE_MUT: bool = false;
 
@@ -274,15 +274,15 @@ mod impl_from_wrapper {
                     config: &Self::ConfigTypeMut<'_>,
                     reset2: Option<&Self>,
                 ) -> Response {
-                    MapWrapperFull::new_mut(self).show_childs_mut(
+                    CollWrapperFull::new_mut(self).show_childs_mut(
                         ui,
                         config,
-                        reset2.map(|x| MapWrapperFull::new_ref(x)).as_ref(),
+                        reset2.map(|x| CollWrapperFull::new_ref(x)).as_ref(),
                     )
                 }
 
                 fn start_collapsed_mut(&self) -> bool {
-                    MapWrapperFull::new_ref(self).start_collapsed_mut()
+                    CollWrapperFull::new_ref(self).start_collapsed_mut()
                 }
 
                 // fn preview_str_mut<'b>(&'b self) -> &'b str {
@@ -295,11 +295,11 @@ mod impl_from_wrapper {
                 > EguiStructClone for $typ<K, V>
             {
                 fn eguis_clone(&mut self, source: &Self) {
-                    MapWrapperFull::new_mut(self).eguis_clone(&MapWrapperFull::new_ref(source))
+                    CollWrapperFull::new_mut(self).eguis_clone(&CollWrapperFull::new_ref(source))
                 }
 
                 fn eguis_clone_full(&self) -> Option<Self> {
-                    MapWrapperFull::new_ref(self)
+                    CollWrapperFull::new_ref(self)
                         .eguis_clone_full()
                         .map(|x| x.0.owned())
                 }
@@ -310,7 +310,7 @@ mod impl_from_wrapper {
                 > EguiStructEq for $typ<K, V>
             {
                 fn eguis_eq(&self, rhs: &Self) -> bool {
-                    MapWrapperFull::new_ref(self).eguis_eq(&MapWrapperFull::new_ref(rhs))
+                    CollWrapperFull::new_ref(self).eguis_eq(&CollWrapperFull::new_ref(rhs))
                 }
             }
         };
@@ -327,17 +327,17 @@ mod vec_wrapper {
             'b,
             K: EguiStructMut,
             V: EguiStructMut,
-            D: SetWrapperT<K, V>,
-            EK: ConfigSetExpandableT<K>,
-            EV: ConfigSetExpandableT<V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
-        > EguiStructMut for SetWrapper<'b, K, V, D, EK, EV, IK, IV>
+            D: CollWrapperT<K, V>,
+            EK: ConfigCollExpandableT<K>,
+            EV: ConfigCollExpandableT<V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
+        > EguiStructMut for CollWrapper<'b, K, V, D, EK, EV, IK, IV>
     where
-        Self: ConfigSetT<K, V, EK, EV>,
+        Self: ConfigCollT<K, V, EK, EV>,
     {
         const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = ConfigSetMut<'a, K, V, EK, EV>;
+        type ConfigTypeMut<'a> = ConfigCollMut<'a, K, V, EK, EV>;
         fn has_childs_mut(&self) -> bool {
             true
         }
@@ -457,12 +457,12 @@ mod vec_wrapper {
     impl<
             K: EguiStructMut,
             V: EguiStructMut,
-            D: SetWrapperT<K, V>,
-            EK: ConfigSetExpandableT<K>,
-            EV: ConfigSetExpandableT<V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
-        > EguiStructEq for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
+            D: CollWrapperT<K, V>,
+            EK: ConfigCollExpandableT<K>,
+            EV: ConfigCollExpandableT<V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
+        > EguiStructEq for CollWrapper<'_, K, V, D, EK, EV, IK, IV>
     {
         fn eguis_eq(&self, rhs: &Self) -> bool {
             let mut ret = self.e_len() == rhs.e_len();
@@ -476,12 +476,12 @@ mod vec_wrapper {
     impl<
             K: EguiStructMut,
             V: EguiStructMut,
-            D: SetWrapperT<K, V>,
-            EK: ConfigSetExpandableT<K>,
-            EV: ConfigSetExpandableT<V>,
-            IK: ConfigSetImutT<K>,
-            IV: ConfigSetImutT<V>,
-        > EguiStructClone for SetWrapper<'_, K, V, D, EK, EV, IK, IV>
+            D: CollWrapperT<K, V>,
+            EK: ConfigCollExpandableT<K>,
+            EV: ConfigCollExpandableT<V>,
+            IK: ConfigCollImutT<K>,
+            IV: ConfigCollImutT<V>,
+        > EguiStructClone for CollWrapper<'_, K, V, D, EK, EV, IK, IV>
     {
         fn eguis_clone(&mut self, source: &Self) {
             self.e_truncate(source.e_len());
@@ -501,7 +501,7 @@ mod vec_wrapper {
 
         fn eguis_clone_full(&self) -> Option<Self> {
             if self.e_len() == 0 {
-                return Some(SetWrapper::new(D::e_new()));
+                return Some(CollWrapper::new(D::e_new()));
             }
             let mut cloned: Vec<_> = self
                 .e_iter()
@@ -511,7 +511,7 @@ mod vec_wrapper {
             if cloned.len() == 0 {
                 None
             } else {
-                Some(SetWrapper::new(D::e_from_iter(
+                Some(CollWrapper::new(D::e_from_iter(
                     cloned.into_iter().map(|x| x.unwrap()),
                 )))
             }

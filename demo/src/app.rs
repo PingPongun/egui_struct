@@ -166,7 +166,7 @@ pub struct Data {
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
 
-    #[eguis(config = "ConfigSetMut{
+    #[eguis(config = "ConfigCollMut{
             expandable: Some((true,())),
             shrinkable: true,
             mutable_value: false,
