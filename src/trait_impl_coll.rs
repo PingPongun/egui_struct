@@ -61,6 +61,58 @@ mod impl_sets_imut {
     impl_set_imut! {indexmap::IndexSet<T> }
     impl_set_imut! {[T]}
 }
+mod impl_maps_imut {
+    use super::*;
+    macro_rules! impl_map_imut {
+        ( $typ:ty ) => {
+            impl<K: EguiStructImut, V: EguiStructImut> EguiStructImut for $typ {
+                const SIMPLE_IMUT: bool = false;
+                type ConfigTypeImut<'a> = (K::ConfigTypeImut<'a>, V::ConfigTypeImut<'a>);
+                fn has_childs_imut(&self) -> bool {
+                    !self.is_empty()
+                }
+                fn has_primitive_imut(&self) -> bool {
+                    false
+                }
+                fn show_childs_imut(
+                    &self,
+                    ui: &mut ExUi,
+                    config: &Self::ConfigTypeImut<'_>,
+                    _reset2: Option<&Self>,
+                ) -> Response {
+                    let mut response = ui.interact(
+                        Rect::NOTHING,
+                        "dummy".into(),
+                        Sense {
+                            click: false,
+                            drag: false,
+                            focusable: false,
+                        },
+                    );
+                    self.iter().for_each(|(key, val)| {
+                        let has_childs = val.has_childs_imut();
+                        response |= ui
+                            .maybe_collapsing_rows(has_childs, |ui: &mut ExUi| {
+                                ui.keep_cell_start();
+                                key.show_primitive_imut(ui, &config.0);
+                                ui.keep_cell_stop();
+                                val.show_primitive_imut(ui, &config.1)
+                            })
+                            .initial_state(|| val.start_collapsed_imut())
+                            .body_simple(|ui| val.show_childs_imut(ui, &config.1, None));
+                    });
+                    response
+                }
+                fn start_collapsed_imut(&self) -> bool {
+                    self.len() > 16
+                }
+            }
+        };
+    }
+    impl_map_imut! {std::collections::HashMap<K,V>}
+    #[cfg(feature = "indexmap")]
+    impl_map_imut! {indexmap::IndexMap<K,V> }
+}
 mod hashset {
     use super::*;
 
