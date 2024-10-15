@@ -4,6 +4,7 @@ use std::any::Any;
 
 /// Config structure for mutable view of Numerics
 #[derive(Default)]
+#[non_exhaustive]
 pub enum ConfigNum<'a, T: 'a> {
     /// Default: DragValue (without limits)
     #[default]
@@ -24,6 +25,7 @@ pub enum ConfigNum<'a, T: 'a> {
 
 ///Config structure for mutable view of String
 #[derive(Default)]
+#[non_exhaustive]
 pub enum ConfigStr<'a> {
     ///Default: single line `egui::TextEdit`
     #[default]
@@ -38,6 +40,7 @@ pub enum ConfigStr<'a> {
 
 /// Config structure for immutable view of many simple types like str, String & numerics
 #[derive(Default)]
+#[non_exhaustive]
 pub enum ConfigStrImut {
     /// `egui::Label`
     NonSelectable,
@@ -47,7 +50,8 @@ pub enum ConfigStrImut {
     Selectable,
 }
 
-/// Configuration options for mutable sets (IndexSet, Vec, ..)
+/// Configuration options for mutable Collections (IndexSet, IndexMap, Vec, ..)
+#[non_exhaustive]
 pub struct ConfigCollMut<
     'a,
     K: EguiStructMut,
@@ -75,6 +79,78 @@ pub struct ConfigCollMut<
 
     /// Can elements be reordered? (ignored for [std::collections::HashSet]/[std::collections::HashMap])
     pub reorder: bool,
+}
+
+impl<
+        'a,
+        K: EguiStructMut,
+        V: EguiStructMut,
+        EK: ConfigCollExpandableT<K>,
+        EV: ConfigCollExpandableT<V>,
+    > ConfigCollMut<'a, K, V, EK, EV>
+{
+    /// Same as Self::default()
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Set value of [Self::shrinkable](Self#structfield.shrinkable)
+    pub fn shrinkable(mut self, shrinkable: bool) -> Self {
+        self.shrinkable = shrinkable;
+        self
+    }
+    /// Sets value of [Self::mutable_key]
+    pub fn mut_key(mut self, mut_key: bool) -> Self {
+        self.mutable_key = mut_key;
+        if typeid::of::<V>() == typeid::of::<()>() {
+            self.mutable_value = mut_key;
+        }
+        self
+    }
+    /// Sets value of [Self::mutable_value]
+    pub fn mut_val(mut self, mut_val: bool) -> Self {
+        self.mutable_value = mut_val;
+        self
+    }
+    /// Set value of [Self::max_len](Self#structfield.max_len)
+    pub fn max_len(mut self, max_len: usize) -> Self {
+        self.max_len = Some(max_len);
+        self
+    }
+    /// Set value of [Self::reorder](Self#structfield.reorder)
+    pub fn reorder(mut self, reorder: bool) -> Self {
+        self.reorder = reorder;
+        self
+    }
+
+    /// Sets value of [Self::expandable](Self#structfield.expandable)
+    pub fn expandable(mut self, expandable: Option<(EK, EV)>) -> Self {
+        self.expandable = expandable;
+        self
+    }
+    /// Sets value of [Self::inner_config]
+    pub fn config(
+        mut self,
+        config_k: K::ConfigTypeMut<'a>,
+        config_v: V::ConfigTypeMut<'a>,
+    ) -> Self {
+        self.inner_config = (config_k, config_v);
+        self
+    }
+}
+impl<'a, K: EguiStructMut, EK: ConfigCollExpandableT<K>> ConfigCollMut<'a, K, (), EK, ()> {
+    /// Simpler version of [Self::expandable] for Sets/Vec (where `V == ()`)
+    /// Sets value of [Self::expandable](Self#structfield.expandable)
+    pub fn expandable_set(mut self, expandable: Option<EK>) -> Self {
+        self.expandable = expandable.map(|x| (x, ()));
+        self
+    }
+    /// Simpler version of [Self::config] for Sets/Vec (where `V == ()`)
+    /// Sets value of [Self::inner_config]
+    pub fn config_set(mut self, config_k: K::ConfigTypeMut<'a>) -> Self {
+        self.inner_config = (config_k, ());
+        self
+    }
 }
 
 impl<

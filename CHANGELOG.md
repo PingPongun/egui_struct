@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added content preview (eg. Vec displays first few elements as immutable in its primitive)
 - Support `Tuples`, `[T,N]`
+- Merge macros for CollWrapper impls
 - Better `EguiStructEq` for `HashSet`
 - Extend `wrapper` attribute to make it take also user written wrappers
 - Evaluate possibility of SerdeWrapper
@@ -23,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - docs
-- ? Map impls
+- HashMap/HashSet impl using CollWrapper
 - ? exgrid docs
 - ? exgrid frames fix
 
@@ -37,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed empty first row when label passed in show_top is empty
 - `i18n` is no longer default feature
 - Iterator used as config for `ComboBox` has slightly different requirements (requires `Clone` trait; in `ConfigStr` it takes `&str`)
+- Config structs/enums are now `non-exhaustive`
 
 ### Macro derive usage (no manual implementations)
 

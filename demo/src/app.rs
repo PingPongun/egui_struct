@@ -166,13 +166,12 @@ pub struct Data {
     #[eguis(hint = "This is also Option, but as inner value is simple it is presented inline")]
     optional_string: Option<String>,
 
-    #[eguis(config = "ConfigCollMut{
-            expandable: Some((true,())),
-            shrinkable: true,
-            mutable_value: false,
-            max_len: Some(5),
-            ..Default::default()
-        }")]
+    #[eguis(config = "ConfigCollMut::new()
+            .expandable_set(Some(true))
+            .shrinkable(true)
+            .mut_val(false)
+            .max_len(5)
+        ")]
     list: Vec<Color>,
     #[eguis(wrapper = "SetSD")]
     set: IndexSet<SubData>,
