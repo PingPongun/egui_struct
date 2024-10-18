@@ -93,12 +93,20 @@ use indexmap::*;
 pub use collection::*;
 mod collection {
     use super::*;
+    pub mod internal_impl {
+        //! Module contains structs & traits that underlie [CollWrapper] implementation.
+        //! It is only required if You intend to use [CollWrapper] with our own Collections
+        pub use super::coll_wrapper_t::*;
+        pub use super::config_coll_imut_t::*;
+        #[cfg(doc)]
+        use super::*;
+    }
     pub(crate) use config_coll_imut_t::*;
     mod config_coll_imut_t {
         use super::*;
         pub struct ConfigCollMutTrueImut<T>(PhantomData<T>);
         pub struct ConfigCollMutDisableMut<T>(PhantomData<T>);
-        pub(crate) trait ConfigCollImutT<T: EguiStructMut> {
+        pub trait ConfigCollImutT<T: EguiStructMut> {
             fn _show_childs_imut(
                 val: &mut T,
                 ui: &mut ExUi,
@@ -251,12 +259,81 @@ mod collection {
     pub(crate) use coll_wrapper_t::*;
     mod coll_wrapper_t {
 
+        use std::collections::{HashMap, HashSet};
+
         use super::*;
+        macro_rules! impl_show_key {
+            () => {
+                fn key_show_primitive<IK: ConfigCollImutT<K>>(
+                    val: &mut Self::KeyRef<'_>,
+                    mutable: bool,
+                    ui: &mut ExUi,
+                    config: &K::ConfigTypeMut<'_>,
+                    reset2: Option<&K>,
+                ) -> Response
+                where
+                    K: EguiStructMut,
+                {
+                    if mutable {
+                        crate::trait_implementor_set::primitive_w_reset(*val, ui, config, reset2)
+                    } else {
+                        IK::_show_primitive_imut(val, ui, &Default::default())
+                    }
+                }
+                fn key_show_childs<IK: ConfigCollImutT<K>>(
+                    val: &mut Self::KeyRef<'_>,
+                    mutable: bool,
+                    ui: &mut ExUi,
+                    config: &K::ConfigTypeMut<'_>,
+                    reset2: Option<&K>,
+                ) -> Response
+                where
+                    K: EguiStructMut,
+                {
+                    if mutable {
+                        val.show_childs_mut(ui, config, reset2)
+                    } else {
+                        IK::_show_childs_imut(val, ui, &Default::default())
+                    }
+                }
+            };
+        }
+        macro_rules! impl_show_key_imut {
+            () => {
+                fn key_show_primitive<IK: ConfigCollImutT<K>>(
+                    val: &mut Self::KeyRef<'_>,
+                    _mutable: bool,
+                    ui: &mut ExUi,
+                    _config: &K::ConfigTypeMut<'_>,
+                    _reset2: Option<&K>,
+                ) -> Response
+                where
+                    K: EguiStructMut,
+                {
+                    val.show_primitive_imut(ui, &Default::default())
+                }
+                fn key_show_childs<IK: ConfigCollImutT<K>>(
+                    val: &mut Self::KeyRef<'_>,
+                    _mutable: bool,
+                    ui: &mut ExUi,
+                    _config: &K::ConfigTypeMut<'_>,
+                    _reset2: Option<&K>,
+                ) -> Response
+                where
+                    K: EguiStructMut,
+                {
+                    val.show_childs_imut(ui, &Default::default(), None)
+                }
+            };
+        }
         pub trait CollWrapperT<K, V> {
+            const REORDERABLE: bool = true;
+            type KeyRef<'a>: Deref<Target = K>
+            where
+                K: 'a;
             fn e_len(&self) -> usize;
             fn e_new() -> Self;
             fn e_get(&self, idx: usize) -> Option<(&K, &V)>;
-            fn e_remove(&mut self, idx: usize);
             fn e_truncate(&mut self, len: usize);
             fn e_swap(&mut self, idx: (usize, usize));
             fn e_push(&mut self, val: (K, V));
@@ -265,9 +342,38 @@ mod collection {
             where
                 K: 'a,
                 V: 'a;
+
+            fn e_map<'a>(
+                &'a mut self,
+                op: impl for<'b> FnMut(usize, (Self::KeyRef<'b>, &'b mut V)) -> bool,
+            ) where
+                K: 'a,
+                V: 'a;
+
             fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self;
+
+            fn key_show_primitive<IK: ConfigCollImutT<K>>(
+                val: &mut Self::KeyRef<'_>,
+                mutable: bool,
+                ui: &mut ExUi,
+                config: &K::ConfigTypeMut<'_>,
+                reset2: Option<&K>,
+            ) -> Response
+            where
+                K: EguiStructMut;
+
+            fn key_show_childs<IK: ConfigCollImutT<K>>(
+                val: &mut Self::KeyRef<'_>,
+                mutable: bool,
+                ui: &mut ExUi,
+                config: &K::ConfigTypeMut<'_>,
+                reset2: Option<&K>,
+            ) -> Response
+            where
+                K: EguiStructMut;
         }
-        impl<T> CollWrapperT<T, ()> for Vec<T> {
+
+        impl<K> CollWrapperT<K, ()> for Vec<K> {
             fn e_len(&self) -> usize {
                 self.len()
             }
@@ -276,12 +382,8 @@ mod collection {
                 Self::new()
             }
 
-            fn e_get(&self, idx: usize) -> Option<(&T, &())> {
+            fn e_get(&self, idx: usize) -> Option<(&K, &())> {
                 self.deref().get(idx).map(|x| (x, &()))
-            }
-
-            fn e_remove(&mut self, idx: usize) {
-                self.remove(idx);
             }
 
             fn e_truncate(&mut self, len: usize) {
@@ -292,28 +394,45 @@ mod collection {
                 self.deref_mut().swap(idx.0, idx.1);
             }
 
-            fn e_push(&mut self, value: (T, ())) {
+            fn e_push(&mut self, value: (K, ())) {
                 self.push(value.0);
             }
 
-            fn e_drain(&mut self) -> impl Iterator<Item = (T, ())> {
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, ())> {
                 self.drain(..).map(|x| (x, ()))
             }
 
-            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a T, &'a ())>
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a ())>
             where
-                T: 'a,
+                K: 'a,
             {
                 self.deref().iter().map(|x| (x, &()))
             }
 
-            fn e_from_iter<I: IntoIterator<Item = (T, ())>>(iterable: I) -> Self {
+            fn e_from_iter<I: IntoIterator<Item = (K, ())>>(iterable: I) -> Self {
                 iterable.into_iter().map(|(x, _)| x).collect()
             }
+
+            type KeyRef<'a> = &'a mut K where K: 'a;
+
+            fn e_map<'a>(
+                &'a mut self,
+                mut op: impl for<'b> FnMut(usize, (&'b mut K, &'b mut ())) -> bool,
+            ) where
+                K: 'a,
+            {
+                let mut idx = 0;
+                self.retain_mut(|x| {
+                    let o = op(idx, (x, &mut ()));
+                    idx += 1;
+                    o
+                })
+            }
+            impl_show_key! {}
         }
 
         #[cfg(feature = "indexmap")]
-        impl<T: Hash + Eq> CollWrapperT<T, ()> for indexmap::IndexSet<T> {
+        impl<K: Hash + Eq> CollWrapperT<K, ()> for indexmap::IndexSet<K> {
             fn e_len(&self) -> usize {
                 self.len()
             }
@@ -322,12 +441,8 @@ mod collection {
                 Self::new()
             }
 
-            fn e_get(&self, idx: usize) -> Option<(&T, &())> {
+            fn e_get(&self, idx: usize) -> Option<(&K, &())> {
                 self.get_index(idx).map(|x| (x, &()))
-            }
-
-            fn e_remove(&mut self, idx: usize) {
-                self.shift_remove_index(idx);
             }
 
             fn e_truncate(&mut self, len: usize) {
@@ -338,23 +453,46 @@ mod collection {
                 self.swap_indices(idx.0, idx.1);
             }
 
-            fn e_push(&mut self, value: (T, ())) {
+            fn e_push(&mut self, value: (K, ())) {
                 self.insert(value.0);
             }
 
-            fn e_drain(&mut self) -> impl Iterator<Item = (T, ())> {
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, ())> {
                 self.drain(..).map(|x| (x, ()))
             }
 
-            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a T, &'a ())>
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a ())>
             where
-                T: 'a,
+                K: 'a,
             {
                 self.iter().map(|x| (x, &()))
             }
-            fn e_from_iter<I: IntoIterator<Item = (T, ())>>(iterable: I) -> Self {
+            fn e_from_iter<I: IntoIterator<Item = (K, ())>>(iterable: I) -> Self {
                 iterable.into_iter().map(|(x, _)| x).collect()
             }
+            type KeyRef<'a> = &'a mut K where K: 'a;
+
+            fn e_map<'a>(
+                &'a mut self,
+                mut op: impl for<'b> FnMut(usize, (&'b mut K, &'b mut ())) -> bool,
+            ) where
+                K: 'a,
+            {
+                let mut idx = 0;
+                *self = self
+                    .drain(..)
+                    .filter_map(|mut x| {
+                        let o = op(idx, (&mut x, &mut ()));
+                        idx += 1;
+                        if o {
+                            Some(x)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            }
+            impl_show_key! {}
         }
         #[cfg(feature = "indexmap")]
         impl<K: Hash + Eq, V> CollWrapperT<K, V> for indexmap::IndexMap<K, V> {
@@ -368,10 +506,6 @@ mod collection {
 
             fn e_get(&self, idx: usize) -> Option<(&K, &V)> {
                 self.get_index(idx)
-            }
-
-            fn e_remove(&mut self, idx: usize) {
-                self.shift_remove_index(idx);
             }
 
             fn e_truncate(&mut self, len: usize) {
@@ -400,6 +534,158 @@ mod collection {
             fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self {
                 iterable.into_iter().collect()
             }
+            type KeyRef<'a> = &'a mut K where K: 'a;
+
+            fn e_map<'a>(
+                &'a mut self,
+                mut op: impl for<'b> FnMut(usize, (&'b mut K, &'b mut V)) -> bool,
+            ) where
+                K: 'a,
+            {
+                let mut idx = 0;
+                *self = self
+                    .drain(..)
+                    .filter_map(|(mut key, mut val)| {
+                        let o = op(idx, (&mut key, &mut val));
+                        idx += 1;
+                        if o {
+                            Some((key, val))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            }
+            impl_show_key! {}
+        }
+        impl<K: Hash + Eq + EguiStructImut, V> CollWrapperT<K, V> for HashMap<K, V> {
+            const REORDERABLE: bool = false;
+            type KeyRef<'a> = &'a K where K: 'a;
+            fn e_len(&self) -> usize {
+                self.len()
+            }
+
+            fn e_new() -> Self {
+                Self::new()
+            }
+
+            fn e_get(&self, _idx: usize) -> Option<(&K, &V)> {
+                None
+            }
+
+            fn e_truncate(&mut self, len: usize) {
+                let mut i = 0;
+                self.retain(|_, _| {
+                    i += 1;
+                    i <= len
+                });
+            }
+
+            fn e_swap(&mut self, _idx: (usize, usize)) {
+                panic!("HashMap does not support indexing!");
+            }
+
+            fn e_push(&mut self, value: (K, V)) {
+                self.insert(value.0, value.1);
+            }
+
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, V)> {
+                self.drain()
+            }
+
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a V)>
+            where
+                K: 'a,
+                V: 'a,
+            {
+                self.iter()
+            }
+            fn e_from_iter<I: IntoIterator<Item = (K, V)>>(iterable: I) -> Self {
+                iterable.into_iter().collect()
+            }
+
+            fn e_map<'a>(
+                &'a mut self,
+                mut op: impl for<'b> FnMut(usize, (&'b K, &'b mut V)) -> bool,
+            ) where
+                K: 'a,
+            {
+                let mut idx = 0;
+                self.retain(|key, mut val| {
+                    let o = op(idx, (&key, &mut val));
+                    idx += 1;
+                    if o {
+                        true
+                    } else {
+                        false
+                    }
+                });
+            }
+            impl_show_key_imut! {}
+        }
+        impl<K: Hash + Eq + EguiStructImut> CollWrapperT<K, ()> for HashSet<K> {
+            const REORDERABLE: bool = false;
+            type KeyRef<'a> = &'a K where K: 'a;
+            fn e_len(&self) -> usize {
+                self.len()
+            }
+
+            fn e_new() -> Self {
+                Self::new()
+            }
+
+            fn e_get(&self, _idx: usize) -> Option<(&K, &())> {
+                None
+            }
+
+            fn e_truncate(&mut self, len: usize) {
+                let mut i = 0;
+                self.retain(|_| {
+                    i += 1;
+                    i <= len
+                });
+            }
+
+            fn e_swap(&mut self, _idx: (usize, usize)) {
+                panic!("HashMap does not support indexing!");
+            }
+
+            fn e_push(&mut self, value: (K, ())) {
+                self.insert(value.0);
+            }
+
+            fn e_drain(&mut self) -> impl Iterator<Item = (K, ())> {
+                self.drain().map(|x| (x, ()))
+            }
+
+            fn e_iter<'a>(&'a self) -> impl Iterator<Item = (&'a K, &'a ())>
+            where
+                K: 'a,
+            {
+                self.iter().map(|x| (x, &()))
+            }
+            fn e_from_iter<I: IntoIterator<Item = (K, ())>>(iterable: I) -> Self {
+                iterable.into_iter().map(|x| x.0).collect()
+            }
+
+            fn e_map<'a>(
+                &'a mut self,
+                mut op: impl for<'b> FnMut(usize, (&'b K, &'b mut ())) -> bool,
+            ) where
+                K: 'a,
+            {
+                let mut idx = 0;
+                self.retain(|key| {
+                    let o = op(idx, (&key, &mut ()));
+                    idx += 1;
+                    if o {
+                        true
+                    } else {
+                        false
+                    }
+                });
+            }
+            impl_show_key_imut! {}
         }
     }
 

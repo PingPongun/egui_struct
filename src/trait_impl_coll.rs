@@ -113,128 +113,11 @@ mod impl_maps_imut {
     #[cfg(feature = "indexmap")]
     impl_map_imut! {indexmap::IndexMap<K,V> }
 }
-mod hashset {
-    use super::*;
 
-    impl<T: EguiStructMut + Eq + Hash + EguiStructImut + Default + Send + Any> EguiStructMut
-        for std::collections::HashSet<T>
-    {
-        const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = ConfigCollMut<'a, T, (), (), ()>;
-        fn has_childs_mut(&self) -> bool {
-            true
-        }
-        fn has_primitive_mut(&self) -> bool {
-            false
-        }
-        fn show_childs_mut(
-            &mut self,
-            ui: &mut ExUi,
-            config: &Self::ConfigTypeMut<'_>,
-            _reset2: Option<&Self>,
-        ) -> Response {
-            let mut response = ui.dummy_response();
-
-            let mut idx = 0;
-            self.retain(|x| {
-                let has_childs = x.has_childs_imut();
-                let header = |ui: &mut ExUi| {
-                    ui.keep_cell_start();
-                    ui.extext(idx.to_string());
-                    let mut response = ui.dummy_response();
-                    if config.shrinkable {
-                        let bresp = ui.button("-");
-                        response |= bresp.clone();
-                    }
-                    ui.keep_cell_stop();
-                    response | x.show_primitive_imut(ui, &mut Default::default())
-                };
-                let loc_response =
-                    ui.maybe_collapsing_rows(has_childs, header)
-                        .body_simple(|ui: &mut ExUi| {
-                            x.show_childs_imut(ui, &mut Default::default(), None)
-                        });
-                idx += 1;
-                response |= loc_response.clone();
-                !loc_response.clicked()
-            });
-
-            if let Some(add) = &config.expandable {
-                if config.max_len.is_none() || self.len() < config.max_len.unwrap() {
-                    let id = ui.id();
-                    let mut val: Box<T> = ui
-                        .data_remove(id)
-                        .unwrap_or_else(|| Box::new(add.0.default_value()));
-                    let mut add_elem = false;
-                    response |= ui
-                        .maybe_collapsing_rows(val.has_childs_mut(), |ui| {
-                            let bresp = ui.button("+");
-                            let presp = val.show_primitive_mut(ui, &config.inner_config.0);
-                            add_elem = bresp.clicked();
-                            bresp | presp
-                        })
-                        .body_simple(|ui| val.show_childs_mut(ui, &config.inner_config.0, None));
-                    if add_elem {
-                        self.insert(*val);
-                    } else {
-                        ui.data_store(id, val);
-                    }
-                }
-            }
-            response
-        }
-
-        fn start_collapsed_mut(&self) -> bool {
-            self.len() > 16
-        }
-    }
-
-    impl<T: EguiStructEq> EguiStructEq for std::collections::HashSet<T> {
-        //TODO allow mismatched order for std::HashMap
-        fn eguis_eq(&self, rhs: &Self) -> bool {
-            let mut ret = self.len() == rhs.len();
-            self.iter()
-                .zip(rhs.iter())
-                .for_each(|(s, r)| ret &= s.eguis_eq(r));
-            ret
-        }
-    }
-
-    impl<T: EguiStructClone + Eq + Hash> EguiStructClone for std::collections::HashSet<T> {
-        fn eguis_clone(&mut self, source: &Self) {
-            let src: Vec<_> = source.iter().collect();
-            *self = self
-                .drain()
-                .zip(src.e_iter())
-                .map(|(mut s, r)| {
-                    s.eguis_clone(r.0);
-                    s
-                })
-                .collect();
-            for i in self.len()..source.len() {
-                if let Some(val) = src[i - 1].eguis_clone_full() {
-                    self.insert(val);
-                }
-            }
-        }
-        fn eguis_clone_full(&self) -> Option<Self> {
-            if self.len() == 0 {
-                return Some(Self::new());
-            }
-            let mut cloned: Vec<_> = self.iter().map(|s| s.eguis_clone_full()).collect();
-            cloned.retain(|x| x.is_some());
-            if cloned.len() == 0 {
-                None
-            } else {
-                Some(cloned.into_iter().map(|x| x.unwrap()).collect())
-            }
-        }
-    }
-}
 mod impl_from_wrapper {
-    use indexmap::IndexMap;
     #[cfg(feature = "indexmap")]
-    use indexmap::IndexSet;
+    use indexmap::{IndexMap, IndexSet};
+    use std::collections::{HashMap, HashSet};
 
     use super::*;
     macro_rules! impl_from_wrapper {
@@ -298,6 +181,7 @@ mod impl_from_wrapper {
         };
     }
     impl_from_wrapper! {Vec,[]}
+    impl_from_wrapper! {HashSet, [Hash, Eq]}
     #[cfg(feature = "indexmap")]
     impl_from_wrapper! {IndexSet, [Hash, Eq]}
 
@@ -367,13 +251,11 @@ mod impl_from_wrapper {
             }
         };
     }
-    // impl_from_map_wrapper! {HashMap}
+    impl_from_map_wrapper! {HashMap}
     #[cfg(feature = "indexmap")]
     impl_from_map_wrapper! {IndexMap}
 }
-mod vec_wrapper {
-    use std::ops::DerefMut;
-
+mod coll_wrapper {
     use super::*;
     impl<
             'b,
@@ -403,77 +285,77 @@ mod vec_wrapper {
             reset2: Option<&Self>,
         ) -> Response {
             let mut response = ui.dummy_response();
-            let mut idx2remove = None;
             let mut idx2swap = None;
             let len = self.e_len();
-            *self.deref_mut() =
-                D::e_from_iter(self.e_drain().enumerate().map(|(idx, (mut key, mut val))| {
-                    let reset = reset2.map(|x| x.e_get(idx)).flatten();
-                    let has_childs = if typeid::of::<V>() == typeid::of::<()>() {
-                        key.has_childs_mut()
+            self.e_map(|idx, (mut key, mut val)| {
+                let mut remove = true;
+                let reset = reset2.map(|x| x.e_get(idx)).flatten();
+                let has_childs = if typeid::of::<V>() == typeid::of::<()>() {
+                    key.has_childs_mut()
+                } else {
+                    val.has_childs_mut()
+                };
+                let header = |ui: &mut ExUi| {
+                    ui.keep_cell_start();
+                    let mut response = ui.dummy_response();
+                    if typeid::of::<V>() == typeid::of::<()>() {
+                        ui.extext(idx.to_string());
                     } else {
-                        val.has_childs_mut()
-                    };
-                    let header = |ui: &mut ExUi| {
-                        ui.keep_cell_start();
-                        let mut response = ui.dummy_response();
-                        if typeid::of::<V>() == typeid::of::<()>() {
-                            ui.extext(idx.to_string());
-                        } else {
-                            response |= IK::show_primitive(
-                                &mut key,
-                                config.mutable_key,
-                                ui,
-                                &config.inner_config.0,
-                                reset.map(|i| i.0),
-                            );
+                        response |= D::key_show_primitive::<IK>(
+                            &mut key,
+                            config.mutable_key,
+                            ui,
+                            &config.inner_config.0,
+                            reset.map(|i| i.0),
+                        )
+                    }
+                    if config.shrinkable {
+                        let bresp = ui.button("-");
+                        response |= bresp.clone();
+                        if bresp.clicked() {
+                            remove = false;
                         }
-                        if config.shrinkable {
-                            let bresp = ui.button("-");
+                    }
+                    if config.reorder && D::REORDERABLE {
+                        if idx != 0 {
+                            let bresp = ui.button("⬆");
                             response |= bresp.clone();
                             if bresp.clicked() {
-                                idx2remove = Some(idx);
+                                idx2swap = Some((idx - 1, idx));
                             }
                         }
-                        if config.reorder {
-                            if idx != 0 {
-                                let bresp = ui.button("⬆");
-                                response |= bresp.clone();
-                                if bresp.clicked() {
-                                    idx2swap = Some((idx - 1, idx));
-                                }
-                            }
-                            if idx != len - 1 {
-                                let bresp = ui.button("⬇");
-                                response |= bresp.clone();
-                                if bresp.clicked() {
-                                    idx2swap = Some((idx, idx + 1));
-                                }
+                        if idx != len - 1 {
+                            let bresp = ui.button("⬇");
+                            response |= bresp.clone();
+                            if bresp.clicked() {
+                                idx2swap = Some((idx, idx + 1));
                             }
                         }
-                        ui.keep_cell_stop();
-                        if typeid::of::<V>() == typeid::of::<()>() {
-                            IK::show_primitive(
-                                &mut key,
-                                config.mutable_value,
-                                ui,
-                                &config.inner_config.0,
-                                reset.map(|i| i.0),
-                            )
-                        } else {
-                            IV::show_primitive(
-                                &mut val,
-                                config.mutable_value,
-                                ui,
-                                &config.inner_config.1,
-                                reset.map(|i| i.1),
-                            )
-                        }
-                    };
-                    response |= ui.maybe_collapsing_rows(has_childs, header).body_simple(
-                        |ui: &mut ExUi| {
+                    }
+                    ui.keep_cell_stop();
+                    if typeid::of::<V>() == typeid::of::<()>() {
+                        D::key_show_primitive::<IK>(
+                            &mut key,
+                            config.mutable_value,
+                            ui,
+                            &config.inner_config.0,
+                            reset.map(|i| i.0),
+                        )
+                    } else {
+                        IV::show_primitive(
+                            &mut val,
+                            config.mutable_value,
+                            ui,
+                            &config.inner_config.1,
+                            reset.map(|i| i.1),
+                        )
+                    }
+                };
+                response |=
+                    ui.maybe_collapsing_rows(has_childs, header)
+                        .body_simple(|ui: &mut ExUi| {
                             if typeid::of::<V>() == typeid::of::<()>() {
-                                IK::show_childs(
+                                D::key_show_childs::<IK>(
                                     &mut key,
                                     config.mutable_value,
                                     ui,
@@ -489,13 +371,9 @@ mod vec_wrapper {
                                     reset.map(|i| i.1),
                                 )
                             }
-                        },
-                    );
-                    (key, val)
-                }));
-            if let Some(idx) = idx2remove {
-                self.e_remove(idx);
-            }
+                        });
+                remove
+            });
             if let Some(idx) = idx2swap {
                 self.e_swap(idx);
             }
@@ -536,17 +414,16 @@ mod vec_wrapper {
         > EguiStructClone for CollWrapper<'_, K, V, D, EK, EV, IK, IV>
     {
         fn eguis_clone(&mut self, source: &Self) {
-            self.e_truncate(source.e_len());
-            *self.deref_mut() =
-                D::e_from_iter(self.e_drain().zip(source.e_iter()).map(|(mut s, r)| {
-                    s.0.eguis_clone(r.0);
-                    s.1.eguis_clone(r.1);
-                    s
-                }));
+            let src: Vec<_> = source.e_iter().collect();
+            **self = D::e_from_iter(self.e_drain().zip(src.iter()).map(|(mut s, r)| {
+                s.0.eguis_clone(r.0);
+                s.1.eguis_clone(r.1);
+                s
+            }));
             for i in self.e_len()..source.e_len() {
-                let s = source.e_get(i).unwrap();
+                let s = src[i];
                 if let Some(val) = s.0.eguis_clone_full().zip(s.1.eguis_clone_full()) {
-                    self.e_push(val)
+                    self.e_push(val);
                 }
             }
         }
