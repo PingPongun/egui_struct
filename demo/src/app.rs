@@ -173,8 +173,11 @@ pub struct Data {
             .max_len(5)
         ")]
     list: Vec<Color>,
+
     #[eguis(wrapper = "SetSD")]
     set: IndexSet<SubData>,
+
+    array: [u16; 4],
     indexmap: IndexMap<isize, Metadata>,
     hashset: std::collections::HashSet<String>,
 }
@@ -242,6 +245,7 @@ impl Default for Data {
                     number: 5,
                 },
             ]),
+            array: [2, 1, 3, 7],
             indexmap: IndexMap::from([
                 (
                     1,

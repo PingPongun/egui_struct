@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## TODO [0.5.x] - Planning ( non exhaustive)
 
 - Added content preview (eg. Vec displays first few elements as immutable in its primitive)
-- Support `Tuples`, `[T,N]`
+- Support `Tuples`
 - Merge macros for CollWrapper impls
 - Better `EguiStructEq` for `HashSet`
 - Extend `wrapper` attribute to make it take also user written wrappers
-- Evaluate possibility of SerdeWrapper
+- Add `ToStringWrapper: EguiStructImut` 
+- Evaluate possibility of `SerdeWrapper`
 - Internals: Macro code cleanup & simplify
 - Add CI to test demo app on all supported egui versions
 
@@ -24,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - docs
-- HashMap/HashSet impl using CollWrapper
+- specific CollWrappers (eg. CollWrapperSSDDII)
 - ? exgrid docs
 - ? exgrid frames fix
 
@@ -45,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Breaking] fix attribute name `resetable`->`resettable`
 - [Breaking] Sets&Maps impl updated:
   - EguiStructMut impl added for HashSet&IndexSet
-  - Sets/Map got configurable features like: add, remove, mut elements, mut prior add, reorder, limit length (See readme for feature support for types)  #TODO
+  - Sets/Map got configurable features like: add, remove, mut elements, mut prior add, reorder, limit length (See readme for feature support for types)
   - Bounds have changed slightly (`Vec<T>` fallbacks to `[T]` if bounds are not met, so no regression, but to get new features use `wrappers` module )
 - [Added] macro attributes eg. `eguis(wrapper="SetMinimal")`
 - `ComboBox` impl has been updated; it should now be used via `eguis(wrapper = "ComboBox")`

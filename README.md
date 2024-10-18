@@ -15,7 +15,7 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 
 |                                   | EguiStruct                                                                   | egui-probe                                        | enum2egui             | egui_inspect                 | egui-controls                     |
 | :-------------------------------- | :--------------------------------------------------------------------------- | ------------------------------------------------- | :-------------------- | :--------------------------- | :-------------------------------- |
-| egui version[[1]](#ref1)          | 0.29 (0.23-0.29)                                                             | 0.27/0.28                                         | 0.23/0.24.1/0.26/0.28 | 0.20                         | N/A                               |
+| egui version[[1]](#ref1)          | 0.29 (0.23-0.29)                                                             | 0.27/0.28/0.29                                    | 0.23/0.24.1/0.26/0.28 | 0.20                         | N/A                               |
 | Adheres to SemVer                 | ✅                                                                            | ✅                                                 | ❌                     | ✅                            | ✅                                 |
 | Layout[[2]](#ref2)                | [ExGrid](https://crates.io/crates/exgrid)                                    | Grid                                              | Group/nested          | Nested                       | Grid                              |
 | i18n support                      | ✅ (rust-i18n[[3]](#ref3))                                                    | ❌                                                 | ❌                     | ❌                            | ❌                                 |
@@ -28,7 +28,7 @@ Crate idea is similar to crates [egui-probe](https://github.com/zakarumych/egui-
 |                                   |                                                                              |                                                   |                       |                              |                                   |
 | Numerics & strings support        | ✅                                                                            | ✅                                                 | ✅                     | ✅                            | ✅                                 |
 | Vec support                       | ✅                                                                            | ✅ std, smallvec1/2                                | ✅                     | ✅                            | ❌                                 |
-| Other support                     | ✅ bool, Option, [T], [T;N]\(#TODO), tuple(#TODO)                             | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option, tuple | ✅ bool, [T;N]                | ❌                                 |
+| Other support                     | ✅ bool, Option, [T], [T;N]                                                   | ✅ bool, Option, [T;N], some of egui types         | ✅ bool, Option, tuple | ✅ bool, [T;N]                | ❌                                 |
 | HashSet support                   | ✅ std, indexmap                                                              | ❌                                                 | ❌                     | ❌                            | ❌                                 |
 | HashMap support                   | ✅ std, indexmap                                                              | ✅ std, hashbrown                                  | ✅ std, hashbrown      | ❌                            | ❌                                 |
 |                                   |                                                                              |                                                   |                       |                              |                                   |
@@ -71,14 +71,14 @@ Grid benefits:
 
 ### Mutable Set/Map features
 
-| type               | add | remove | mut value | mut prior add | reorder | limit length | mut key |
-| ------------------ | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
-| `[T]`              | ❌   | ❌      | ✅         | ∅             | ✅       | ∅            | ∅       |
-| `Vec<T>`           | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
-| `HashSet<T>`       | ✅   | ✅      | ❌         | ✅             | ❌       | ✅            | ∅       |
-| `IndexSet<T>`      | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
-| `HashMap<T>`#TODO  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
-| `IndexMap<T>`#TODO | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
+| type          | add | remove | mut value | mut prior add | reorder | limit length | mut key |
+| ------------- | --- | ------ | --------- | ------------- | ------- | ------------ | ------- |
+| `[T]/[T;N]`   | ❌   | ❌      | ✅         | ∅             | ✅       | ∅            | ∅       |
+| `Vec<T>`      | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashSet<T>`  | ✅   | ✅      | ❌         | ✅             | ❌       | ✅            | ∅       |
+| `IndexSet<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ∅       |
+| `HashMap<T>`  | ✅   | ✅      | ✅         | ✅             | ❌       | ✅            | ❌       |
+| `IndexMap<T>` | ✅   | ✅      | ✅         | ✅             | ✅       | ✅            | ✅       |
 
 Vec/Set/Map implementations have normally quite strict bounds (T: `Any`+`Send`+`Default`+`EguiStructImut`), if your type does not satisfy them, use [`wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html) module/[`wrapper`](https://docs.rs/egui_struct/latest/egui_struct/prelude/derive.EguiStructMut.html) macro attribute to loosen them.
 

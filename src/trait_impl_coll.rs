@@ -12,8 +12,8 @@ use std::hash::Hash;
 mod impl_sets_imut {
     use super::*;
     macro_rules! impl_set_imut {
-        ( $typ:ty ) => {
-            impl<T: EguiStructImut> EguiStructImut for $typ {
+        ( $typ:ty $(, $cons:ident)?) => {
+            impl<T: EguiStructImut $(, const $cons:usize)*> EguiStructImut for $typ {
                 const SIMPLE_IMUT: bool = false;
                 type ConfigTypeImut<'a> = T::ConfigTypeImut<'a>;
                 fn has_childs_imut(&self) -> bool {
@@ -60,6 +60,7 @@ mod impl_sets_imut {
     #[cfg(feature = "indexmap")]
     impl_set_imut! {indexmap::IndexSet<T> }
     impl_set_imut! {[T]}
+    impl_set_imut! {[T;N], N}
 }
 mod impl_maps_imut {
     use super::*;
@@ -450,72 +451,98 @@ mod coll_wrapper {
 //##### SLICE #####
 mod slice {
     use super::*;
-    //TODO add impl for [T;N]
-
-    impl<T: EguiStructMut> EguiStructMut for &mut [T] {
-        const SIMPLE_MUT: bool = false;
-        type ConfigTypeMut<'a> = T::ConfigTypeMut<'a>;
-        fn has_childs_mut(&self) -> bool {
-            !self.is_empty()
-        }
-        fn has_primitive_mut(&self) -> bool {
-            false
-        }
-        fn show_childs_mut(
-            &mut self,
-            ui: &mut ExUi,
-            config: &Self::ConfigTypeMut<'_>,
-            reset2: Option<&Self>,
-        ) -> Response {
-            let mut response = ui.dummy_response();
-            self.iter_mut().enumerate().for_each(|(idx, x)| {
-                response |= x.show_collapsing_mut(
-                    ui,
-                    idx.to_string(),
-                    "",
-                    config,
-                    reset2.map(|x| x.get(idx)).flatten(),
-                    None,
-                )
-            });
-            response
-        }
-        fn start_collapsed_mut(&self) -> bool {
-            self.len() > 16
-        }
-    }
-    impl<T: EguiStructEq> EguiStructEq for &mut [T] {
-        fn eguis_eq(&self, rhs: &Self) -> bool {
-            let mut ret = self.len() == rhs.len();
-            self.iter()
-                .zip(rhs.iter())
-                .for_each(|(s, r)| ret &= s.eguis_eq(r));
-            ret
-        }
-    }
-    impl<T: EguiStructClone> EguiStructClone for &mut [T] {
-        fn eguis_clone(&mut self, source: &Self) {
-            self.iter_mut()
-                .zip(source.iter())
-                .for_each(|(s, r)| s.eguis_clone(r))
-        }
-        fn eguis_clone_full(&self) -> Option<Self> {
-            if self.len() == 0 {
-                Some(&mut [])
-            } else {
-                // let s: Vec<_> = self
-                //     .iter()
-                //     .map(|s| s.eguis_clone_full())
-                //     .filter(|x| x.is_some())
-                //     .collect();
-                // if s.len() == 0 {
-                //     None
-                // } else {
-                //     Some(&mut s.into_iter().map(|x| x.unwrap()).collect::<Box<[T]>>())
-                // }
-                //TODO ? better implementation possible?
-                None
+    macro_rules! gen_impl {
+        ($typ:ty $(, $cons:ident)?) => {
+            impl<T: EguiStructMut $(,const $cons: usize)*> EguiStructMut for $typ {
+                const SIMPLE_MUT: bool = false;
+                type ConfigTypeMut<'a> = T::ConfigTypeMut<'a>;
+                fn has_childs_mut(&self) -> bool {
+                    !self.is_empty()
+                }
+                fn has_primitive_mut(&self) -> bool {
+                    false
+                }
+                fn show_childs_mut(
+                    &mut self,
+                    ui: &mut ExUi,
+                    config: &Self::ConfigTypeMut<'_>,
+                    reset2: Option<&Self>,
+                ) -> Response {
+                    let mut response = ui.dummy_response();
+                    let mut idx2swap = None;
+                    let len = self.len();
+                    self.iter_mut().enumerate().for_each(|(idx, x)| {
+                        let has_childs = x.has_childs_mut();
+                        let header = |ui: &mut ExUi| {
+                            let mut hresp = ui.dummy_response();
+                            ui.keep_cell_start();
+                            crate::trait_implementor_set::primitive_label(ui, idx.to_string(), "");
+                            if idx != 0 {
+                                let bresp = ui.button("⬆");
+                                hresp |= bresp.clone();
+                                if bresp.clicked() {
+                                    idx2swap = Some((idx - 1, idx));
+                                }
+                            }
+                            if idx != len - 1 {
+                                let bresp = ui.button("⬇");
+                                hresp |= bresp.clone();
+                                if bresp.clicked() {
+                                    idx2swap = Some((idx, idx + 1));
+                                }
+                            }
+                            ui.keep_cell_stop();
+                            hresp | crate::trait_implementor_set::primitive_w_reset(x, ui, config, reset2.map(|x| x.get(idx)).flatten())
+                        };
+                        response |= ui.maybe_collapsing_rows(has_childs, header)
+                            .initial_state(|| x.start_collapsed_mut())
+                            .body_simple(|ui| x.show_childs_mut(ui, config, reset2.map(|x| x.get(idx)).flatten()));
+                    });
+                    if let Some(idx) = idx2swap {
+                        self.swap(idx.0, idx.1);
+                    }
+                    response
+                }
+                fn start_collapsed_mut(&self) -> bool {
+                    self.len() > 16
+                }
             }
-        }
+            impl<T: EguiStructEq $(,const $cons: usize)*> EguiStructEq for $typ {
+                fn eguis_eq(&self, rhs: &Self) -> bool {
+                    let mut ret = self.len() == rhs.len();
+                    self.iter()
+                        .zip(rhs.iter())
+                        .for_each(|(s, r)| ret &= s.eguis_eq(r));
+                    ret
+                }
+            }
+            impl<T: EguiStructClone $(,const $cons: usize)*> EguiStructClone for $typ {
+                fn eguis_clone(&mut self, source: &Self) {
+                    self.iter_mut()
+                        .zip(source.iter())
+                        .for_each(|(s, r)| s.eguis_clone(r))
+                }
+                fn eguis_clone_full(&self) -> Option<Self> {
+                    // if self.len() == 0 {
+                    //     Some($empty)
+                    // } else {
+                        // let s: Vec<_> = self
+                        //     .iter()
+                        //     .map(|s| s.eguis_clone_full())
+                        //     .filter(|x| x.is_some())
+                        //     .collect();
+                        // if s.len() == 0 {
+                        //     None
+                        // } else {
+                        //     Some(&mut s.into_iter().map(|x| x.unwrap()).collect::<Box<[T]>>())
+                        // }
+                        //TODO ? better implementation possible?
+                        None
+                    // }
+                }
+            }
+        };
     }
+    gen_impl! {&mut [T]}
+    gen_impl! {[T;N], N}
 }

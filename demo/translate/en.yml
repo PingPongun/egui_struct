@@ -12,6 +12,7 @@ Color.NamedCustom.metadata: metadata
 Color.NamedCustom.red: red
 Color.Red: Red
 Data.app_language: App language
+Data.array: Array
 Data.bool: Bool
 Data.f32: F 32
 Data.f64: F 64
@@ -22,6 +23,7 @@ Data.i16: I 16
 Data.i32: I 32
 Data.i64: I 64
 Data.i8: I 8
+Data.indexmap: IndexMap
 Data.isize: Isize
 Data.isize_imut: Isize imut
 Data.isize_imut.__hint.: This is isize but immutable
