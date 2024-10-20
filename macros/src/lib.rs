@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use convert_case::{Case, Converter, Pattern};
@@ -34,38 +35,38 @@ impl Resettable {
         }
     }
 }
-#[derive(Debug, Default, Clone, FromMeta, PartialEq)]
-#[darling(rename_all = "PascalCase")]
-enum Wrapper {
-    #[default]
-    Set,
-    SetMinimal,
-    SetI,
-    SetD,
-    SetS,
-    SetSI,
-    SetSD,
-    SetDI,
-    SetSDI,
-    SetFull,
-    ComboBox,
-}
-impl ToTokens for Wrapper {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        use Wrapper::*;
-        tokens.extend(match self {
-            Set | SetMinimal => quote! {::egui_struct::wrappers::SetWrapperMinimal},
-            SetI => quote! {::egui_struct::wrappers::SetWrapperI},
-            SetD => quote! {::egui_struct::wrappers::SetWrapperD},
-            SetS => quote! {::egui_struct::wrappers::SetWrapperS},
-            SetSI => quote! {::egui_struct::wrappers::SetWrapperSI},
-            SetSD => quote! {::egui_struct::wrappers::SetWrapperSD},
-            SetDI => quote! {::egui_struct::wrappers::SetWrapperDI},
-            SetSDI | SetFull => quote! {::egui_struct::wrappers::SetWrapperFull},
-            ComboBox => quote! {::egui_struct::wrappers::ComboBox},
-        });
-    }
-}
+// #[derive(Debug, Default, Clone, FromMeta, PartialEq)]
+// #[darling(rename_all = "PascalCase")]
+// enum Wrapper {
+//     #[default]
+//     Set,
+//     SetMinimal,
+//     SetI,
+//     SetD,
+//     SetS,
+//     SetSI,
+//     SetSD,
+//     SetDI,
+//     SetSDI,
+//     SetFull,
+//     ComboBox,
+// }
+// impl ToTokens for Wrapper {
+//     fn to_tokens(&self, tokens: &mut TokenStream) {
+//         use Wrapper::*;
+//         tokens.extend(match self {
+//             Set | SetMinimal => quote! {::egui_struct::wrappers::SetWrapperMinimal},
+//             SetI => quote! {::egui_struct::wrappers::SetWrapperxxI},
+//             SetD => quote! {::egui_struct::wrappers::SetWrapperxDx},
+//             SetS => quote! {::egui_struct::wrappers::SetWrapperSxx},
+//             SetSI => quote! {::egui_struct::wrappers::SetWrapperSxI},
+//             SetSD => quote! {::egui_struct::wrappers::SetWrapperSDx},
+//             SetDI => quote! {::egui_struct::wrappers::SetWrapperxDI},
+//             SetSDI | SetFull => quote! {::egui_struct::wrappers::SetWrapperFull},
+//             ComboBox => quote! {::egui_struct::wrappers::ComboBox},
+//         });
+//     }
+// }
 
 #[derive(Debug, Clone, FromField)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -120,9 +121,11 @@ struct EField {
     start_collapsed: Option<bool>,
     ///  `wrapper= "wrappercode"`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
     ///   This allows to use alternative trait implementation (eg. with loosen bounds)
-    ///   - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
+    ///   - Collection(Vec/Set/Map) wrappers: (`wrappercode`=
+    ///     {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull|Coll/CollMinimal|CollSDI_SDI...}
+    ///     (Both SetSDI & SetWrapperSDI are acceptble))
     ///   - ComboBox wrapper: (`wrapper = "ComboBox"`)
-    wrapper: Option<Wrapper>,
+    wrapper: Option<Ident>,
 }
 #[derive(Debug, FromVariant)]
 #[darling(attributes(eguis, eguisM, eguisI))]
@@ -177,7 +180,53 @@ struct EStruct {
     #[darling(default)]
     start_collapsed: Option<Expr>,
 }
-
+fn resolve_wrapper(ident: Ident) -> TokenStream {
+    let istr = ident.to_string();
+    let mut known_wrappers: HashMap<String, TokenStream> = HashMap::new();
+    known_wrappers.insert(
+        "combobox".to_owned(),
+        quote! {::egui_struct::wrappers::ComboBox},
+    );
+    for ke in ["SD", "S", "D", ""] {
+        for ki in ["I", ""] {
+            let name = "SetWrapper".to_owned() + ke + ki;
+            let name2 = "Set".to_owned() + ke + ki;
+            let ident = format_ident!("{}", &name);
+            known_wrappers.insert(
+                name.to_lowercase(),
+                quote! {::egui_struct::wrappers:: #ident},
+            );
+            known_wrappers.insert(
+                name2.to_lowercase(),
+                quote! {::egui_struct::wrappers:: #ident},
+            );
+            let mut vpat = vec!["D", ""];
+            if ke.contains("S") {
+                vpat.extend(["SD", "S"])
+            }
+            for ve in vpat {
+                for vi in ["I", ""] {
+                    let suffix = ke.to_owned() + ki + "_" + ve + vi;
+                    let name = "CollWrapper".to_owned() + &suffix;
+                    let name2 = "Coll".to_owned() + &suffix;
+                    let ident = format_ident!("{}", &name);
+                    known_wrappers.insert(
+                        name.to_lowercase(),
+                        quote! {::egui_struct::wrappers:: #ident},
+                    );
+                    known_wrappers.insert(
+                        name2.to_lowercase(),
+                        quote! {::egui_struct::wrappers:: #ident},
+                    );
+                }
+            }
+        }
+    }
+    if let Some(wrapper_type) = known_wrappers.get(&istr.to_lowercase()) {
+        return wrapper_type.clone();
+    }
+    return quote! {#ident};
+}
 fn handle_enum(
     variants: &Vec<EVariant>,
     prefix: String,
@@ -305,6 +354,7 @@ fn handle_enum(
                         |x| quote! {if r.changed() { #x(#fident, mapped); } },
                     );
                     if let Some(wrapper) = single_field.wrapper.clone() {
+                        let wrapper = resolve_wrapper(wrapper);
                         map = quote! {#wrapper::new_mut};
                         map_ref = quote! {#wrapper::new_ref};
                         map_post = quote! {};
@@ -849,6 +899,7 @@ fn handle_fields(
         let mut map_ref = field.map_pre_ref.clone().map(|x| quote! {#x});
         let mut map_post = field.map_post.clone().map(|x| quote! {#x});
         if let Some(wrapper) = field.wrapper.clone() {
+            let wrapper = resolve_wrapper(wrapper);
             map = Some(quote! {#wrapper::new_mut});
             map_ref = Some(quote! {#wrapper::new_ref});
             map_post = None;
@@ -1028,6 +1079,7 @@ fn handle_struct(
                 |x| quote! { if response.changed() {#x(&mut self.#index, mapped);} },
             );
             if let Some(wrapper) = single_field.wrapper.clone() {
+                let wrapper = resolve_wrapper(wrapper);
                 map = quote! {#wrapper::new_mut};
                 map_ref = quote! {#wrapper::new_ref};
                 map_post = quote! {};
@@ -1254,7 +1306,9 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///   - `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
 ///     This allows to use alternative trait implementation (eg. with loosen bounds)
 ///     This attribute overrides `map*` attributes
-///     - Vec/Set wrappers: (`wrappercode`= {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull})
+///     - Collection(Vec/Set/Map) wrappers: (`wrappercode`=
+///         {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull|Coll/CollMinimal|CollSDI_SDI...}
+///         (Both SetSDI & SetWrapperSDI are acceptble))
 ///     - ComboBox wrapper: (`wrapper = "ComboBox"`) (remember to use also `config` attr to pass available selections(eg. `config = "Some(&[2,3,5,7].into_iter())"`))
 #[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

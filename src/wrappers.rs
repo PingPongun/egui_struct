@@ -954,58 +954,103 @@ fn _add_elements(
         pub use _coll_wrapper::CollWrapper;
 
         /// Generic wrapper around simple collections (Vec&Sets)
-        pub type SetWrapper<'a, T, D, E, I> = CollWrapper<'a, T, (), D, E, (), I, ()>;
+        pub type SetWrapperGeneric<'a, T, D, E, I> = CollWrapper<'a, T, (), D, E, (), I, ()>;
 
-        /// Requires `T`: [EguiStructMut]
-        #[allow(private_interfaces)]
-        pub type SetWrapperMinimal<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigCollExpandableNStore<'b, T>, ConfigCollMutDisableMut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [Any] + [Send]
-        #[allow(private_interfaces)]
-        pub type SetWrapperS<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigCollExpandable<'b, T>, ConfigCollMutDisableMut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [Default]
-        #[allow(private_interfaces)]
-        pub type SetWrapperD<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigCollMutDisableMut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [Default] + [Any] + [Send]
-        #[allow(private_interfaces)]
-        pub type SetWrapperSD<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, bool, ConfigCollMutDisableMut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [EguiStructImut]
-        #[allow(private_interfaces)]
-        pub type SetWrapperI<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigCollExpandableNStore<'b, T>, ConfigCollMutTrueImut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Any] + [Send]
-        #[allow(private_interfaces)]
-        pub type SetWrapperSI<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, ConfigCollExpandable<'b, T>, ConfigCollMutTrueImut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default]
-        #[allow(private_interfaces)]
-        pub type SetWrapperDI<'a, 'b, T, D> = SetWrapper<'a, T, D, (), ConfigCollMutTrueImut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
-        #[allow(private_interfaces)]
-        pub type SetWrapperFull<'a, 'b, T, D> =
-            SetWrapper<'a, T, D, bool, ConfigCollMutTrueImut<T>>;
-
-        /// Requires `T`: [EguiStructMut] + [EguiStructImut] + [Default] + [Any] + [Send]
-        #[allow(private_interfaces)]
-        pub type CollWrapperFull<'a, 'b, K, V, D> = CollWrapper<
-            'a,
-            K,
-            V,
-            D,
-            bool,
-            bool,
-            ConfigCollMutTrueImut<K>,
-            ConfigCollMutTrueImut<V>,
-        >;
+        macro_rules! gen_wrapp_t {
+                (E, SD, $typ:ty) => {
+                    bool
+                };
+                (E, S, $typ:ty) => {
+                    ConfigCollExpandable<'b, $typ>
+                };
+                (E, D, $typ:ty) => {
+                    ()
+                };
+                (E, , $typ:ty) => {
+                    ConfigCollExpandableNStore<'b, $typ>
+                };
+                (I, I, $typ:ty) => {
+                    ConfigCollMutTrueImut<$typ>
+                };
+                (I, , $typ:ty) => {
+                    ConfigCollMutDisableMut<$typ>
+                };
+            }
+        macro_rules! gen_wrapp_doc {
+            (E, SD) => {
+                " + [Sync] + [Any] + [Default]"
+            };
+            (E, S) => {
+                " + [Sync] + [Any]"
+            };
+            (E, D) => {
+                " + [Default]"
+            };
+            (E, ) => {
+                ""
+            };
+            (I, I) => {
+                " + [EguiStructImut]"
+            };
+            (I, ) => {
+                ""
+            };
+        }
+        macro_rules! gen_wrapp {
+            ($($expK:ident)?, $($expV:ident)?) => {
+                gen_wrapp!{$($expK)*, I, $($expV)*, I}
+                gen_wrapp!{$($expK)*, I, $($expV)*, }
+                gen_wrapp!{$($expK)*, , $($expV)*, I}
+                gen_wrapp!{$($expK)*, , $($expV)*, }
+            };
+            () => {
+                gen_wrapp!{SD, SD}
+                gen_wrapp!{SD, S}
+                gen_wrapp!{S, SD}
+                gen_wrapp!{S, S}
+                gen_wrapp!{SD, D}
+                gen_wrapp!{SD, }
+                gen_wrapp!{S, D}
+                gen_wrapp!{S, }
+                gen_wrapp!{D, D}
+                gen_wrapp!{D, }
+                gen_wrapp!{, D}
+                gen_wrapp!{, }
+            };
+            (Set) => {
+                gen_wrapp!{Set, SD, I}
+                gen_wrapp!{Set, SD, }
+                gen_wrapp!{Set, S, I}
+                gen_wrapp!{Set, S, }
+                gen_wrapp!{Set, D, I}
+                gen_wrapp!{Set, D, }
+                gen_wrapp!{Set, , I}
+                gen_wrapp!{Set, , }
+            };
+            ($($expK:ident)?, $($imutK:ident)?, $($expV:ident)?, $($imutV:ident)?) => {
+                paste::paste!{
+                    #[doc=concat!(  " Requires `K`: [EguiStructMut]", gen_wrapp_doc!{E,$($expK)*}, gen_wrapp_doc!(I,$($imutK)*),
+                                            ", `V`: [EguiStructMut]", gen_wrapp_doc!{E,$($expV)*}, gen_wrapp_doc!(I,$($imutV)*))]
+                    #[allow(non_camel_case_types)]
+                    pub type [<CollWrapper $($expK)* $($imutK)* "_" $($expV)* $($imutV)*>]
+                    <'a, 'b, K, V, D> =
+                        CollWrapper<'a, K, V, D, gen_wrapp_t!(E, $($expK)*,K), gen_wrapp_t!(E, $($expV)*,V), gen_wrapp_t!(I, $($imutK)*,K), gen_wrapp_t!(I,$($imutV)*,V)>;
+                }
+            };
+            (Set, $($expK:ident)?, $($imutK:ident)?) => {
+                paste::paste!{
+                    #[doc=concat!(  " Requires `K`: [EguiStructMut]", gen_wrapp_doc!{E,$($expK)*}, gen_wrapp_doc!(I,$($imutK)*))]
+                    pub type[<SetWrapper $($expK)* $($imutK)*>]<'a, 'b, K, D> =
+                        CollWrapper<'a, K, (), D, gen_wrapp_t!(E,$($expK)*,K), (), gen_wrapp_t!(I,$($imutK)*,K), ()>;
+                }
+            };
+        }
+        gen_wrapp! {}
+        gen_wrapp! {Set}
+        pub type CollWrapperFull<'a, 'b, K, V, D> = CollWrapperSDI_SDI<'a, 'b, K, V, D>;
+        pub type CollWrapperMinimal<'a, 'b, K, V, D> = CollWrapper_<'a, 'b, K, V, D>;
+        pub type SetWrapperFull<'a, 'b, K, D> = SetWrapperSDI<'a, 'b, K, D>;
+        pub type SetWrapperMinimal<'a, 'b, K, D> = SetWrapper<'a, 'b, K, D>;
     }
 }
 
