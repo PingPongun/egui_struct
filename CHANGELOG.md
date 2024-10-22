@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## TODO [0.6.0] - Planning ( non exhaustive)
 
 - revisit Config/Reset values passing down data hierarchy
+- Search/filter settings
 
 ## TODO [0.5.x] - Planning ( non exhaustive)
 
@@ -15,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support `Tuples`
 - Merge macros for CollWrapper impls
 - Better `EguiStructEq` for `HashSet`
-- Extend `wrapper` attribute to make it take also user written wrappers
 - Add `ToStringWrapper: EguiStructImut` 
 - Evaluate possibility of `SerdeWrapper`
 - Internals: Macro code cleanup & simplify
@@ -25,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - docs
-- specific CollWrappers (eg. CollWrapperSSDDII)
 - ? exgrid docs
 - ? exgrid frames fix
 

@@ -119,12 +119,14 @@ struct EField {
     eclone: Option<Expr>,
     /// Override fields `start_collapsed()` output (if set true field will always start collapsed)
     start_collapsed: Option<bool>,
-    ///  `wrapper= "wrappercode"`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
+    ///  `wrapper= wrappercode`- Wrap field into a specified wrapper (see also: [`egui_struct::wrappers`](https://docs.rs/egui_struct/latest/egui_struct/wrappers/index.html))
     ///   This allows to use alternative trait implementation (eg. with loosen bounds)
     ///   - Collection(Vec/Set/Map) wrappers: (`wrappercode`=
     ///     {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull|Coll/CollMinimal|CollSDI_SDI...}
-    ///     (Both SetSDI & SetWrapperSDI are acceptble))
-    ///   - ComboBox wrapper: (`wrapper = "ComboBox"`)
+    ///     (Both SetSDI & SetWrapperSDI are acceptable))
+    ///   - ComboBox wrapper: (`wrapper = ComboBox`)
+    ///   - Custom wrappers: (`wrapper = WrapperName`), `WrapperName` type should be able to store both &T and &mut T (T is type of field)
+    ///     and expose two constructors (`new_ref(&T)` and `new_mut(&mut T)`) (type [egui_struct::wrappers::MaybeOwned] may be useful in wrapper impl, see demo)
     wrapper: Option<Ident>,
 }
 #[derive(Debug, FromVariant)]
@@ -1308,8 +1310,10 @@ fn egui_struct_inner(input: EStruct) -> TokenStream {
 ///     This attribute overrides `map*` attributes
 ///     - Collection(Vec/Set/Map) wrappers: (`wrappercode`=
 ///         {Set/SetMinimal|SetI|SetD|SetS|SetSI|SetSD|SetDI|SetSDI/SetFull|Coll/CollMinimal|CollSDI_SDI...}
-///         (Both SetSDI & SetWrapperSDI are acceptble))
-///     - ComboBox wrapper: (`wrapper = "ComboBox"`) (remember to use also `config` attr to pass available selections(eg. `config = "Some(&[2,3,5,7].into_iter())"`))
+///         (Both SetSDI & SetWrapperSDI are acceptable))
+///     - ComboBox wrapper: (`wrapper = ComboBox`) (remember to use also `config` attr to pass available selections(eg. `config = "Some(&[2,3,5,7].into_iter())"`))
+///     - Custom wrappers: (`wrapper = WrapperName`), `WrapperName` type should be in scope and able to store both &T and &mut T (T is type of field)
+///         and expose two constructors (`new_ref(&T)` and `new_mut(&mut T)`) (type [egui_struct::wrappers::MaybeOwned] may be useful in wrapper impl, see demo)
 #[proc_macro_derive(EguiStructMut, attributes(eguis, eguisM))]
 pub fn egui_struct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);

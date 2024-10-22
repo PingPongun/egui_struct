@@ -14,7 +14,7 @@ pub mod macros {
     /// Generate [EguiStructClone] implementation based on [Clone]
     macro_rules! impl_eclone {
     ([$($generics:tt)*], $type:ty) => {
-        impl<$($generics)*> EguiStructClone for $type {
+        impl<$($generics)*> $crate::trait_implementor_set::EguiStructClone for $type {
             fn eguis_clone(&mut self, source: &Self) {
                 self.clone_from(source);
             }
@@ -29,7 +29,7 @@ pub mod macros {
     /// Generate [EguiStructEq] implementation based on [PartialEq]
     macro_rules! impl_eeq {
     ([$($generics:tt)*], $type:ty) => {
-        impl<$($generics)*> EguiStructEq for $type {
+        impl<$($generics)*> $crate::trait_implementor_set::EguiStructEq for $type {
             fn eguis_eq(&self, rhs: &Self) -> bool {
                 self == rhs
             }
@@ -49,8 +49,8 @@ pub mod macros {
     /// ```
     macro_rules! impl_eeqclone {
     ([$($generics:tt)*], $type:ty) => {
-        impl_eeq!{[$($generics)*], $type}
-        impl_eclone!{[$($generics)*], $type}
+        $crate::impl_eeq!{[$($generics)*], $type}
+        $crate::impl_eclone!{[$($generics)*], $type}
     };
     ($type:ty) => {impl_eeqclone!{[],$type}}
 }

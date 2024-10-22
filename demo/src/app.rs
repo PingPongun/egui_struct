@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 use egui::mutex::RwLock;
-use egui::RichText;
-use egui_struct::config::*;
-use egui_struct::exgrid::GridMode;
-use egui_struct::prelude::*;
+use egui::{Response, RichText};
+use egui_struct::exgrid::{ExUi, GridMode};
+use egui_struct::wrappers::MaybeOwned;
+use egui_struct::{config::*, impl_eeqclone};
+use egui_struct::{impl_maybe_owned_new, prelude::*};
 use indexmap::{IndexMap, IndexSet};
 use rust_i18n::set_locale;
 use std::collections::{HashMap, HashSet};
+use std::ops::DerefMut;
 use ConfigNum::*;
 
 #[derive(EguiStructMut, Default)]
@@ -114,6 +116,7 @@ pub struct Data {
 
     bool: bool,
     u8: u8,
+    #[eguis(wrapper=U16Wrapper)]
     u16: u16,
 
     #[eguis(
@@ -174,7 +177,7 @@ pub struct Data {
         ")]
     list: Vec<Color>,
 
-    #[eguis(wrapper = "SetSD")]
+    #[eguis(wrapper = SetSD)]
     set: IndexSet<SubData>,
 
     array: [u16; 4],
@@ -289,6 +292,21 @@ pub struct Metadata {
 pub struct SubData {
     value: String,
     number: u32,
+}
+#[derive(Clone, PartialEq)]
+pub struct U16Wrapper<'a>(MaybeOwned<'a, u16>);
+
+impl_eeqclone! {[],U16Wrapper<'_>}
+impl_maybe_owned_new! {U16Wrapper, u16}
+impl<'b> egui_struct::trait_implementor_set::EguiStructMut for U16Wrapper<'b> {
+    type ConfigTypeMut<'a> = ();
+    fn show_primitive_mut(
+        self: &mut Self,
+        ui: &mut ExUi<'_, '_>,
+        _config: &Self::ConfigTypeMut<'_>,
+    ) -> Response {
+        ui.add(egui::Slider::new(self.0.deref_mut(), 0..=100))
+    }
 }
 
 #[derive(Default)]

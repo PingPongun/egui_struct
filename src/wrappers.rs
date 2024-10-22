@@ -213,17 +213,34 @@ mod collection {
             }
         }
     }
-    pub(crate) use maybe_owned::*;
+    pub use maybe_owned::*;
     mod maybe_owned {
         use super::*;
-        pub(crate) enum MaybeOwned<'a, T> {
+        pub enum MaybeOwned<'a, T> {
             Owned(T),
             Borrowed(&'a T),
             BorrowedMut(&'a mut T),
         }
+        #[macro_export]
+        /// Generate constructors (`new`, `new_ref`, `new_mut`) for custom wrappers based on [crate::wrappers::MaybeOwned]
+        macro_rules! impl_maybe_owned_new {
+            ($type:ident, $inner:ty $(, $inner_generic:ident)?) => {
+                impl<'a $(, $inner_generic)*> $type<'a $(, $inner_generic)*> {
+                    pub fn new(inner: $inner) -> Self {
+                        Self(MaybeOwned::Owned(inner))
+                    }
+                    pub fn new_mut(inner: &'a mut $inner) -> Self {
+                        Self(MaybeOwned::BorrowedMut(inner))
+                    }
+                    pub fn new_ref(inner: &'a $inner) -> Self {
+                        Self(MaybeOwned::Borrowed(inner))
+                    }
+                }
+            };
+        }
 
         impl<'a, T> MaybeOwned<'a, T> {
-            pub fn owned(self) -> T {
+            pub(crate) fn owned(self) -> T {
                 if let MaybeOwned::Owned(i) = self {
                     i
                 } else {
@@ -244,6 +261,9 @@ mod collection {
             }
         }
         impl<'a, T> DerefMut for MaybeOwned<'a, T> {
+            /// Mutably dereferences the value.
+            ///
+            /// Panics if self == Borrowed
             fn deref_mut(&mut self) -> &mut Self::Target {
                 match self {
                     MaybeOwned::Owned(i) => i,
@@ -252,6 +272,20 @@ mod collection {
                     }
                     MaybeOwned::BorrowedMut(i) => i,
                 }
+            }
+        }
+        impl<'a, T: Clone> Clone for MaybeOwned<'a, T> {
+            fn clone(&self) -> Self {
+                match self {
+                    Self::Owned(arg0) => Self::Owned(arg0.clone()),
+                    Self::Borrowed(arg0) => Self::Owned((*arg0).clone()),
+                    Self::BorrowedMut(arg0) => Self::Owned((*arg0).clone()),
+                }
+            }
+        }
+        impl<'a, T: PartialEq> PartialEq for MaybeOwned<'a, T> {
+            fn eq(&self, other: &Self) -> bool {
+                self.deref() == other.deref()
             }
         }
     }
@@ -1058,21 +1092,12 @@ pub use combobox::ComboBox;
 pub(crate) mod combobox {
     use dyn_clone::DynClone;
 
+    use crate::impl_maybe_owned_new;
+
     use super::*;
     pub struct ComboBox<'a, T>(MaybeOwned<'a, T>);
+    impl_maybe_owned_new! {ComboBox, T, T}
 
-    #[allow(private_bounds)]
-    impl<'a, T> ComboBox<'a, T> {
-        pub fn new(inner: T) -> Self {
-            Self(MaybeOwned::Owned(inner))
-        }
-        pub fn new_mut(inner: &'a mut T) -> Self {
-            Self(MaybeOwned::BorrowedMut(inner))
-        }
-        pub fn new_ref(inner: &'a T) -> Self {
-            Self(MaybeOwned::Borrowed(inner))
-        }
-    }
     impl<T: ToString> EguiStructImut for ComboBox<'_, T> {
         type ConfigTypeImut<'a> = ConfigStrImut;
 
@@ -1101,7 +1126,7 @@ pub(crate) mod combobox {
         }
 
         fn eguis_clone_full(&self) -> Option<Self> {
-            Some(ComboBox(MaybeOwned::Owned(self.0.clone())))
+            Some(ComboBox(self.0.clone()))
         }
     }
     impl<T: PartialEq> EguiStructEq for ComboBox<'_, T> {
@@ -1168,7 +1193,7 @@ pub(crate) mod combobox {
     }
     impl<T: Clone> Clone for ComboBox<'_, T> {
         fn clone(&self) -> Self {
-            Self(MaybeOwned::Owned(self.0.clone()))
+            Self(self.0.clone())
         }
     }
     impl<T: Eq> Eq for ComboBox<'_, T> {}
